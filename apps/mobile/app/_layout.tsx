@@ -1,11 +1,13 @@
-import React, { useEffect, createContext, useContext } from 'react';
+import React, { useEffect } from 'react';
 import { View, ActivityIndicator, useColorScheme } from 'react-native';
 import { Slot, useSegments, useRouter } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { I18nextProvider } from 'react-i18next';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { i18n } from '@/i18n';
-import { useAuthStore } from '@/store/auth.store';import { useProfileStore, getThemeConfig, type ThemeConfig } from '@/store/profile.store';
+import { useAuthStore } from '@/store/auth.store';
+import { useProfileStore, getThemeConfig } from '@/store/profile.store';
+import { AppThemeContext } from '@/context/ThemeContext';
 import { OfflineBanner } from '@/components/shared/OfflineBanner';
 
 const queryClient = new QueryClient({
@@ -13,11 +15,6 @@ const queryClient = new QueryClient({
     queries: { staleTime: 5 * 60 * 1000, retry: 2 },
   },
 });
-
-// ─── Global Theme Context ─────────────────────────────────────────────────────
-// Any component can call useAppTheme() to get the current reactive theme tokens.
-export const AppThemeContext = createContext<ThemeConfig>(getThemeConfig('dark'));
-export function useAppTheme() { return useContext(AppThemeContext); }// ─────────────────────────────────────────────────────────────────────────────
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { session, user, isLoading, initialize, approvalStatus } = useAuthStore();
