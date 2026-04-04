@@ -1,0 +1,97 @@
+{
+  "auth": {
+    "login": "Sign In",
+    "register": "Sign Up",
+    "logout": "Sign Out",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "fullName": "Full Name",
+    "forgotPassword": "Forgot your password?",
+    "forgotPasswordTitle": "Reset Password",
+    "forgotPasswordDescription": "Enter your email and we'll send you a link to reset your password.",
+    "sendResetLink": "Send Reset Link",
+    "resetLinkSent": "Link sent. Check your email.",
+    "noAccount": "Don't have an account?",
+    "alreadyHaveAccount": "Already have an account?",
+    "loginHere": "Sign in here",
+    "registerHere": "Sign up here",
+    "emailPlaceholder": "email@example.com",
+    "passwordPlaceholder": "Minimum 8 characters",
+    "errors": {
+      "invalidCredentials": "Invalid email or password",
+      "rateLimitExceeded": "Too many attempts. Try again in 15 minutes.",
+      "generic": "An error occurred. Please try again.",
+      "emailRequired": "Email is required",
+      "passwordRequired": "Password is required",
+      "invalidEmail": "Enter a valid email",
+      "passwordTooShort": "Password must be at least 8 characters",
+      "passwordsDoNotMatch": "Passwords do not match"
+    }
+  },
+  "dashboard": {
+    "welcome": "Welcome",
+    "admin": {
+      "title": "Admin Dashboard",
+      "totalClients": "Total Clients",
+      "appointmentsThisWeek": "Appointments this week",
+      "monthlyRevenue": "Monthly Revenue",
+      "systemHealth": "System Health"
+    },
+    "coach": {
+      "title": "My Dashboard",
+      "upcomingAppointments": "Upcoming Appointments",
+      "assignedClients": "Assigned Clients",
+      "completionRate": "Completion Rate",
+      "pendingTasks": "Pending Tasks"
+    },
+    "client": {
+      "title": "My Dashboard",
+      "nextAppointment": "Next Appointment",
+      "activeRoutine": "Active Routine",
+      "nutritionPlan": "Nutrition Plan",
+      "recentMessages": "Recent Messages"
+    }
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "error": "Error",
+    "retry": "Retry",
+    "noConnection": "No internet connection",
+    "noConnectionMessage": "You're viewing saved data. Reconnect to update.",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "search": "Search",
+    "filter": "Filter",
+    "noResults": "No results",
+    "seeAll": "See all",
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "errors": {
+    "generic": "An unexpected error occurred",
+    "network": "Connection error. Check your internet.",
+    "notFound": "Not found",
+    "unauthorized": "Unauthorized",
+    "forbidden": "Access denied",
+    "serverError": "Server error. Try again later.",
+    "sessionExpired": "Your session has expired. Please sign in again."
+  },
+  "navigation": {
+    "dashboard": "Home",
+    "clients": "Clients",
+    "appointments": "Appointments",
+    "settings": "Settings",
+    "profile": "Profile",
+    "routines": "Routines",
+    "nutrition": "Nutrition",
+    "progress": "Progress",
+    "messages": "Messages"
+  }
+}

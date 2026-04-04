@@ -1,0 +1,17 @@
+{
+  "name": "saas-client-management-platform",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "test": "turbo test",
+    "lint": "turbo lint",
+    "mobile": "turbo dev --filter=mobile"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.3.0",
+    "prettier": "^3.2.0",
+    "eslint": "^8.57.0"
+  }
+}

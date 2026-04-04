@@ -1,0 +1,97 @@
+{
+  "auth": {
+    "login": "Iniciar sesión",
+    "register": "Registrarse",
+    "logout": "Cerrar sesión",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "fullName": "Nombre completo",
+    "forgotPassword": "¿Olvidó su contraseña?",
+    "forgotPasswordTitle": "Recuperar contraseña",
+    "forgotPasswordDescription": "Ingrese su correo y le enviaremos un enlace para restablecer su contraseña.",
+    "sendResetLink": "Enviar enlace",
+    "resetLinkSent": "Enlace enviado. Revise su correo.",
+    "noAccount": "¿No tiene cuenta?",
+    "alreadyHaveAccount": "¿Ya tiene cuenta?",
+    "loginHere": "Inicie sesión aquí",
+    "registerHere": "Regístrese aquí",
+    "emailPlaceholder": "correo@ejemplo.com",
+    "passwordPlaceholder": "Mínimo 8 caracteres",
+    "errors": {
+      "invalidCredentials": "Correo o contraseña incorrectos",
+      "rateLimitExceeded": "Demasiados intentos. Intente de nuevo en 15 minutos.",
+      "generic": "Ocurrió un error. Intente de nuevo.",
+      "emailRequired": "El correo es requerido",
+      "passwordRequired": "La contraseña es requerida",
+      "invalidEmail": "Ingrese un correo válido",
+      "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+      "passwordsDoNotMatch": "Las contraseñas no coinciden"
+    }
+  },
+  "dashboard": {
+    "welcome": "Bienvenido",
+    "admin": {
+      "title": "Panel de Administración",
+      "totalClients": "Total de Clientes",
+      "appointmentsThisWeek": "Citas esta semana",
+      "monthlyRevenue": "Ingresos del mes",
+      "systemHealth": "Estado del sistema"
+    },
+    "coach": {
+      "title": "Mi Panel",
+      "upcomingAppointments": "Próximas citas",
+      "assignedClients": "Clientes asignados",
+      "completionRate": "Tasa de completación",
+      "pendingTasks": "Tareas pendientes"
+    },
+    "client": {
+      "title": "Mi Panel",
+      "nextAppointment": "Próxima cita",
+      "activeRoutine": "Rutina activa",
+      "nutritionPlan": "Plan nutricional",
+      "recentMessages": "Mensajes recientes"
+    }
+  },
+  "common": {
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "error": "Error",
+    "retry": "Reintentar",
+    "noConnection": "Sin conexión a internet",
+    "noConnectionMessage": "Está viendo datos guardados. Reconecte para actualizar.",
+    "confirm": "Confirmar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "done": "Listo",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "noResults": "Sin resultados",
+    "seeAll": "Ver todos",
+    "active": "Activo",
+    "inactive": "Inactivo"
+  },
+  "errors": {
+    "generic": "Ocurrió un error inesperado",
+    "network": "Error de conexión. Verifique su internet.",
+    "notFound": "No encontrado",
+    "unauthorized": "No autorizado",
+    "forbidden": "Acceso denegado",
+    "serverError": "Error del servidor. Intente más tarde.",
+    "sessionExpired": "Su sesión ha expirado. Inicie sesión de nuevo."
+  },
+  "navigation": {
+    "dashboard": "Inicio",
+    "clients": "Clientes",
+    "appointments": "Citas",
+    "settings": "Configuración",
+    "profile": "Perfil",
+    "routines": "Rutinas",
+    "nutrition": "Nutrición",
+    "progress": "Progreso",
+    "messages": "Mensajes"
+  }
+}
