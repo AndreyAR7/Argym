@@ -20,6 +20,8 @@
     "passwordPlaceholder": "Minimum 8 characters",
     "errors": {
       "invalidCredentials": "Invalid email or password",
+      "emailNotConfirmed": "Please confirm your email before signing in. Check your inbox.",
+      "pendingApproval": "Your account is pending approval by an administrator.",
       "rateLimitExceeded": "Too many attempts. Try again in 15 minutes.",
       "generic": "An error occurred. Please try again.",
       "emailRequired": "Email is required",

@@ -30,12 +30,7 @@ export function ThemeSelector({
       <Text style={[styles.subtitle, { color: textMuted }]}>
         Se aplica inmediatamente en toda la app
       </Text>
-      {/* ✅ GLOBAL THEMING WORKING — active theme debug label */}
-      <View style={{ backgroundColor: accentColor + '22', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, alignSelf: 'flex-start', borderWidth: 1, borderColor: accentColor + '44' }}>
-        <Text style={{ color: accentColor, fontSize: 11, fontWeight: '700' }}>
-          ✅ GLOBAL THEMING WORKING · Activo: {theme}
-        </Text>
-      </View>
+
 
       <View style={styles.grid}>
         {THEMES.map((t) => {

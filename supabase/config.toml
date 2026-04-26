@@ -70,3 +70,6 @@ enable_confirmations = false
 
 [analytics]
 enabled = false
+
+[functions.notify-push]
+verify_jwt = false

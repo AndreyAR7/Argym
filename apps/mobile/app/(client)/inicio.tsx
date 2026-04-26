@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, RefreshControl, StatusBar,
+  RefreshControl, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/auth.store';
 import { useTheme } from '@/hooks/useTheme';
-import { ClientTheme } from '@/constants/clientTheme'; // for non-color tokens only
+import { ClientTheme } from '@/constants/clientTheme';
 import { AppointmentCard } from '@/components/client/AppointmentCard';
 import { SectionHeader } from '@/components/client/SectionHeader';
 import { QuickActionButton } from '@/components/client/QuickActionButton';
@@ -15,9 +15,12 @@ import { ClientPromoBanner } from '@/components/client/ClientPromoBanner';
 import { VideoCard } from '@/components/client/VideoCard';
 import { ClientTopBar } from '@/components/client/ClientTopBar';
 import {
-  MOCK_NEXT_APPOINTMENT, MOCK_ROUTINE, MOCK_NUTRITION,
-  MOCK_PROMOTION, MOCK_VIDEOS, MOCK_USER,
+  MOCK_ROUTINE, MOCK_NUTRITION, MOCK_USER,
 } from '@/data/clientMock';
+import { useAppointmentsClient } from '@/hooks/useAppointments';
+import { usePlansStore } from '@/store/plans.store';
+import { useClientVideos } from '@/hooks/useVideos';
+import type { Appointment } from '@/types/appointments';
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -29,9 +32,27 @@ function getGreeting() {
 export default function ClientHome() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const T = useTheme(); // ← reactive theme tokens
+  const T = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [promoDismissed, setPromoDismissed] = useState(false);
+
+  const { data: appointments = [] } = useAppointmentsClient(user?.id);
+  const { activePromotion, fetchPromotions } = usePlansStore();
+  const { featured: featuredVideos, assigned: assignedVideos } = useClientVideos();
+
+  // Fetch promotions on mount using tenant from auth store
+  React.useEffect(() => {
+    if (user?.tenant_id) fetchPromotions(user.tenant_id);
+  }, [user?.tenant_id]);
+
+  const nextAppointment: Appointment | null = appointments
+    .filter((a: Appointment) =>
+      (a.status === 'scheduled' || a.status === 'confirmed') &&
+      new Date(a.start_time) >= new Date()
+    )
+    .sort((a: Appointment, b: Appointment) =>
+      new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+    )[0] ?? null;
 
   const name = user?.full_name ?? MOCK_USER.full_name;
   const firstName = name.split(' ')[0];
@@ -48,14 +69,6 @@ export default function ClientHome() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-
-      {/* ✅ GLOBAL THEMING WORKING — shows active theme name */}
-      <View style={{ backgroundColor: T.accent, paddingVertical: 8, alignItems: 'center' }}>
-        <Text style={{ color: '#fff', fontWeight: '900', fontSize: 13, letterSpacing: 0.5 }}>
-          ✅ GLOBAL THEMING WORKING · Tema: {T.id ?? 'activo'}
-        </Text>
-      </View>
-
       <ClientTopBar />
       <ScrollView
         style={{ flex: 1 }}
@@ -83,14 +96,16 @@ export default function ClientHome() {
           </View>
         </View>
 
-        {/* Promo banner */}
-        {!promoDismissed && (
+        {/* Promo banner — real data from store, only shown if active promo exists */}
+        {!promoDismissed && activePromotion && (
           <ClientPromoBanner
-            title={MOCK_PROMOTION.title}
-            description={MOCK_PROMOTION.description}
-            discountPct={MOCK_PROMOTION.discount_percentage}
-            endDate={MOCK_PROMOTION.end_date}
-            onPress={() => router.push('/(client)/plans')}
+            title={activePromotion.title}
+            description={activePromotion.description}
+            discountPct={activePromotion.discount_percentage}
+            discountAmount={activePromotion.discount_amount}
+            endDate={activePromotion.end_date}
+            type={activePromotion.type}
+            onPress={() => router.push('/(client)/promotions')}
             onDismiss={() => setPromoDismissed(true)}
           />
         )}
@@ -116,10 +131,30 @@ export default function ClientHome() {
           </View>
         </View>
 
-        {/* Next appointment */}
+        {/* Next appointment — real data */}
         <View style={{ marginBottom: 24 }}>
-          <SectionHeader title="Próxima cita" actionLabel="Ver todas" onAction={() => router.push('/(client)/appointments')} />
-          <AppointmentCard appointment={MOCK_NEXT_APPOINTMENT} onPress={() => {}} />
+          <SectionHeader title="Próxima cita" actionLabel="Ver todas" onAction={() => router.push('/(client)/client-appointments')} />
+          {nextAppointment ? (
+            <AppointmentCard
+              appointment={{
+                title: nextAppointment.title,
+                coach_name: nextAppointment.coach_name ?? undefined,
+                start_time: nextAppointment.start_time,
+                location: nextAppointment.location ?? undefined,
+                meeting_url: nextAppointment.meeting_url ?? undefined,
+                appointment_type: nextAppointment.appointment_type ?? 'in_person',
+                notes: nextAppointment.notes ?? undefined,
+              }}
+              onPress={() => router.push('/(client)/client-appointments')}
+            />
+          ) : (
+            <View style={{
+              padding: 16, borderRadius: 12, borderWidth: 1,
+              borderColor: T.border, backgroundColor: T.bgCard, alignItems: 'center',
+            }}>
+              <Text style={{ color: T.textMuted, fontSize: 14 }}>Sin citas próximas programadas</Text>
+            </View>
+          )}
         </View>
 
         {/* Quick actions */}
@@ -133,15 +168,26 @@ export default function ClientHome() {
           </View>
         </View>
 
-        {/* Featured videos */}
-        <View style={{ marginBottom: 24 }}>
-          <SectionHeader title="Videos para ti" subtitle="Contenido asignado por tu coach" actionLabel="Ver todos" onAction={() => router.push('/(client)/videos')} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
-            {MOCK_VIDEOS.filter((v) => v.is_assigned).slice(0, 4).map((v) => (
-              <VideoCard key={v.id} video={v} onPress={() => {}} />
-            ))}
-          </ScrollView>
-        </View>
+        {/* Featured videos — real data */}
+        {(featuredVideos.length > 0 || assignedVideos.length > 0) && (
+          <View style={{ marginBottom: 24 }}>
+            <SectionHeader
+              title="Videos para ti"
+              subtitle="Contenido asignado por tu coach"
+              actionLabel="Ver todos"
+              onAction={() => router.push('/(client)/videos')}
+            />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
+              {(featuredVideos.length > 0 ? featuredVideos : assignedVideos).slice(0, 4).map((v) => (
+                <VideoCard
+                  key={v.id}
+                  video={v}
+                  onPress={() => router.push(`/(client)/video-player?id=${v.id}` as any)}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         <View style={{ height: 24 }} />
       </ScrollView>

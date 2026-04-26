@@ -5,7 +5,7 @@
   },
   "build": {
     "base": {
-      "prebuildCommand": "npm install --legacy-peer-deps"
+      "prebuildCommand": "cd ../.. && pnpm install --no-frozen-lockfile && cd apps/mobile"
     },
     "development": {
       "extends": "base",

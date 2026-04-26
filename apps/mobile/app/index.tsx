@@ -1,15 +1,12 @@
-import { Redirect } from 'expo-router';
-import { useAuthStore } from '@/store/auth.store';
+import { View, ActivityIndicator } from 'react-native';
 
+// This screen is only shown briefly while the AuthGuard in _layout.tsx
+// determines where to redirect the user. It must NOT contain any redirect
+// logic — _layout.tsx is the single source of truth for navigation.
 export default function Index() {
-  const { session, user } = useAuthStore();
-
-  if (!session) {
-    return <Redirect href="/(auth)/login" />;
-  }
-
-  const role = user?.primaryRole;
-  if (role === 'admin') return <Redirect href="/(admin)" />;
-  if (role === 'coach') return <Redirect href="/(coach)" />;
-  return <Redirect href="/(client)" />;
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
+      <ActivityIndicator size="large" color="#fff" />
+    </View>
+  );
 }

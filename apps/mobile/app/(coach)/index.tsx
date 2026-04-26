@@ -1,198 +1,150 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  RefreshControl,
+  View, Text, ScrollView, RefreshControl, TouchableOpacity, StyleSheet, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
-import { useColorScheme } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/auth.store';
-import { SkeletonCard, SkeletonMetricCard } from '@/components/shared/SkeletonLoader';
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
+import { useAppointmentsCoach } from '@/hooks/useAppointments';
+import { SkeletonCard } from '@/components/shared/SkeletonLoader';
+import { StatusBadge } from '@/components/admin/StatusBadge';
+import type { Appointment } from '@/types/appointments';
 
-// Mock data for Sprint 1A
-const MOCK_COACH_DATA = {
-  upcomingAppointments: 5,
-  assignedClients: 12,
-  completionRate: 87,
-  pendingTasks: 3,
-};
+function formatTime(iso: string) {
+  const d = new Date(iso);
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const isToday = d.toDateString() === today.toDateString();
+  const isTomorrow = d.toDateString() === tomorrow.toDateString();
+  const time = d.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' });
+  const day = isToday ? 'Hoy' : isTomorrow ? 'Mañana' : d.toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric', month: 'short' });
+  return `${day} · ${time}`;
+}
 
-const MOCK_UPCOMING = [
-  { id: '1', client: 'María González', time: 'Hoy 10:00 AM', type: 'Entrenamiento' },
-  { id: '2', client: 'Carlos Mora', time: 'Hoy 2:00 PM', type: 'Seguimiento' },
-  { id: '3', client: 'Ana Rodríguez', time: 'Mañana 9:00 AM', type: 'Evaluación' },
-  { id: '4', client: 'Luis Pérez', time: 'Mañana 11:00 AM', type: 'Entrenamiento' },
-  { id: '5', client: 'Sofía Castro', time: 'Miércoles 3:00 PM', type: 'Nutrición' },
-];
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Buenos días';
+  if (h < 18) return 'Buenas tardes';
+  return 'Buenas noches';
+}
 
 export default function CoachDashboard() {
-  const { t } = useTranslation();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const colors = isDark ? Colors.dark : Colors.light;
-
+  const router = useRouter();
   const { user } = useAuthStore();
-  const [isLoading, setIsLoading] = useState(true);
+  const T = useTheme();
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1200);
-    return () => clearTimeout(timer);
-  }, []);
+  const { data: appointments = [], isLoading, refetch } = useAppointmentsCoach(user?.id);
+
+  const today = new Date();
+  const upcoming = appointments
+    .filter((a: Appointment) =>
+      (a.status === 'scheduled' || a.status === 'confirmed') &&
+      new Date(a.start_time) >= today
+    )
+    .sort((a: Appointment, b: Appointment) =>
+      new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+    )
+    .slice(0, 5);
+
+  const todayCount = appointments.filter((a: Appointment) =>
+    new Date(a.start_time).toDateString() === today.toDateString()
+  ).length;
+
+  const completedCount = appointments.filter((a: Appointment) => a.status === 'completed').length;
+
+  // Unique clients from appointments
+  const uniqueClients = new Set(appointments.map((a: Appointment) => a.client_id)).size;
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await refetch();
     setRefreshing(false);
   };
 
+  const firstName = user?.full_name?.split(' ')[0] ?? 'Coach';
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor={T.bg} />
       <ScrollView
-        contentContainerStyle={{ padding: 16 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-          />
-        }
+        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={T.accent} />}
       >
         {/* Header */}
         <View style={{ marginBottom: 24 }}>
-          <Text style={{ fontSize: 24, fontWeight: '700', color: colors.text }}>
-            {t('dashboard.welcome')}, {user?.full_name?.split(' ')[0] ?? 'Coach'} 👋
-          </Text>
-          <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 4 }}>
-            {t('dashboard.coach.title')}
-          </Text>
+          <Text style={{ fontSize: 14, color: T.textSecondary, fontWeight: '500' }}>{getGreeting()},</Text>
+          <Text style={{ fontSize: 26, fontWeight: '800', color: T.text }}>{firstName} 👋</Text>
+          <Text style={{ fontSize: 13, color: T.textMuted, marginTop: 2 }}>Panel de coach</Text>
         </View>
 
         {/* Metrics */}
-        {isLoading ? (
-          <>
-            <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-              <SkeletonMetricCard />
-              <SkeletonMetricCard />
-            </View>
-            <View style={{ flexDirection: 'row', marginBottom: 24 }}>
-              <SkeletonMetricCard />
-              <SkeletonMetricCard />
-            </View>
-          </>
-        ) : (
-          <>
-            <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-              <View style={{
-                flex: 1, backgroundColor: colors.surfaceElevated, borderRadius: 12,
-                padding: 16, margin: 4, borderWidth: 1, borderColor: colors.border,
-                borderLeftWidth: 4, borderLeftColor: colors.primary,
-              }}>
-                <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 6 }}>
-                  {t('dashboard.coach.upcomingAppointments')}
-                </Text>
-                <Text style={{ fontSize: 28, fontWeight: '700', color: colors.text }}>
-                  {MOCK_COACH_DATA.upcomingAppointments}
-                </Text>
-              </View>
-              <View style={{
-                flex: 1, backgroundColor: colors.surfaceElevated, borderRadius: 12,
-                padding: 16, margin: 4, borderWidth: 1, borderColor: colors.border,
-                borderLeftWidth: 4, borderLeftColor: colors.success,
-              }}>
-                <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 6 }}>
-                  {t('dashboard.coach.assignedClients')}
-                </Text>
-                <Text style={{ fontSize: 28, fontWeight: '700', color: colors.text }}>
-                  {MOCK_COACH_DATA.assignedClients}
-                </Text>
-              </View>
-            </View>
-            <View style={{ flexDirection: 'row', marginBottom: 24 }}>
-              <View style={{
-                flex: 1, backgroundColor: colors.surfaceElevated, borderRadius: 12,
-                padding: 16, margin: 4, borderWidth: 1, borderColor: colors.border,
-                borderLeftWidth: 4, borderLeftColor: colors.warning,
-              }}>
-                <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 6 }}>
-                  {t('dashboard.coach.completionRate')}
-                </Text>
-                <Text style={{ fontSize: 28, fontWeight: '700', color: colors.text }}>
-                  {MOCK_COACH_DATA.completionRate}%
-                </Text>
-              </View>
-              <View style={{
-                flex: 1, backgroundColor: colors.surfaceElevated, borderRadius: 12,
-                padding: 16, margin: 4, borderWidth: 1, borderColor: colors.border,
-                borderLeftWidth: 4, borderLeftColor: colors.error,
-              }}>
-                <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 6 }}>
-                  {t('dashboard.coach.pendingTasks')}
-                </Text>
-                <Text style={{ fontSize: 28, fontWeight: '700', color: colors.text }}>
-                  {MOCK_COACH_DATA.pendingTasks}
-                </Text>
-              </View>
-            </View>
-          </>
-        )}
+        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+          <MetricCard
+            label="Citas hoy" value={isLoading ? '—' : String(todayCount)}
+            color={T.accent} bg={T.bgCard} border={T.border} text={T.text} muted={T.textSecondary}
+          />
+          <MetricCard
+            label="Próximas" value={isLoading ? '—' : String(upcoming.length)}
+            color={T.green} bg={T.bgCard} border={T.border} text={T.text} muted={T.textSecondary}
+          />
+        </View>
+        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24 }}>
+          <MetricCard
+            label="Completadas" value={isLoading ? '—' : String(completedCount)}
+            color={T.blue} bg={T.bgCard} border={T.border} text={T.text} muted={T.textSecondary}
+          />
+          <MetricCard
+            label="Clientes" value={isLoading ? '—' : String(uniqueClients)}
+            color={T.orange} bg={T.bgCard} border={T.border} text={T.text} muted={T.textSecondary}
+          />
+        </View>
 
         {/* Upcoming appointments */}
-        <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 12 }}>
-          Próximas citas
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: T.text }}>Próximas citas</Text>
+          <TouchableOpacity onPress={() => router.push('/(coach)/coach-appointments')}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: T.accent }}>Ver todas →</Text>
+          </TouchableOpacity>
+        </View>
 
         {isLoading ? (
           <>
             <SkeletonCard lines={2} />
             <SkeletonCard lines={2} />
-            <SkeletonCard lines={2} />
           </>
+        ) : upcoming.length === 0 ? (
+          <View style={[s.emptyCard, { backgroundColor: T.bgCard, borderColor: T.border }]}>
+            <Text style={{ color: T.textMuted, fontSize: 14 }}>No hay citas próximas programadas</Text>
+          </View>
         ) : (
-          <View
-            style={{
-              backgroundColor: colors.surfaceElevated,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: colors.border,
-              overflow: 'hidden',
-            }}
-          >
-            {MOCK_UPCOMING.map((appt, index) => (
+          <View style={[s.listCard, { backgroundColor: T.bgCard, borderColor: T.border }]}>
+            {upcoming.map((apt: Appointment, i: number) => (
               <View
-                key={appt.id}
-                style={{
-                  padding: 14,
-                  borderBottomWidth: index < MOCK_UPCOMING.length - 1 ? 1 : 0,
-                  borderBottomColor: colors.border,
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
+                key={apt.id}
+                style={[
+                  s.aptRow,
+                  i < upcoming.length - 1 && { borderBottomWidth: 1, borderBottomColor: T.border },
+                ]}
               >
+                <View style={[s.timeChip, { backgroundColor: T.accent + '20' }]}>
+                  <Text style={{ color: T.accent, fontSize: 11, fontWeight: '700' }}>
+                    {formatTime(apt.start_time)}
+                  </Text>
+                </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: '500' }}>
-                    {appt.client}
+                  <Text style={{ color: T.text, fontSize: 14, fontWeight: '600' }} numberOfLines={1}>
+                    {apt.title}
                   </Text>
-                  <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
-                    {appt.type}
-                  </Text>
-                </View>
-                <View
-                  style={{
-                    backgroundColor: isDark ? '#1e3a5f' : '#eff6ff',
-                    borderRadius: 6,
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
-                  }}
-                >
-                  <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '500' }}>
-                    {appt.time}
+                  <Text style={{ color: T.textSecondary, fontSize: 12, marginTop: 1 }}>
+                    {apt.client_name ?? 'Cliente'}
+                    {apt.appointment_type === 'virtual' ? ' · 📹 Virtual' : apt.location ? ` · 📍 ${apt.location}` : ''}
                   </Text>
                 </View>
+                <StatusBadge status={apt.status} size="sm" />
               </View>
             ))}
           </View>
@@ -201,3 +153,26 @@ export default function CoachDashboard() {
     </SafeAreaView>
   );
 }
+
+function MetricCard({ label, value, color, bg, border, text, muted }: {
+  label: string; value: string; color: string;
+  bg: string; border: string; text: string; muted: string;
+}) {
+  return (
+    <View style={{
+      flex: 1, backgroundColor: bg, borderRadius: 12, borderWidth: 1,
+      borderColor: border, borderLeftWidth: 4, borderLeftColor: color, padding: 14,
+    }}>
+      <Text style={{ fontSize: 12, color: muted, marginBottom: 4 }}>{label}</Text>
+      <Text style={{ fontSize: 28, fontWeight: '800', color: text }}>{value}</Text>
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  safe: { flex: 1 },
+  emptyCard: { borderRadius: 12, borderWidth: 1, padding: 20, alignItems: 'center' },
+  listCard: { borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
+  aptRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
+  timeChip: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, minWidth: 80, alignItems: 'center' },
+});

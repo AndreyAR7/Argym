@@ -10,13 +10,25 @@ module.exports = {
     plugins: [
       "expo-router",
       "expo-secure-store",
+      "expo-video",
+      "@react-native-community/datetimepicker",
       [
         "expo-image-picker",
         {
           photosPermission: "La app necesita acceso a tus fotos para actualizar tu avatar."
         }
       ],
-      "expo-system-ui"
+      "expo-system-ui",
+      [
+        "expo-notifications",
+        {
+          icon: "./assets/notification-icon.png",
+          color: "#6C63FF",
+          sounds: [],
+          androidMode: "default",
+          androidCollapsedTitle: "#{unread_notifications} nuevas notificaciones"
+        }
+      ]
     ],
     experiments: {
       typedRoutes: true

@@ -13,18 +13,16 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { useColorScheme } from 'react-native';
 import { signInSchema, type SignInFormValues } from '@/lib/validations';
 import { useAuthStore } from '@/store/auth.store';
 import { ErrorMessage } from '@/components/shared/ErrorMessage';
-import { Colors } from '@/constants/colors';
+import { AppLogo } from '@/components/shared/AppLogo';
+import { useTheme } from '@/hooks/useTheme';
 
 export default function LoginScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const colors = isDark ? Colors.dark : Colors.light;
+  const T = useTheme();
 
   const { signIn, isLoading, error, clearError } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
@@ -50,7 +48,7 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.background }}
+      style={{ flex: 1, backgroundColor: T.bg }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
@@ -59,23 +57,8 @@ export default function LoginScreen() {
       >
         {/* Header */}
         <View style={{ marginBottom: 40, alignItems: 'center' }}>
-          <View
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: 16,
-              backgroundColor: colors.primary,
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginBottom: 16,
-            }}
-          >
-            <Text style={{ color: '#ffffff', fontSize: 28, fontWeight: '700' }}>S</Text>
-          </View>
-          <Text style={{ fontSize: 28, fontWeight: '700', color: colors.text, marginBottom: 8 }}>
-            {t('auth.login')}
-          </Text>
-          <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center' }}>
+          <AppLogo size={140} style={{ marginBottom: 8 }} />
+          <Text style={{ fontSize: 15, color: T.textSecondary, textAlign: 'center' }}>
             Ingrese sus credenciales para continuar
           </Text>
         </View>
@@ -89,7 +72,7 @@ export default function LoginScreen() {
 
         {/* Email field */}
         <View style={{ marginBottom: 16 }}>
-          <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text, marginBottom: 6 }}>
+          <Text style={{ fontSize: 14, fontWeight: '500', color: T.text, marginBottom: 6 }}>
             {t('auth.email')}
           </Text>
           <Controller
@@ -99,16 +82,16 @@ export default function LoginScreen() {
               <TextInput
                 style={{
                   borderWidth: 1,
-                  borderColor: errors.email ? colors.error : colors.border,
+                  borderColor: errors.email ? T.red : T.border,
                   borderRadius: 10,
                   paddingHorizontal: 14,
                   paddingVertical: 12,
                   fontSize: 16,
-                  color: colors.text,
-                  backgroundColor: colors.surfaceElevated,
+                  color: T.text,
+                  backgroundColor: T.bgCardElevated,
                 }}
                 placeholder={t('auth.emailPlaceholder')}
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={T.textMuted}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -119,7 +102,7 @@ export default function LoginScreen() {
             )}
           />
           {errors.email && (
-            <Text style={{ color: colors.error, fontSize: 12, marginTop: 4 }}>
+            <Text style={{ color: T.red, fontSize: 12, marginTop: 4 }}>
               {errors.email.message}
             </Text>
           )}
@@ -127,7 +110,7 @@ export default function LoginScreen() {
 
         {/* Password field */}
         <View style={{ marginBottom: 8 }}>
-          <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text, marginBottom: 6 }}>
+          <Text style={{ fontSize: 14, fontWeight: '500', color: T.text, marginBottom: 6 }}>
             {t('auth.password')}
           </Text>
           <View style={{ position: 'relative' }}>
@@ -138,17 +121,17 @@ export default function LoginScreen() {
                 <TextInput
                   style={{
                     borderWidth: 1,
-                    borderColor: errors.password ? colors.error : colors.border,
+                    borderColor: errors.password ? T.red : T.border,
                     borderRadius: 10,
                     paddingHorizontal: 14,
                     paddingVertical: 12,
                     paddingRight: 48,
                     fontSize: 16,
-                    color: colors.text,
-                    backgroundColor: colors.surfaceElevated,
+                    color: T.text,
+                    backgroundColor: T.bgCardElevated,
                   }}
                   placeholder={t('auth.passwordPlaceholder')}
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={T.textMuted}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -168,13 +151,13 @@ export default function LoginScreen() {
                 justifyContent: 'center',
               }}
             >
-              <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
+              <Text style={{ color: T.textSecondary, fontSize: 13 }}>
                 {showPassword ? 'Ocultar' : 'Ver'}
               </Text>
             </TouchableOpacity>
           </View>
           {errors.password && (
-            <Text style={{ color: colors.error, fontSize: 12, marginTop: 4 }}>
+            <Text style={{ color: T.red, fontSize: 12, marginTop: 4 }}>
               {errors.password.message}
             </Text>
           )}
@@ -184,7 +167,7 @@ export default function LoginScreen() {
         <View style={{ alignItems: 'flex-end', marginBottom: 24 }}>
           <Link href="/(auth)/forgot-password" asChild>
             <TouchableOpacity>
-              <Text style={{ color: colors.primary, fontSize: 14 }}>
+              <Text style={{ color: T.accent, fontSize: 14 }}>
                 {t('auth.forgotPassword')}
               </Text>
             </TouchableOpacity>
@@ -196,7 +179,7 @@ export default function LoginScreen() {
           onPress={handleSubmit(onSubmit)}
           disabled={isLoading}
           style={{
-            backgroundColor: isLoading ? colors.textMuted : colors.primary,
+            backgroundColor: isLoading ? T.textMuted : T.accent,
             borderRadius: 10,
             paddingVertical: 14,
             alignItems: 'center',
@@ -214,12 +197,12 @@ export default function LoginScreen() {
 
         {/* Register link */}
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 4 }}>
-          <Text style={{ color: colors.textSecondary, fontSize: 14 }}>
+          <Text style={{ color: T.textSecondary, fontSize: 14 }}>
             {t('auth.noAccount')}
           </Text>
           <Link href="/(auth)/register" asChild>
             <TouchableOpacity>
-              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: '600' }}>
+              <Text style={{ color: T.accent, fontSize: 14, fontWeight: '600' }}>
                 {t('auth.registerHere')}
               </Text>
             </TouchableOpacity>

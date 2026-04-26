@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
 import { useClientSidebarStore } from '@/store/clientSidebar.store';
+import { AppLogo } from '@/components/shared/AppLogo';
 
 interface Props {
   title?: string;
@@ -25,7 +26,8 @@ export function ClientTopBar({ title, showTitle = true, rightContent }: Props) {
       {showTitle && title ? (
         <Text style={[styles.title, { color: T.text }]}>{title}</Text>
       ) : (
-        <View style={{ flex: 1 }} />
+        // Show logo when no title (home screen)
+        <AppLogo size={36} style={{ flex: 1 }} />
       )}
       {rightContent ?? <View style={{ width: 36 }} />}
     </View>

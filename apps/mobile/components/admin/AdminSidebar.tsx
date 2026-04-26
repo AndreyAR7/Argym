@@ -1,15 +1,16 @@
 import React, { useEffect, useRef } from 'react';
 import {
   View, Text, Image, TouchableOpacity, StyleSheet,
-  Animated, Modal, Pressable, Platform,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+  Animated, Modal, Pressable, Platform, ScrollView,
+} from 'react-native';import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useSegments } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { useSidebarStore } from '@/store/sidebar.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useProfileStore } from '@/store/profile.store';
 import { useTenantStore } from '@/store/tenant.store';
+import { useUnreadCount } from '@/hooks/useNotifications';
+import { AppLogo } from '@/components/shared/AppLogo';
 
 const SIDEBAR_WIDTH = 280;
 
@@ -22,13 +23,15 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'index',         label: 'Dashboard',    icon: '◈', route: '/(admin)' },
-  { id: 'clients',       label: 'Clientes',      icon: '◉', route: '/(admin)/clients' },
-  { id: 'appointments',  label: 'Citas',         icon: '◷', route: '/(admin)/appointments' },
-  { id: 'content',       label: 'Contenido',     icon: '▶', route: '/(admin)/content' },
-  { id: 'monetization',  label: 'Monetización',  icon: '◈', route: '/(admin)/monetization' },
-  { id: 'user-approval', label: 'Aprobaciones',  icon: '◎', route: '/(admin)/user-approval' },
-  { id: 'settings',      label: 'Configuración', icon: '◎', route: '/(admin)/settings' },
+  { id: 'dashboard',          label: 'Dashboard',      icon: '🏠', route: '/(admin)/dashboard' },
+  { id: 'clients',            label: 'Clientes',        icon: '👥', route: '/(admin)/clients' },
+  { id: 'coaches',            label: 'Coaches',         icon: '🏋️', route: '/(admin)/coaches' },
+  { id: 'admin-appointments', label: 'Citas',           icon: '📅', route: '/(admin)/admin-appointments' },
+  { id: 'content',            label: 'Contenido',       icon: '🎬', route: '/(admin)/content' },
+  { id: 'monetization',       label: 'Monetización',    icon: '💳', route: '/(admin)/monetization' },
+  { id: 'user-approval',      label: 'Aprobaciones',    icon: '✅', route: '/(admin)/user-approval' },
+  { id: 'notifications',      label: 'Notificaciones',  icon: '🔔', route: '/(admin)/notifications' },
+  { id: 'settings',           label: 'Configuración',   icon: '⚙️', route: '/(admin)/settings' },
 ];
 
 // NavIcon receives colors as props — no module-level T reference
@@ -51,6 +54,7 @@ export function AdminSidebar() {
   const { user, signOut } = useAuthStore();
   const { tenant } = useTenantStore();
   const { avatarUrl } = useProfileStore();
+  const { data: unreadCount = 0 } = useUnreadCount(user?.id);
   const router = useRouter();
   const segments = useSegments();
   const insets = useSafeAreaInsets();
@@ -107,9 +111,7 @@ export function AdminSidebar() {
         {/* Header */}
         <View style={[styles.sidebarHeader, { borderBottomColor: T.border }]}>
           <View style={styles.tenantRow}>
-            <View style={[styles.tenantIcon, { backgroundColor: T.accentGlow }]}>
-              <Text style={{ fontSize: 18, color: T.accent }}>◈</Text>
-            </View>
+            <AppLogo size={36} style={{ borderRadius: 8 }} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.tenantName, { color: T.text }]} numberOfLines={1}>
                 {tenant?.name ?? 'Centro Demo'}
@@ -146,13 +148,8 @@ export function AdminSidebar() {
           </TouchableOpacity>
         </View>
 
-        {/* Marker */}
-        <View style={[styles.markerBanner, { backgroundColor: T.accent + '22', borderColor: T.accent + '44' }]}>
-          <Text style={[styles.markerText, { color: T.accent }]}>✅ ADMIN DRAWER V3</Text>
-        </View>
-
         {/* Nav items */}
-        <View style={styles.navSection}>
+        <ScrollView style={styles.navSection} showsVerticalScrollIndicator={false}>
           <Text style={[styles.navSectionLabel, { color: T.textSecondary }]}>NAVEGACIÓN</Text>
           {NAV_ITEMS.map((item) => {
             const active = isActive(item);
@@ -171,19 +168,23 @@ export function AdminSidebar() {
                   <View style={[styles.navBadge, { backgroundColor: T.accent }]}>
                     <Text style={styles.navBadgeText}>{item.badge}</Text>
                   </View>
+                ) : item.id === 'notifications' && unreadCount > 0 ? (
+                  <View style={[styles.navBadge, { backgroundColor: T.red }]}>
+                    <Text style={styles.navBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                  </View>
                 ) : null}
                 {active && <View style={[styles.activeIndicator, { backgroundColor: T.accent }]} />}
               </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
 
         {/* Footer */}
         <View style={styles.sidebarFooter}>
           <View style={[styles.footerDivider, { backgroundColor: T.border }]} />
           <TouchableOpacity onPress={() => { close(); signOut(); }} style={styles.signOutBtn}>
             <View style={[styles.iconBox, { backgroundColor: T.redSoft }]}>
-              <Text style={[styles.iconText, { color: T.red }]}>⏻</Text>
+              <Text style={[styles.iconText, { color: T.red }]}>🚪</Text>
             </View>
             <Text style={{ fontSize: 14, color: T.red, fontWeight: '600' }}>Cerrar sesión</Text>
           </TouchableOpacity>
@@ -209,8 +210,6 @@ const styles = StyleSheet.create({
   closeBtn: { width: 28, height: 28, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   userRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   userAvatar: { width: 38, height: 38, borderRadius: 12, borderWidth: 2, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
-  markerBanner: { paddingVertical: 6, alignItems: 'center', marginHorizontal: 12, marginVertical: 8, borderRadius: 8, borderWidth: 1 },
-  markerText: { fontWeight: '800', fontSize: 11, letterSpacing: 0.5 },
   navSection: { flex: 1, paddingHorizontal: 10, paddingTop: 4 },
   navSectionLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 1, paddingHorizontal: 8, marginBottom: 6, marginTop: 4 },
   navItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, paddingVertical: 11, borderRadius: 10, marginBottom: 2, position: 'relative' },

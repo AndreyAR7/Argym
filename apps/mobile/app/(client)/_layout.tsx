@@ -15,14 +15,17 @@ export default function ClientLayout() {
           animation: 'fade',
         }}
       >
-        <Stack.Screen name="index" />
+        <Stack.Screen name="inicio" />
         <Stack.Screen name="progress" />
         <Stack.Screen name="routine" />
         <Stack.Screen name="nutrition" />
         <Stack.Screen name="videos" />
         <Stack.Screen name="plans" />
+        <Stack.Screen name="promotions" />
         <Stack.Screen name="profile" />
-        <Stack.Screen name="appointments" />
+        <Stack.Screen name="client-appointments" />
+        <Stack.Screen name="appointment/[id]" />
+        <Stack.Screen name="video-player" />
       </Stack>
       <ClientSidebar />
     </View>

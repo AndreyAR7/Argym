@@ -1,3 +1,9 @@
 const { getDefaultConfig } = require('expo/metro-config');
+const path = require('path');
 
-module.exports = getDefaultConfig(__dirname);
+const config = getDefaultConfig(__dirname);
+
+// Prevent Metro from watching the monorepo root node_modules (doesn't exist)
+config.watchFolders = [__dirname];
+
+module.exports = config;

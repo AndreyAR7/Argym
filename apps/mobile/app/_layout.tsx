@@ -1,14 +1,22 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, ActivityIndicator, useColorScheme } from 'react-native';
-import { Slot, useSegments, useRouter } from 'expo-router';
+import { Slot, useSegments, useRouter, useRootNavigationState } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { I18nextProvider } from 'react-i18next';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { i18n } from '@/i18n';
 import { useAuthStore } from '@/store/auth.store';
 import { useProfileStore, getThemeConfig } from '@/store/profile.store';
+import { useTenantStore } from '@/store/tenant.store';
 import { AppThemeContext } from '@/context/ThemeContext';
 import { OfflineBanner } from '@/components/shared/OfflineBanner';
+import { ToastContainer } from '@/components/shared/Toast';
+import {
+  addNotificationListeners,
+  removeNotificationListeners,
+  type NotificationListener,
+  type ResponseListener,
+} from '@/lib/pushNotifications';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,6 +27,7 @@ const queryClient = new QueryClient({
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { session, user, isLoading, initialize, approvalStatus } = useAuthStore();
   const { theme } = useProfileStore();
+  const { loadTenant } = useTenantStore();
   const systemScheme = useColorScheme();
 
   const effectiveTheme = theme === 'system'
@@ -28,64 +37,81 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   const segments = useSegments();
   const router = useRouter();
+  const navigationState = useRootNavigationState();
+
+  // Prevent multiple redirects firing in the same navigation cycle
+  const redirecting = useRef(false);
 
   useEffect(() => { initialize(); }, []);
 
+  // Load tenant data once user is authenticated
   useEffect(() => {
+    if (user?.tenant_id) loadTenant(user.tenant_id);
+  }, [user?.tenant_id]);
+
+  useEffect(() => {
+    // Wait until the root navigator is fully mounted before any redirect
+    if (!navigationState?.key) return;
+
     if (isLoading) return;
+    if (session && approvalStatus === null) return; // profile not loaded yet
 
-    // approvalStatus is null when profile hasn't loaded yet — wait
-    if (session && approvalStatus === null) return;
+    // Debounce: skip if a redirect is already in flight
+    if (redirecting.current) return;
 
-    const inAuth = segments[0] === '(auth)';
-    const inAdmin = segments[0] === '(admin)';
-    const inCoach = segments[0] === '(coach)';
-    const inClient = segments[0] === '(client)';
-    // pending-approval is at /(auth)/pending-approval → segments = ['(auth)', 'pending-approval']
-    const inPending = inAuth && segments[1] === 'pending-approval';
+    const seg0 = segments[0] as string | undefined;
+    const seg1 = segments[1] as string | undefined;
 
-    // No session → go to login (covers all routes including pending-approval)
+    const inAuth   = seg0 === '(auth)';
+    const inAdmin  = seg0 === '(admin)';
+    const inCoach  = seg0 === '(coach)';
+    const inClient = seg0 === '(client)';
+    const inPending = inAuth && seg1 === 'pending-approval';
+
+    const redirect = (path: string) => {
+      if (redirecting.current) return;
+      redirecting.current = true;
+      console.log('[AuthGuard] replacing to', path, '| segments:', segments);
+      // Use setTimeout to ensure sub-navigators are mounted before navigating
+      setTimeout(() => {
+        router.replace(path as any);
+        setTimeout(() => { redirecting.current = false; }, 600);
+      }, 50);
+    };
+
+    // ── No session ──────────────────────────────────────────
     if (!session) {
-      if (!inAuth || inPending) {
-        router.replace('/(auth)/login');
-      }
+      if (!inAuth || inPending) redirect('/(auth)/login');
       return;
     }
 
-    // Has session but not yet approved
-    if (session && (approvalStatus === 'pending' || approvalStatus === 'rejected')) {
-      if (!inPending) {
-        router.replace('/(auth)/pending-approval');
-      }
+    // ── Pending / rejected ──────────────────────────────────
+    if (approvalStatus === 'pending' || approvalStatus === 'rejected') {
+      if (!inPending) redirect('/(auth)/pending-approval');
       return;
     }
 
-    // Approved user on pending screen → redirect to app
-    if (session && inPending && approvalStatus === 'approved') {
-      const role = user?.primaryRole;
-      if (role === 'admin') router.replace('/(admin)');
-      else if (role === 'coach') router.replace('/(coach)');
-      else router.replace('/(client)');
-      return;
-    }
+    // ── Approved but role not loaded yet ────────────────────
+    if (approvalStatus === 'approved' && !user?.primaryRole) return;
 
-    // Approved user on auth screens (login/register) → redirect to app
-    if (session && inAuth && !inPending && approvalStatus === 'approved') {
-      const role = user?.primaryRole;
-      if (role === 'admin') router.replace('/(admin)');
-      else if (role === 'coach') router.replace('/(coach)');
-      else router.replace('/(client)');
-      return;
-    }
-
-    // Approved user in wrong role section → redirect to correct section
-    if (session && approvalStatus === 'approved' && user?.primaryRole) {
+    // ── Approved with role ──────────────────────────────────
+    if (approvalStatus === 'approved' && user?.primaryRole) {
       const role = user.primaryRole;
-      if (role === 'admin' && !inAdmin && !inClient && !inAuth) router.replace('/(admin)');
-      else if (role === 'coach' && !inCoach && !inClient && !inAuth) router.replace('/(coach)');
-      else if (role === 'client' && !inClient && !inAuth) router.replace('/(client)');
+
+      const correctSection =
+        (role === 'admin'  && inAdmin)  ||
+        (role === 'coach'  && inCoach)  ||
+        (role === 'client' && inClient);
+
+      // Already in the right section — nothing to do
+      if (correctSection) return;
+
+      // On root (/) or wrong section → redirect to role home
+      if (role === 'admin')  { redirect('/(admin)/dashboard');          return; }
+      if (role === 'coach')  { redirect('/(coach)/coach-appointments');  return; }
+      if (role === 'client') { redirect('/(client)/inicio');             return; }
     }
-  }, [session, user, isLoading, segments, approvalStatus]);
+  }, [isLoading, session, user?.primaryRole, approvalStatus, segments, navigationState?.key]);
 
   if (isLoading) {
     return (
@@ -104,12 +130,47 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   );
 }
 
+function NotificationSetup() {
+  const router = useRouter();
+  const notifRef = useRef<NotificationListener | null>(null);
+  const responseRef = useRef<ResponseListener | null>(null);
+
+  useEffect(() => {
+    const { notifListener, responseListener } = addNotificationListeners(
+      () => {
+        // Foreground: expo-notifications shows the banner automatically
+        // (configured in setNotificationHandler inside pushNotifications.ts)
+      },
+      (response) => {
+        // User tapped the notification — navigate to notifications screen
+        const data = response.notification.request.content.data as Record<string, unknown>;
+        const role = data?.role as string | undefined;
+        if (role === 'admin')  router.push('/(admin)/notifications' as any);
+        else if (role === 'coach') router.push('/(coach)/notifications' as any);
+        else router.push('/(client)/notifications' as any);
+      }
+    );
+    notifRef.current = notifListener;
+    responseRef.current = responseListener;
+
+    return () => {
+      if (notifRef.current && responseRef.current) {
+        removeNotificationListeners(notifRef.current, responseRef.current);
+      }
+    };
+  }, []);
+
+  return null;
+}
+
 export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <I18nextProvider i18n={i18n}>
         <SafeAreaProvider>
+          <NotificationSetup />
           <OfflineBanner />
+          <ToastContainer />
           <AuthGuard>
             <Slot />
           </AuthGuard>

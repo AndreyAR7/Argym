@@ -1,21 +1,829 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar, Switch } from 'react-native';
+import {
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Image,
+  StatusBar, Switch, ActivityIndicator, Alert, Modal,
+  TextInput, KeyboardAvoidingView, Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '@/hooks/useTheme';
 import { AdminTopBar } from '@/components/admin/AdminTopBar';
 import { StatusBadge } from '@/components/admin/StatusBadge';
-import { MOCK_ROUTINES, MOCK_NUTRITION_PLANS, MOCK_ADMIN_VIDEOS } from '@/data/adminMock';
+import { useAdminVideos } from '@/hooks/useVideos';
+import { useVideosStore } from '@/store/videos.store';
+import { useRoutinesStore } from '@/store/routines.store';
+import { useAuthStore } from '@/store/auth.store';
+import { useClientsWithPlan } from '@/hooks/useProfiles';
+import { useRouter } from 'expo-router';
+import { uploadVideoFile, uploadThumbnail, getThumbnailPublicUrl, assignVideoToClient } from '@/services/videos.service';
+import { MOCK_NUTRITION_PLANS } from '@/data/adminMock';
+import type { Video, VideoLevel, VideoPlan } from '@/types/videos';
+import type { Routine, Exercise, RoutineLevel, ExerciseMuscle, RoutinePlan } from '@/types/routines';
+import { formatDuration, VIDEO_STATUS_LABELS } from '@/types/videos';
+import { ROUTINE_LEVEL_LABELS, ROUTINE_PLAN_LABELS, ROUTINE_PLAN_OPTIONS, ROUTINE_LEVEL_OPTIONS, MUSCLE_OPTIONS } from '@/types/routines';
+import { useEffect } from 'react';
 
 const TABS = ['Rutinas', 'Nutrición', 'Videos'];
 
+const LEVEL_OPTIONS: VideoLevel[] = ['beginner', 'intermediate', 'advanced'];
+const LEVEL_LABELS: Record<VideoLevel, string> = {
+  beginner: 'Principiante', intermediate: 'Intermedio', advanced: 'Avanzado',
+};
+const PLAN_OPTIONS: VideoPlan[] = ['basic', 'medium', 'premium'];
+const PLAN_LABELS: Record<VideoPlan, string> = { basic: 'Básico', medium: 'Medio', premium: 'Premium' };
+const THUMB_COLORS = ['#6C63FF', '#00D68F', '#FF8C42', '#FF4D6D', '#4DA6FF', '#F59E0B', '#10B981'];
+
+// ─── Create/Edit Routine Modal ────────────────────────────────
+function RoutineFormModal({ routine, visible, onClose, onSaved, tenantId }: {
+  routine?: Routine | null; visible: boolean; onClose: () => void; onSaved: () => void; tenantId: string;
+}) {
+  const T = useTheme();
+  const { user } = useAuthStore();
+  const { addRoutine, editRoutine } = useRoutinesStore();
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [level, setLevel] = useState<RoutineLevel>('beginner');
+  const [allowedPlans, setAllowedPlans] = useState<RoutinePlan[]>([]);
+  const [allowedLevels, setAllowedLevels] = useState<RoutineLevel[]>([]);
+  const [isTemplate, setIsTemplate] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const isEdit = !!routine;
+
+  useEffect(() => {
+    if (visible) {
+      setName(routine?.name ?? '');
+      setDescription(routine?.description ?? '');
+      setLevel(routine?.level ?? 'beginner');
+      setAllowedPlans((routine?.allowed_plans ?? []) as RoutinePlan[]);
+      setAllowedLevels((routine?.allowed_levels ?? []) as RoutineLevel[]);
+      setIsTemplate(routine?.is_template ?? false);
+    }
+  }, [visible, routine]);
+
+  const togglePlan = (p: RoutinePlan) =>
+    setAllowedPlans((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]);
+  const toggleAccessLevel = (l: RoutineLevel) =>
+    setAllowedLevels((prev) => prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l]);
+
+  const handleSave = async () => {
+    if (!name.trim()) { Alert.alert('Error', 'El nombre es requerido.'); return; }
+    setSaving(true);
+    try {
+      if (isEdit && routine) {
+        await editRoutine(routine.id, {
+          name: name.trim(), description: description.trim() || null,
+          level, allowed_plans: allowedPlans, allowed_levels: allowedLevels, is_template: isTemplate,
+        });
+      } else {
+        await addRoutine({
+          tenant_id: tenantId, name: name.trim(), description: description.trim() || null,
+          level, allowed_plans: allowedPlans, allowed_levels: allowedLevels,
+          is_active: true, is_template: isTemplate, created_by: user?.id ?? null,
+        });
+      }
+      onSaved(); onClose();
+    } catch (e: any) { Alert.alert('Error', e.message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
+            <View style={styles.handle} />
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <Text style={[styles.sheetTitle, { color: T.text }]}>{isEdit ? 'Editar rutina' : 'Nueva rutina'}</Text>
+
+              <Text style={[styles.label, { color: T.textSecondary }]}>Nombre *</Text>
+              <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
+                value={name} onChangeText={setName} placeholder="Ej: Fuerza — Tren Superior" placeholderTextColor={T.textMuted} />
+
+              <Text style={[styles.label, { color: T.textSecondary }]}>Descripción</Text>
+              <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text, minHeight: 64, textAlignVertical: 'top' }]}
+                value={description} onChangeText={setDescription} placeholder="Descripción de la rutina..." placeholderTextColor={T.textMuted} multiline />
+
+              <Text style={[styles.label, { color: T.textSecondary }]}>Nivel de rutina</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                {ROUTINE_LEVEL_OPTIONS.map((l) => (
+                  <TouchableOpacity key={`rl-${l}`} onPress={() => setLevel(l)}
+                    style={[styles.chip, { flex: 1, justifyContent: 'center', backgroundColor: level === l ? T.accent : T.bg, borderColor: level === l ? T.accent : T.border }]}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: level === l ? '#fff' : T.textSecondary, textAlign: 'center' }}>{ROUTINE_LEVEL_LABELS[l]}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.label, { color: T.textSecondary }]}>Plan con acceso (vacío = todos)</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                {ROUTINE_PLAN_OPTIONS.map((p) => (
+                  <TouchableOpacity key={`rp-${p}`} onPress={() => togglePlan(p)}
+                    style={[styles.chip, { flex: 1, justifyContent: 'center', backgroundColor: allowedPlans.includes(p) ? T.accent : T.bg, borderColor: allowedPlans.includes(p) ? T.accent : T.border }]}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: allowedPlans.includes(p) ? '#fff' : T.textSecondary, textAlign: 'center' }}>{ROUTINE_PLAN_LABELS[p]}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.label, { color: T.textSecondary }]}>Niveles con acceso (vacío = todos)</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                {ROUTINE_LEVEL_OPTIONS.map((l) => (
+                  <TouchableOpacity key={`ral-${l}`} onPress={() => toggleAccessLevel(l)}
+                    style={[styles.chip, { flex: 1, justifyContent: 'center', backgroundColor: allowedLevels.includes(l) ? T.accent : T.bg, borderColor: allowedLevels.includes(l) ? T.accent : T.border }]}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: allowedLevels.includes(l) ? '#fff' : T.textSecondary, textAlign: 'center' }}>{ROUTINE_LEVEL_LABELS[l]}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <Text style={[styles.label, { color: T.textSecondary, marginBottom: 0 }]}>Plantilla reutilizable</Text>
+                <Switch value={isTemplate} onValueChange={setIsTemplate} trackColor={{ true: T.accent, false: T.border }} />
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.btn, { backgroundColor: T.accent, flex: 1 }]}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? 'Guardando...' : 'Guardar'}</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ─── Exercise Form Modal ──────────────────────────────────────
+function ExerciseFormModal({ routineId, tenantId, exercise, visible, onClose, onSaved }: {
+  routineId: string; tenantId: string; exercise?: Exercise | null;
+  visible: boolean; onClose: () => void; onSaved: () => void;
+}) {
+  const T = useTheme();
+  const { addExerciseToRoutine, editExercise } = useRoutinesStore();
+  const [name, setName] = useState('');
+  const [muscle, setMuscle] = useState<ExerciseMuscle>('General');
+  const [sets, setSets] = useState('3');
+  const [reps, setReps] = useState('10');
+  const [rest, setRest] = useState('60');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const isEdit = !!exercise;
+
+  useEffect(() => {
+    if (visible) {
+      setName(exercise?.name ?? '');
+      setMuscle(exercise?.muscle ?? 'General');
+      setSets(String(exercise?.sets ?? 3));
+      setReps(String(exercise?.reps ?? 10));
+      setRest(String(exercise?.rest_seconds ?? 60));
+      setNotes(exercise?.notes ?? '');
+    }
+  }, [visible, exercise]);
+
+  const handleSave = async () => {
+    if (!name.trim()) { Alert.alert('Error', 'El nombre es requerido.'); return; }
+    setSaving(true);
+    try {
+      if (isEdit && exercise) {
+        await editExercise(exercise.id, { name: name.trim(), muscle, sets: parseInt(sets) || 3, reps: parseInt(reps) || 10, rest_seconds: parseInt(rest) || 60, notes: notes.trim() || null });
+      } else {
+        await addExerciseToRoutine({ routine_id: routineId, tenant_id: tenantId, name: name.trim(), muscle, sets: parseInt(sets) || 3, reps: parseInt(reps) || 10, rest_seconds: parseInt(rest) || 60, notes: notes.trim() || null, sort_order: 0 });
+      }
+      onSaved(); onClose();
+    } catch (e: any) { Alert.alert('Error', e.message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
+            <View style={styles.handle} />
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <Text style={[styles.sheetTitle, { color: T.text }]}>{isEdit ? 'Editar ejercicio' : 'Nuevo ejercicio'}</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>Nombre *</Text>
+              <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
+                value={name} onChangeText={setName} placeholder="Ej: Press de Banca" placeholderTextColor={T.textMuted} />
+              <Text style={[styles.label, { color: T.textSecondary }]}>Músculo</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+                {MUSCLE_OPTIONS.map((m) => (
+                  <TouchableOpacity key={m} onPress={() => setMuscle(m)}
+                    style={[styles.chip, { marginRight: 8, backgroundColor: muscle === m ? T.accent : T.bg, borderColor: muscle === m ? T.accent : T.border }]}>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: muscle === m ? '#fff' : T.textSecondary }}>{m}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+                {[{ label: 'Series', value: sets, set: setSets }, { label: 'Reps', value: reps, set: setReps }, { label: 'Descanso (s)', value: rest, set: setRest }].map((f) => (
+                  <View key={f.label} style={{ flex: 1 }}>
+                    <Text style={[styles.label, { color: T.textSecondary }]}>{f.label}</Text>
+                    <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text, marginBottom: 0 }]}
+                      value={f.value} onChangeText={f.set} keyboardType="numeric" placeholderTextColor={T.textMuted} />
+                  </View>
+                ))}
+              </View>
+              <Text style={[styles.label, { color: T.textSecondary }]}>Notas</Text>
+              <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
+                value={notes} onChangeText={setNotes} placeholder="Instrucciones opcionales..." placeholderTextColor={T.textMuted} />
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.btn, { backgroundColor: T.accent, flex: 1 }]}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? 'Guardando...' : 'Guardar'}</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ─── Assign Routine Modal ─────────────────────────────────────
+function AssignRoutineModal({ routine, visible, onClose, tenantId }: {
+  routine: Routine | null; visible: boolean; onClose: () => void; tenantId: string;
+}) {
+  const T = useTheme();
+  const { user } = useAuthStore();
+  const { data: clients = [] } = useClientsWithPlan();
+  const { assignRoutine } = useRoutinesStore();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const handleAssign = async () => {
+    if (!routine || !selectedId || !user?.id) return;
+    setSaving(true);
+    try {
+      await assignRoutine(routine.id, selectedId, tenantId, user.id);
+      Alert.alert('✅', 'Rutina asignada correctamente.');
+      onClose();
+    } catch (e: any) { Alert.alert('Error', e.message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.sheet, { backgroundColor: T.bgCard, maxHeight: '80%' }]}>
+          <View style={styles.handle} />
+          <Text style={[styles.sheetTitle, { color: T.text }]}>Asignar rutina</Text>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+            {clients
+              .filter((c: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === c.id) === i)
+              .map((c: any) => {
+                const active = selectedId === c.id;
+                return (
+                  <TouchableOpacity key={`assign-r-${c.id}`} onPress={() => setSelectedId(c.id)}
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: T.border, gap: 12 }}>
+                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: active ? T.accent + '30' : T.bgCard, justifyContent: 'center', alignItems: 'center' }}>
+                      <Text style={{ fontSize: 13, fontWeight: '800', color: active ? T.accent : T.textSecondary }}>
+                        {c.full_name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()}
+                      </Text>
+                    </View>
+                    <Text style={{ flex: 1, color: T.text, fontSize: 14, fontWeight: active ? '700' : '400' }}>{c.full_name}</Text>
+                    {active && <Text style={{ color: T.accent }}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+          </ScrollView>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
+            <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
+              <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleAssign} disabled={!selectedId || saving} style={[styles.btn, { backgroundColor: selectedId ? T.accent : T.bgCard, flex: 1, opacity: selectedId ? 1 : 0.5 }]}>
+              <Text style={{ color: selectedId ? '#fff' : T.textMuted, fontWeight: '700' }}>{saving ? 'Asignando...' : 'Asignar'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Edit Video Modal ─────────────────────────────────────────
+function EditVideoModal({ video, visible, onClose, onSaved }: {
+  video: Video | null; visible: boolean; onClose: () => void; onSaved: () => void;
+}) {
+  const T = useTheme();
+  const { editVideo } = useVideosStore();
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [level, setLevel] = useState<VideoLevel>('beginner');
+  const [allowedPlans, setAllowedPlans] = useState<VideoPlan[]>([]);
+  const [allowedLevels, setAllowedLevels] = useState<VideoLevel[]>([]);
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  React.useEffect(() => {
+    if (video && visible) {
+      setTitle(video.title);
+      setDescription(video.description ?? '');
+      setLevel(video.level);
+      setAllowedPlans((video.allowed_plans ?? []) as VideoPlan[]);
+      setAllowedLevels((video.allowed_levels ?? []) as VideoLevel[]);
+      setIsFeatured(video.is_featured);
+    }
+  }, [video, visible]);
+
+  const togglePlan = (p: VideoPlan) =>
+    setAllowedPlans((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]);
+  const toggleLevel = (l: VideoLevel) =>
+    setAllowedLevels((prev) => prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l]);
+
+  const handleSave = async () => {
+    if (!video || !title.trim()) { Alert.alert('Error', 'El título es requerido.'); return; }
+    setSaving(true);
+    try {
+      await editVideo(video.id, {
+        title: title.trim(),
+        description: description.trim() || null,
+        level,
+        allowed_plans: allowedPlans,
+        allowed_levels: allowedLevels,
+        is_featured: isFeatured,
+      });
+      onSaved(); onClose();
+    } catch (e: any) { Alert.alert('Error', e.message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
+            <View style={styles.handle} />
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <Text style={[styles.sheetTitle, { color: T.text }]}>Editar video</Text>
+
+              <Text style={[styles.label, { color: T.textSecondary }]}>Título *</Text>
+              <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
+                value={title} onChangeText={setTitle} placeholder="Título del video" placeholderTextColor={T.textMuted} />
+
+              <Text style={[styles.label, { color: T.textSecondary }]}>Descripción</Text>
+              <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text, minHeight: 64, textAlignVertical: 'top' }]}
+                value={description} onChangeText={setDescription} placeholder="Descripción..." placeholderTextColor={T.textMuted} multiline />
+
+              <Text style={[styles.label, { color: T.textSecondary }]}>Nivel del video</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                {LEVEL_OPTIONS.map((l) => (
+                  <TouchableOpacity key={`edit-level-${l}`} onPress={() => setLevel(l)}
+                    style={[styles.chip, { flex: 1, justifyContent: 'center', backgroundColor: level === l ? T.accent : T.bg, borderColor: level === l ? T.accent : T.border }]}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: level === l ? '#fff' : T.textSecondary, textAlign: 'center' }}>{LEVEL_LABELS[l]}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.label, { color: T.textSecondary }]}>Planes con acceso (vacío = todos)</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                {PLAN_OPTIONS.map((p) => (
+                  <TouchableOpacity key={`edit-plan-${p}`} onPress={() => togglePlan(p)}
+                    style={[styles.chip, { flex: 1, justifyContent: 'center', backgroundColor: allowedPlans.includes(p) ? T.accent : T.bg, borderColor: allowedPlans.includes(p) ? T.accent : T.border }]}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: allowedPlans.includes(p) ? '#fff' : T.textSecondary, textAlign: 'center' }}>{PLAN_LABELS[p]}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.label, { color: T.textSecondary }]}>Niveles con acceso (vacío = todos)</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                {LEVEL_OPTIONS.map((l) => (
+                  <TouchableOpacity key={`edit-access-${l}`} onPress={() => toggleLevel(l)}
+                    style={[styles.chip, { flex: 1, justifyContent: 'center', backgroundColor: allowedLevels.includes(l) ? T.accent : T.bg, borderColor: allowedLevels.includes(l) ? T.accent : T.border }]}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: allowedLevels.includes(l) ? '#fff' : T.textSecondary, textAlign: 'center' }}>{LEVEL_LABELS[l]}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <Text style={[styles.label, { color: T.textSecondary, marginBottom: 0 }]}>Destacado</Text>
+                <Switch value={isFeatured} onValueChange={setIsFeatured} trackColor={{ true: T.accent, false: T.border }} />
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.btn, { backgroundColor: T.accent, flex: 1 }]}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? 'Guardando...' : 'Guardar'}</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ─── Assign Video Modal ───────────────────────────────────────
+function AssignVideoModal({ video, visible, onClose }: {
+  video: Video | null; visible: boolean; onClose: () => void;
+}) {
+  const T = useTheme();
+  const { user } = useAuthStore();
+  const { data: clients = [] } = useClientsWithPlan();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const handleAssign = async () => {
+    if (!video || !selectedId || !user?.id || !user?.tenant_id) return;
+    setSaving(true);
+    try {
+      await assignVideoToClient(video.id, selectedId, user.tenant_id, user.id);
+      Alert.alert('✅', 'Video asignado correctamente.');
+      onClose();
+    } catch (e: any) { Alert.alert('Error', e.message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.sheet, { backgroundColor: T.bgCard, maxHeight: '80%' }]}>
+          <View style={styles.handle} />
+          <Text style={[styles.sheetTitle, { color: T.text }]}>Asignar a cliente</Text>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+            {clients
+              .filter((c: any, idx: number, arr: any[]) => arr.findIndex((x: any) => x.id === c.id) === idx)
+              .map((c: any) => {
+                const active = selectedId === c.id;
+                return (
+                  <TouchableOpacity key={`assign-client-${c.id}`} onPress={() => setSelectedId(c.id)}
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: T.border, gap: 12 }}>
+                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: active ? T.accent + '30' : T.bgCard, justifyContent: 'center', alignItems: 'center' }}>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: active ? T.accent : T.textSecondary }}>
+                        {c.full_name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()}
+                      </Text>
+                    </View>
+                    <Text style={{ flex: 1, color: T.text, fontSize: 14, fontWeight: active ? '700' : '400' }}>{c.full_name}</Text>
+                    {active && <Text style={{ color: T.accent, fontSize: 16 }}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+          </ScrollView>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
+            <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
+              <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleAssign} disabled={!selectedId || saving} style={[styles.btn, { backgroundColor: selectedId ? T.accent : T.bgCard, flex: 1, opacity: selectedId ? 1 : 0.5 }]}>
+              <Text style={{ color: selectedId ? '#fff' : T.textMuted, fontWeight: '700' }}>{saving ? 'Asignando...' : 'Asignar'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Upload Video Modal ───────────────────────────────────────
+function UploadVideoModal({ visible, onClose, tenantId }: {
+  visible: boolean; onClose: () => void; tenantId: string;
+}) {
+  const T = useTheme();
+  const { user } = useAuthStore();
+  const { addVideo, editVideo, changeVideoStatus } = useVideosStore();
+
+  const [step, setStep] = useState<'meta' | 'uploading' | 'done'>('meta');
+  const [uploadProgress, setUploadProgress] = useState('');
+
+  // Form state
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [categorySlug, setCategorySlug] = useState('general');
+  const [level, setLevel] = useState<VideoLevel>('beginner');
+  const [allowedPlans, setAllowedPlans] = useState<VideoPlan[]>([]);
+  const [allowedLevels, setAllowedLevels] = useState<VideoLevel[]>([]);
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [thumbColor, setThumbColor] = useState(THUMB_COLORS[0]);
+  const [errors, setErrors] = useState<string[]>([]);
+
+  // File state
+  const [videoFile, setVideoFile] = useState<{ uri: string; name: string; mimeType: string; size: number } | null>(null);
+  const [thumbFile, setThumbFile] = useState<{ uri: string; mimeType: string } | null>(null);
+
+  const togglePlan = (p: VideoPlan) =>
+    setAllowedPlans((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]);
+  const toggleLevel = (l: VideoLevel) =>
+    setAllowedLevels((prev) => prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l]);
+
+  const pickVideo = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['video/mp4', 'video/quicktime', 'video/webm', 'video/*'],
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    setVideoFile({
+      uri: asset.uri,
+      name: asset.name,
+      mimeType: asset.mimeType ?? 'video/mp4',
+      size: asset.size ?? 0,
+    });
+  };
+
+  const pickThumbnail = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [16, 9],
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    setThumbFile({ uri: asset.uri, mimeType: 'image/jpeg' });
+  };
+
+  const reset = () => {
+    setStep('meta'); setTitle(''); setDescription(''); setCategorySlug('general');
+    setLevel('beginner'); setAllowedPlans([]); setAllowedLevels([]);
+    setIsFeatured(false); setThumbColor(THUMB_COLORS[0]); setErrors([]);
+    setVideoFile(null); setThumbFile(null); setUploadProgress('');
+  };
+
+  const handleSave = async () => {
+    const errs: string[] = [];
+    if (!title.trim()) errs.push('El título es obligatorio.');
+    if (errs.length) { setErrors(errs); return; }
+
+    setStep('uploading');
+
+    try {
+      // 1. Create video record in draft state
+      setUploadProgress('Creando registro...');
+      const created = await addVideo({
+        tenant_id: tenantId,
+        title: title.trim(),
+        description: description.trim() || null,
+        category_id: null, // resolved from slug in a real implementation
+        level,
+        video_bucket: 'videos',
+        video_storage_path: null,
+        video_mime_type: videoFile?.mimeType ?? null,
+        video_file_size_bytes: videoFile?.size ?? null,
+        thumbnail_bucket: 'video-thumbnails',
+        thumbnail_storage_path: null,
+        thumbnail_color: thumbColor,
+        duration_seconds: null,
+        allowed_plans: allowedPlans,
+        allowed_levels: allowedLevels,
+        status: 'draft',
+        is_featured: isFeatured,
+        sort_order: 0,
+        created_by: user?.id ?? null,
+        updated_by: null,
+      });
+
+      // 2. Upload video file if selected
+      if (videoFile) {
+        setUploadProgress('Subiendo video... 0%');
+        await changeVideoStatus(created.id, 'uploading', user?.id ?? '');
+        const ext = videoFile.name.split('.').pop() ?? 'mp4';
+        const { path } = await uploadVideoFile(
+          tenantId,
+          created.id,
+          { uri: videoFile.uri, mimeType: videoFile.mimeType, extension: ext, size: videoFile.size },
+          (pct) => setUploadProgress(`Subiendo video... ${pct}%`),
+        );
+        await editVideo(created.id, { video_storage_path: path });
+      }
+
+      // 3. Upload thumbnail if selected
+      if (thumbFile) {
+        setUploadProgress('Subiendo miniatura...');
+        const thumbPath = await uploadThumbnail(tenantId, created.id, {
+          uri: thumbFile.uri,
+          mimeType: thumbFile.mimeType,
+          extension: 'jpg',
+        });
+        await editVideo(created.id, { thumbnail_storage_path: thumbPath });
+      }
+
+      // 4. Publish
+      setUploadProgress('Publicando...');
+      await changeVideoStatus(created.id, 'published', user?.id ?? '');
+
+      setStep('done');
+    } catch (e: any) {
+      Alert.alert('Error al subir', e.message ?? 'Ocurrió un error inesperado.');
+      setStep('meta');
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
+            <View style={styles.handle} />
+
+            {/* Uploading state */}
+            {step === 'uploading' && (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <ActivityIndicator color={T.accent} size="large" />
+                <Text style={{ color: T.text, fontSize: 16, fontWeight: '700', marginTop: 16 }}>{uploadProgress}</Text>
+                <Text style={{ color: T.textMuted, fontSize: 13, marginTop: 8 }}>No cierres esta pantalla</Text>
+              </View>
+            )}
+
+            {/* Done state */}
+            {step === 'done' && (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <Text style={{ fontSize: 48 }}>✅</Text>
+                <Text style={{ color: T.text, fontSize: 18, fontWeight: '800', marginTop: 16 }}>Video publicado</Text>
+                <TouchableOpacity onPress={() => { reset(); onClose(); }}
+                  style={[styles.btn, { backgroundColor: T.accent, marginTop: 24, paddingHorizontal: 32 }]}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>Listo</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Form state */}
+            {step === 'meta' && (
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <Text style={[styles.sheetTitle, { color: T.text }]}>Nuevo video</Text>
+
+                {errors.length > 0 && (
+                  <View style={[styles.errorBox, { backgroundColor: T.redSoft, borderColor: T.red + '55' }]}>
+                    {errors.map((e, i) => <Text key={i} style={{ color: T.red, fontSize: 13 }}>• {e}</Text>)}
+                  </View>
+                )}
+
+                {/* Video file picker */}
+                <Text style={[styles.label, { color: T.textSecondary }]}>Archivo de video</Text>
+                <TouchableOpacity onPress={pickVideo}
+                  style={[styles.filePicker, { borderColor: videoFile ? T.accent : T.border, backgroundColor: T.bg }]}>
+                  <Text style={{ fontSize: 20 }}>🎬</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: videoFile ? T.text : T.textMuted, fontSize: 14, fontWeight: videoFile ? '600' : '400' }}>
+                      {videoFile ? videoFile.name : 'Seleccionar video (MP4, MOV, WebM)'}
+                    </Text>
+                    {videoFile?.size ? (
+                      <Text style={{ color: T.textMuted, fontSize: 11, marginTop: 2 }}>
+                        {(videoFile.size / 1024 / 1024).toFixed(1)} MB
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Text style={{ color: T.accent, fontWeight: '700', fontSize: 13 }}>
+                    {videoFile ? 'Cambiar' : 'Elegir'}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Thumbnail picker */}
+                <Text style={[styles.label, { color: T.textSecondary }]}>Miniatura (opcional)</Text>
+                <TouchableOpacity onPress={pickThumbnail}
+                  style={[styles.filePicker, { borderColor: thumbFile ? T.accent : T.border, backgroundColor: T.bg }]}>
+                  <Text style={{ fontSize: 20 }}>🖼️</Text>
+                  <Text style={{ flex: 1, color: thumbFile ? T.text : T.textMuted, fontSize: 14 }}>
+                    {thumbFile ? 'Miniatura seleccionada' : 'Seleccionar imagen (16:9)'}
+                  </Text>
+                  <Text style={{ color: T.accent, fontWeight: '700', fontSize: 13 }}>
+                    {thumbFile ? 'Cambiar' : 'Elegir'}
+                  </Text>
+                </TouchableOpacity>
+
+                <Text style={[styles.label, { color: T.textSecondary }]}>Título *</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
+                  placeholder="Ej: Técnica de sentadilla"
+                  placeholderTextColor={T.textMuted}
+                  value={title}
+                  onChangeText={(v) => { setTitle(v); setErrors([]); }}
+                />
+
+                <Text style={[styles.label, { color: T.textSecondary }]}>Descripción</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text, minHeight: 72, textAlignVertical: 'top' }]}
+                  placeholder="Descripción breve..."
+                  placeholderTextColor={T.textMuted}
+                  value={description}
+                  onChangeText={setDescription}
+                  multiline
+                />
+
+                <Text style={[styles.label, { color: T.textSecondary }]}>Nivel del video</Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                  {LEVEL_OPTIONS.map((l) => (
+                    <TouchableOpacity key={l} onPress={() => setLevel(l)}
+                      style={[styles.chip, { flex: 1, justifyContent: 'center', backgroundColor: level === l ? T.accent : T.bg, borderColor: level === l ? T.accent : T.border }]}>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: level === l ? '#fff' : T.textSecondary, textAlign: 'center' }}>{LEVEL_LABELS[l]}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={[styles.label, { color: T.textSecondary }]}>Planes con acceso (vacío = todos)</Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                  {PLAN_OPTIONS.map((p) => (
+                    <TouchableOpacity key={p} onPress={() => togglePlan(p)}
+                      style={[styles.chip, { flex: 1, justifyContent: 'center', backgroundColor: allowedPlans.includes(p) ? T.accent : T.bg, borderColor: allowedPlans.includes(p) ? T.accent : T.border }]}>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: allowedPlans.includes(p) ? '#fff' : T.textSecondary, textAlign: 'center' }}>{PLAN_LABELS[p]}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={[styles.label, { color: T.textSecondary }]}>Niveles con acceso (vacío = todos)</Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                  {LEVEL_OPTIONS.map((l) => (
+                    <TouchableOpacity key={l} onPress={() => toggleLevel(l)}
+                      style={[styles.chip, { flex: 1, justifyContent: 'center', backgroundColor: allowedLevels.includes(l) ? T.accent : T.bg, borderColor: allowedLevels.includes(l) ? T.accent : T.border }]}>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: allowedLevels.includes(l) ? '#fff' : T.textSecondary, textAlign: 'center' }}>{LEVEL_LABELS[l]}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={[styles.label, { color: T.textSecondary }]}>Color de miniatura (fallback)</Text>
+                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+                  {THUMB_COLORS.map((c) => (
+                    <TouchableOpacity key={c} onPress={() => setThumbColor(c)}
+                      style={[styles.colorDot, { backgroundColor: c, borderWidth: thumbColor === c ? 3 : 0, borderColor: '#fff' }]} />
+                  ))}
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                  <Text style={[styles.label, { color: T.textSecondary, marginBottom: 0 }]}>Marcar como destacado</Text>
+                  <Switch value={isFeatured} onValueChange={setIsFeatured} trackColor={{ true: T.accent, false: T.border }} />
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 12, marginBottom: 8 }}>
+                  <TouchableOpacity onPress={() => { reset(); onClose(); }}
+                    style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
+                    <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleSave}
+                    style={[styles.btn, { backgroundColor: T.accent, flex: 1 }]}>
+                    <Text style={{ color: '#fff', fontWeight: '700' }}>
+                      {videoFile ? 'Subir y publicar' : 'Guardar borrador'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ─── Main Screen ──────────────────────────────────────────────
 export default function AdminContentScreen() {
   const T = useTheme();
+  const { user } = useAuthStore();
+  const router = useRouter();
   const [tab, setTab] = useState('Rutinas');
+  const [showCreate, setShowCreate] = useState(false);
+  const [editTarget, setEditTarget] = useState<Video | null>(null);
+  const [assignTarget, setAssignTarget] = useState<Video | null>(null);
+
+  // Routines state
+  const { adminRoutines, isLoadingAdmin: routinesLoading, loadAdminRoutines, removeRoutine, toggleActive: toggleRoutineActive } = useRoutinesStore();
+  const [showRoutineForm, setShowRoutineForm] = useState(false);
+  const [editRoutineTarget, setEditRoutineTarget] = useState<Routine | null>(null);
+  const [assignRoutineTarget, setAssignRoutineTarget] = useState<Routine | null>(null);
+  const [expandedRoutineId, setExpandedRoutineId] = useState<string | null>(null);
+  const [showExerciseForm, setShowExerciseForm] = useState(false);
+  const [editExerciseTarget, setEditExerciseTarget] = useState<{ routineId: string; exercise?: Exercise } | null>(null);
+
+  useEffect(() => {
+    if (user?.tenant_id) loadAdminRoutines(user.tenant_id);
+  }, [user?.tenant_id]);
+
+  const { videos, isLoading, publish, archive, reload } = useAdminVideos();
+  const { removeVideo } = useVideosStore();
+
+  const statusColor = (status: string) => {
+    if (status === 'published') return T.green;
+    if (status === 'archived') return T.textMuted;
+    if (status === 'failed') return T.red;
+    return T.accent;
+  };
+
+  const handleDelete = (v: Video) => {
+    Alert.alert('Eliminar video', `¿Eliminar "${v.title}"? Esta acción no se puede deshacer.`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: async () => {
+        try { await removeVideo(v.id); }
+        catch (e: any) { Alert.alert('Error', e.message); }
+      }},
+    ]);
+  };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <AdminTopBar title="Contenido" subtitle="Rutinas · Nutrición · Videos" actionLabel="+ Nuevo" onAction={() => {}} />
+      <AdminTopBar
+        title="Contenido"
+        subtitle="Rutinas · Nutrición · Videos"
+        actionLabel="+ Nuevo"
+        onAction={() => {
+          if (tab === 'Videos') setShowCreate(true);
+          if (tab === 'Rutinas') { setEditRoutineTarget(null); setShowRoutineForm(true); }
+        }}
+      />
 
       <View style={[styles.tabRow, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
         {TABS.map((t) => (
@@ -27,21 +835,75 @@ export default function AdminContentScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false}>
-        {tab === 'Rutinas' && MOCK_ROUTINES.map((r) => (
-          <TouchableOpacity key={r.id} activeOpacity={0.8}
-            style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
-            <View style={[styles.cardIcon, { backgroundColor: T.accentGlow }]}><Text style={{ fontSize: 20 }}>💪</Text></View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.cardTitle, { color: T.text }]}>{r.name}</Text>
-              <Text style={[styles.cardMeta, { color: T.textSecondary }]}>{r.exercises} ejercicios · {r.assigned_to} clientes</Text>
-              <Text style={[styles.cardSub, { color: T.textMuted }]}>Por {r.created_by}</Text>
+
+        {tab === 'Rutinas' && (
+          routinesLoading ? (
+            <View style={{ paddingVertical: 40, alignItems: 'center' }}><ActivityIndicator color={T.accent} /></View>
+          ) : adminRoutines.length === 0 ? (
+            <View style={{ paddingVertical: 60, alignItems: 'center' }}>
+              <Text style={{ fontSize: 36, marginBottom: 12 }}>💪</Text>
+              <Text style={{ color: T.textMuted, fontSize: 15, textAlign: 'center' }}>
+                No hay rutinas.{'\n'}Toca "+ Nuevo" para crear la primera.
+              </Text>
             </View>
-            <View style={{ alignItems: 'flex-end', gap: 6 }}>
-              <StatusBadge status={r.level} size="sm" />
-              <Text style={{ fontSize: 12, color: T.accent, fontWeight: '700' }}>Asignar</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+          ) : (
+            adminRoutines.map((r) => {
+              const expanded = expandedRoutineId === r.id;
+              return (
+                <View key={r.id} style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd, flexDirection: 'column', padding: 0, overflow: 'hidden' }]}>
+                  {/* Header row */}
+                  <TouchableOpacity onPress={() => setExpandedRoutineId(expanded ? null : r.id)} activeOpacity={0.8}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 }}>
+                    <View style={[styles.cardIcon, { backgroundColor: T.accentGlow }]}><Text style={{ fontSize: 20 }}>💪</Text></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.cardTitle, { color: T.text }]}>{r.name}</Text>
+                      <Text style={[styles.cardMeta, { color: T.textSecondary }]}>
+                        {ROUTINE_LEVEL_LABELS[r.level]} · {r.exercises?.length ?? 0} ejercicios
+                        {r.is_template ? ' · 📋 Plantilla' : ''}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                      <Switch value={r.is_active} onValueChange={(v) => toggleRoutineActive(r.id, v)} trackColor={{ true: T.green, false: T.border }} />
+                      <Text style={{ fontSize: 11, color: T.textMuted }}>{expanded ? '▲' : '▼'}</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* CRUD actions */}
+                  <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingBottom: 10, flexWrap: 'wrap' }}>
+                    <TouchableOpacity onPress={() => { setEditRoutineTarget(r); setShowRoutineForm(true); }}>
+                      <Text style={{ fontSize: 11, color: T.accent, fontWeight: '700' }}>✏️ Editar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setAssignRoutineTarget(r)}>
+                      <Text style={{ fontSize: 11, color: T.blue, fontWeight: '700' }}>👤 Asignar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => { setEditExerciseTarget({ routineId: r.id }); setShowExerciseForm(true); }}>
+                      <Text style={{ fontSize: 11, color: T.green, fontWeight: '700' }}>➕ Ejercicio</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => Alert.alert('Eliminar', `¿Eliminar "${r.name}"?`, [
+                      { text: 'Cancelar', style: 'cancel' },
+                      { text: 'Eliminar', style: 'destructive', onPress: () => removeRoutine(r.id) },
+                    ])}>
+                      <Text style={{ fontSize: 11, color: T.red, fontWeight: '700' }}>🗑 Eliminar</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Exercises list (expanded) */}
+                  {expanded && (r.exercises ?? []).map((ex) => (
+                    <View key={ex.id} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: T.border, gap: 10 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: T.text }}>{ex.name}</Text>
+                        <Text style={{ fontSize: 11, color: T.textSecondary }}>{ex.sets}×{ex.reps} · {ex.rest_seconds}s · {ex.muscle}</Text>
+                      </View>
+                      <TouchableOpacity onPress={() => { setEditExerciseTarget({ routineId: r.id, exercise: ex }); setShowExerciseForm(true); }}>
+                        <Text style={{ fontSize: 11, color: T.accent, fontWeight: '700' }}>✏️</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              );
+            })
+          )
+        )}
 
         {tab === 'Nutrición' && MOCK_NUTRITION_PLANS.map((n) => (
           <TouchableOpacity key={n.id} activeOpacity={0.8}
@@ -56,21 +918,125 @@ export default function AdminContentScreen() {
           </TouchableOpacity>
         ))}
 
-        {tab === 'Videos' && MOCK_ADMIN_VIDEOS.map((v) => (
-          <View key={v.id} style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
-            <View style={[styles.videoThumb, { backgroundColor: T.purpleSoft }]}>
-              <Text style={{ fontSize: 22 }}>▶</Text>
-              <Text style={styles.duration}>{v.duration}</Text>
+        {tab === 'Videos' && (
+          isLoading ? (
+            <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+              <ActivityIndicator color={T.accent} />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.cardTitle, { color: T.text }]}>{v.title}</Text>
-              <Text style={[styles.cardMeta, { color: T.textSecondary }]}>{v.category} · {v.assigned_clients} clientes</Text>
-              <StatusBadge status={v.level} size="sm" />
+          ) : videos.length === 0 ? (
+            <View style={{ paddingVertical: 60, alignItems: 'center' }}>
+              <Text style={{ fontSize: 36, marginBottom: 12 }}>🎬</Text>
+              <Text style={{ color: T.textMuted, fontSize: 15, textAlign: 'center' }}>
+                No hay videos aún.{'\n'}Toca "+ Nuevo" para agregar el primero.
+              </Text>
             </View>
-            <Switch value={v.is_active} trackColor={{ true: T.green, false: T.border }} onValueChange={() => {}} />
-          </View>
-        ))}
+          ) : (
+            videos.map((v) => {
+              const thumbUrl = v.thumbnail_storage_path ? getThumbnailPublicUrl(v.thumbnail_storage_path) : null;
+              return (
+                <View key={v.id} style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
+                  {/* Thumbnail */}
+                  <View style={[styles.videoThumb, { backgroundColor: v.thumbnail_color + '33' }]}>
+                    {thumbUrl ? (
+                      <Image source={{ uri: thumbUrl }} style={StyleSheet.absoluteFill as any} resizeMode="cover" />
+                    ) : (
+                      <Text style={{ fontSize: 22 }}>▶</Text>
+                    )}
+                    {v.duration_seconds ? (
+                      <Text style={styles.duration}>{formatDuration(v.duration_seconds)}</Text>
+                    ) : null}
+                  </View>
+
+                  {/* Info */}
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.cardTitle, { color: T.text }]} numberOfLines={1}>{v.title}</Text>
+                    <Text style={[styles.cardMeta, { color: T.textSecondary }]}>
+                      {LEVEL_LABELS[v.level]}
+                      {v.allowed_plans.length > 0 ? ` · ${v.allowed_plans.map((p) => PLAN_LABELS[p]).join(', ')}` : ' · Todos'}
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                      <View style={[styles.statusDot, { backgroundColor: statusColor(v.status) }]} />
+                      <Text style={{ fontSize: 11, color: statusColor(v.status), fontWeight: '600' }}>
+                        {VIDEO_STATUS_LABELS[v.status]}
+                      </Text>
+                      {v.is_featured && <Text style={{ fontSize: 11, color: T.gold }}>⭐</Text>}
+                    </View>
+                  </View>
+
+                  {/* Actions */}
+                  <View style={{ gap: 6, alignItems: 'flex-end' }}>
+                    {v.video_storage_path && (
+                      <TouchableOpacity onPress={() => router.push(`/(admin)/video-player?id=${v.id}` as any)}>
+                        <Text style={{ fontSize: 11, color: T.blue, fontWeight: '700' }}>▶ Ver video</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity onPress={() => setEditTarget(v)}>
+                      <Text style={{ fontSize: 11, color: T.accent, fontWeight: '700' }}>✏️ Editar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setAssignTarget(v)}>
+                      <Text style={{ fontSize: 11, color: T.blue, fontWeight: '700' }}>👤 Asignar</Text>
+                    </TouchableOpacity>
+                    {v.status !== 'published' && v.status !== 'uploading' && (
+                      <TouchableOpacity onPress={() => publish(v.id)}>
+                        <Text style={{ fontSize: 11, color: T.green, fontWeight: '700' }}>▶ Publicar</Text>
+                      </TouchableOpacity>
+                    )}
+                    {v.status === 'published' && (
+                      <TouchableOpacity onPress={() => archive(v.id)}>
+                        <Text style={{ fontSize: 11, color: T.textMuted, fontWeight: '700' }}>⏸ Archivar</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity onPress={() => handleDelete(v)}>
+                      <Text style={{ fontSize: 11, color: T.red, fontWeight: '700' }}>🗑 Eliminar</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })
+          )
+        )}
       </ScrollView>
+
+      {user?.tenant_id && (
+        <UploadVideoModal
+          visible={showCreate}
+          onClose={() => { setShowCreate(false); reload(); }}
+          tenantId={user.tenant_id}
+        />
+      )}
+      <EditVideoModal
+        video={editTarget}
+        visible={!!editTarget}
+        onClose={() => setEditTarget(null)}
+        onSaved={() => { setEditTarget(null); reload(); }}
+      />
+      <AssignVideoModal
+        video={assignTarget}
+        visible={!!assignTarget}
+        onClose={() => setAssignTarget(null)}
+      />
+      {/* Routine modals */}
+      <RoutineFormModal
+        routine={editRoutineTarget}
+        visible={showRoutineForm}
+        onClose={() => { setShowRoutineForm(false); setEditRoutineTarget(null); }}
+        onSaved={() => { if (user?.tenant_id) loadAdminRoutines(user.tenant_id); }}
+        tenantId={user?.tenant_id ?? ''}
+      />
+      <ExerciseFormModal
+        routineId={editExerciseTarget?.routineId ?? ''}
+        tenantId={user?.tenant_id ?? ''}
+        exercise={editExerciseTarget?.exercise}
+        visible={showExerciseForm}
+        onClose={() => { setShowExerciseForm(false); setEditExerciseTarget(null); }}
+        onSaved={() => { if (user?.tenant_id) loadAdminRoutines(user.tenant_id); }}
+      />
+      <AssignRoutineModal
+        routine={assignRoutineTarget}
+        visible={!!assignRoutineTarget}
+        onClose={() => setAssignRoutineTarget(null)}
+        tenantId={user?.tenant_id ?? ''}
+      />
     </SafeAreaView>
   );
 }
@@ -86,5 +1052,26 @@ const styles = StyleSheet.create({
   cardMeta: { fontSize: 12 },
   cardSub: { fontSize: 11, marginTop: 2 },
   videoThumb: { width: 70, height: 50, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  duration: { position: 'absolute', bottom: 3, right: 3, backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1, fontSize: 9, color: '#fff', fontWeight: '600' },
+  duration: {
+    position: 'absolute', bottom: 3, right: 3,
+    backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 3,
+    paddingHorizontal: 4, paddingVertical: 1,
+    fontSize: 9, color: '#fff', fontWeight: '600',
+  },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '94%' },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#444', alignSelf: 'center', marginBottom: 16 },
+  sheetTitle: { fontSize: 20, fontWeight: '800', marginBottom: 20 },
+  label: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
+  input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, marginBottom: 16 },
+  chip: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8 },
+  colorDot: { width: 28, height: 28, borderRadius: 14 },
+  btn: { borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
+  errorBox: { borderRadius: 10, borderWidth: 1, padding: 12, marginBottom: 16, gap: 4 },
+  filePicker: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderWidth: 1, borderRadius: 12, padding: 14, marginBottom: 16,
+    borderStyle: 'dashed',
+  },
 });

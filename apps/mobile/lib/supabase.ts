@@ -27,3 +27,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
   },
 });
+
+// Exported for use in TUS resumable uploads
+export { supabaseUrl, supabaseAnonKey };

@@ -10,7 +10,14 @@ import { StatusBadge } from '@/components/admin/StatusBadge';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth.store';
 
-const ROLES = ['client', 'coach', 'admin'];
+const ROLES = ['client', 'coach', 'admin'] as const;
+type Role = typeof ROLES[number];
+
+const ROLE_LABELS: Record<Role, string> = {
+  client: 'Cliente',
+  coach: 'Coach',
+  admin: 'Admin',
+};
 
 interface PendingUser {
   id: string;
@@ -29,11 +36,20 @@ export default function UserApprovalScreen() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
 
-  // Reject modal state
+  // Per-user role selection (defaults to 'client')
+  const [roleSelections, setRoleSelections] = useState<Record<string, Role>>({});
+
+  // Reject modal
   const [rejectModal, setRejectModal] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<PendingUser | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [approveAllLoading, setApproveAllLoading] = useState(false);
+
+  const getRole = (userId: string): Role => roleSelections[userId] ?? 'client';
+
+  const setRole = (userId: string, role: Role) =>
+    setRoleSelections((prev) => ({ ...prev, [userId]: role }));
 
   const loadUsers = async () => {
     setLoading(true);
@@ -43,8 +59,7 @@ export default function UserApprovalScreen() {
       });
       if (error) throw error;
       setUsers((data ?? []) as PendingUser[]);
-    } catch (err: any) {
-      // Fallback: direct query (works if RLS allows it)
+    } catch {
       const { data } = await supabase
         .from('profiles')
         .select('id, full_name, requested_role, approval_status, rejection_reason, created_at')
@@ -58,10 +73,20 @@ export default function UserApprovalScreen() {
 
   useEffect(() => { loadUsers(); }, [filter]);
 
+  const approveOne = async (pendingUser: PendingUser, role: Role) => {
+    const { error } = await supabase.rpc('approve_user', {
+      p_user_id: pendingUser.id,
+      p_role_name: role,
+      p_admin_id: user!.id,
+    });
+    if (error) throw error;
+  };
+
   const handleApprove = (pendingUser: PendingUser) => {
+    const role = getRole(pendingUser.id);
     Alert.alert(
       'Aprobar usuario',
-      `¿Asignar rol "${pendingUser.requested_role ?? 'client'}" a ${pendingUser.full_name}?`,
+      `Asignar rol "${ROLE_LABELS[role]}" a ${pendingUser.full_name}?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -69,12 +94,7 @@ export default function UserApprovalScreen() {
           onPress: async () => {
             setActionLoading(true);
             try {
-              const { error } = await supabase.rpc('approve_user', {
-                p_user_id: pendingUser.id,
-                p_role_name: pendingUser.requested_role ?? 'client',
-                p_admin_id: user!.id,
-              });
-              if (error) throw error;
+              await approveOne(pendingUser, role);
               Alert.alert('✅ Aprobado', `${pendingUser.full_name} ahora tiene acceso al sistema.`);
               loadUsers();
             } catch (err: any) {
@@ -82,6 +102,39 @@ export default function UserApprovalScreen() {
             } finally {
               setActionLoading(false);
             }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleApproveAll = () => {
+    const pending = users.filter((u) => u.approval_status === 'pending');
+    if (pending.length === 0) return;
+    Alert.alert(
+      'Aprobar todos',
+      `¿Aprobar ${pending.length} usuario(s) pendiente(s)? Se usará el rol seleccionado para cada uno (por defecto: Cliente).`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: `Aprobar ${pending.length}`,
+          onPress: async () => {
+            setApproveAllLoading(true);
+            const errors: string[] = [];
+            for (const u of pending) {
+              try {
+                await approveOne(u, getRole(u.id));
+              } catch (err: any) {
+                errors.push(`${u.full_name}: ${err.message}`);
+              }
+            }
+            setApproveAllLoading(false);
+            if (errors.length > 0) {
+              Alert.alert('Completado con errores', errors.join('\n'));
+            } else {
+              Alert.alert('✅ Todos aprobados', `${pending.length} usuario(s) aprobado(s).`);
+            }
+            loadUsers();
           },
         },
       ]
@@ -113,6 +166,8 @@ export default function UserApprovalScreen() {
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString('es-CR', { day: 'numeric', month: 'short', year: 'numeric' });
 
+  const pendingCount = users.filter((u) => u.approval_status === 'pending').length;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
@@ -120,11 +175,6 @@ export default function UserApprovalScreen() {
         title="Aprobación de usuarios"
         subtitle={`${users.length} ${filter === 'pending' ? 'pendientes' : filter === 'approved' ? 'aprobados' : 'rechazados'}`}
       />
-
-      {/* ✅ USER APPROVAL MODULE */}
-      <View style={[styles.marker, { backgroundColor: T.accent }]}>
-        <Text style={styles.markerText}>✅ USER APPROVAL MODULE</Text>
-      </View>
 
       {/* Filter tabs */}
       <View style={[styles.tabRow, { backgroundColor: T.bgCard, borderColor: T.border }]}>
@@ -140,6 +190,20 @@ export default function UserApprovalScreen() {
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* Approve All button */}
+      {filter === 'pending' && pendingCount > 1 && !loading && (
+        <TouchableOpacity
+          onPress={handleApproveAll}
+          disabled={approveAllLoading}
+          style={[styles.approveAllBtn, { backgroundColor: '#10B981' }]}
+        >
+          {approveAllLoading
+            ? <ActivityIndicator color="#fff" size="small" />
+            : <Text style={styles.approveAllText}>✓ Aprobar todos ({pendingCount})</Text>
+          }
+        </TouchableOpacity>
+      )}
 
       {loading ? (
         <ActivityIndicator style={{ marginTop: 40 }} color={T.accent} />
@@ -174,28 +238,54 @@ export default function UserApprovalScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.name, { color: T.text }]}>{item.full_name}</Text>
                   <Text style={[styles.meta, { color: T.textSecondary }]}>
-                    Rol solicitado: {item.requested_role ?? 'client'}
-                  </Text>
-                  <Text style={[styles.date, { color: T.textSecondary }]}>
                     Registrado: {formatDate(item.created_at)}
                   </Text>
                 </View>
                 <StatusBadge status={item.approval_status} size="sm" />
               </View>
 
+              {/* Role selector — only for pending */}
+              {item.approval_status === 'pending' && (
+                <View style={styles.roleSection}>
+                  <Text style={[styles.roleLabel, { color: T.textSecondary }]}>Asignar rol:</Text>
+                  <View style={styles.roleRow}>
+                    {ROLES.map((role) => {
+                      const active = getRole(item.id) === role;
+                      return (
+                        <TouchableOpacity
+                          key={role}
+                          onPress={() => setRole(item.id, role)}
+                          style={[
+                            styles.roleChip,
+                            {
+                              backgroundColor: active ? T.accent + '22' : T.bg,
+                              borderColor: active ? T.accent : T.border,
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.roleChipText, { color: active ? T.accent : T.textSecondary }]}>
+                            {ROLE_LABELS[role]}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
               {/* Actions — only for pending */}
               {item.approval_status === 'pending' && (
                 <View style={styles.actions}>
                   <TouchableOpacity
                     onPress={() => handleApprove(item)}
-                    disabled={actionLoading}
+                    disabled={actionLoading || approveAllLoading}
                     style={[styles.approveBtn, { backgroundColor: '#10B981' }]}
                   >
                     <Text style={styles.btnText}>✓ Aprobar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => { setRejectTarget(item); setRejectModal(true); }}
-                    disabled={actionLoading}
+                    disabled={actionLoading || approveAllLoading}
                     style={[styles.rejectBtn, { borderColor: '#FF4D6D44' }]}
                   >
                     <Text style={[styles.btnText, { color: '#FF4D6D' }]}>✕ Rechazar</Text>
@@ -249,23 +339,31 @@ export default function UserApprovalScreen() {
 }
 
 const styles = StyleSheet.create({
-  marker: { paddingVertical: 7, alignItems: 'center' },
-  markerText: { color: '#fff', fontWeight: '900', fontSize: 11, letterSpacing: 0.5 },
   tabRow: {
     flexDirection: 'row', marginHorizontal: 16, marginVertical: 12,
     borderRadius: 12, padding: 4, borderWidth: 1,
   },
   tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
   tabText: { fontSize: 12, fontWeight: '600' },
-  card: {
-    borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 10,
+  approveAllBtn: {
+    marginHorizontal: 16, marginBottom: 8, borderRadius: 10,
+    paddingVertical: 12, alignItems: 'center',
   },
+  approveAllText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  card: { borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 10 },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
   avatar: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   avatarText: { fontSize: 16, fontWeight: '800' },
   name: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
-  meta: { fontSize: 12, marginBottom: 1 },
-  date: { fontSize: 11 },
+  meta: { fontSize: 11 },
+  roleSection: { marginBottom: 10 },
+  roleLabel: { fontSize: 11, fontWeight: '600', marginBottom: 6 },
+  roleRow: { flexDirection: 'row', gap: 8 },
+  roleChip: {
+    paddingHorizontal: 14, paddingVertical: 6,
+    borderRadius: 20, borderWidth: 1,
+  },
+  roleChipText: { fontSize: 12, fontWeight: '600' },
   actions: { flexDirection: 'row', gap: 10 },
   approveBtn: { flex: 1, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   rejectBtn: { flex: 1, borderRadius: 10, paddingVertical: 10, alignItems: 'center', borderWidth: 1 },

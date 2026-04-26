@@ -1,24 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, FlatList, StyleSheet,
-  useColorScheme, ActivityIndicator, Alert, Modal, TouchableOpacity,
+  ActivityIndicator, Alert, Modal, TouchableOpacity, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 import { usePlansStore } from '@/store/plans.store';
 import { useAuthStore } from '@/store/auth.store';
 import { PlanCard } from '@/components/plans/PlanCard';
-import { PromoBanner } from '@/components/plans/PromoBanner';
+import { ClientTopBar } from '@/components/client/ClientTopBar';
 import type { Plan } from '@/store/plans.store';
 
 export default function ClientPlansScreen() {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? Colors.dark : Colors.light;
+  const T = useTheme();
   const { user } = useAuthStore();
   const {
-    plans, promotions, activePromotion, mySubscription,
+    plans, promotions, mySubscription,
     isLoadingPlans, fetchPlans, fetchPromotions, fetchMySubscription,
-    subscribeToRealtime, dismissPromotion, mockSubscribe,
+    subscribeToRealtime, mockSubscribe,
   } = usePlansStore();
 
   const [confirmPlan, setConfirmPlan] = useState<Plan | null>(null);
@@ -50,37 +49,44 @@ export default function ClientPlansScreen() {
     }
   };
 
+  const activePlans = plans.filter((p) => p.is_active);
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <Text style={[styles.title, { color: colors.text }]}>Planes disponibles</Text>
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor={T.bg} />
+      <ClientTopBar title="Planes" />
 
       {isLoadingPlans ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator color={T.accent} size="large" />
+        </View>
       ) : (
         <FlatList
-          data={plans.filter((p) => p.is_active)}
+          data={activePlans}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
           ListHeaderComponent={
-            activePromotion ? (
-              <PromoBanner
-                promotion={activePromotion}
-                onDismiss={dismissPromotion}
-              />
-            ) : null
+            <View style={{ marginBottom: 8 }}>
+              <Text style={[styles.pageTitle, { color: T.text }]}>Planes disponibles</Text>
+              <Text style={[styles.pageSubtitle, { color: T.textSecondary }]}>
+                {activePlans.length} {activePlans.length === 1 ? 'plan activo' : 'planes activos'}
+              </Text>
+            </View>
           }
           ListEmptyComponent={
-            <Text style={[styles.empty, { color: colors.textMuted }]}>
-              No hay planes disponibles en este momento.
-            </Text>
+            <View style={styles.empty}>
+              <Text style={{ fontSize: 36, marginBottom: 12 }}>📋</Text>
+              <Text style={[styles.emptyText, { color: T.textMuted }]}>
+                No hay planes disponibles en este momento.
+              </Text>
+            </View>
           }
           renderItem={({ item }) => (
             <PlanCard
               plan={item}
               activePromo={promotions.find(
-                (p) => p.type === 'discount' && (!p.applies_to_plan_id || p.applies_to_plan_id === item.id)
+                (p) => p.type === 'discount' && p.is_active &&
+                  (!p.applies_to_plan_id || p.applies_to_plan_id === item.id)
               )}
               isSubscribed={mySubscription?.plan_id === item.id}
               onSubscribe={setConfirmPlan}
@@ -92,26 +98,26 @@ export default function ClientPlansScreen() {
       {/* Confirm subscription modal */}
       <Modal visible={!!confirmPlan} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Confirmar suscripción</Text>
-            <Text style={[styles.modalDesc, { color: colors.textSecondary }]}>
+          <View style={[styles.modalCard, { backgroundColor: T.bgCard }]}>
+            <Text style={[styles.modalTitle, { color: T.text }]}>Confirmar suscripción</Text>
+            <Text style={[styles.modalDesc, { color: T.textSecondary }]}>
               ¿Deseas suscribirte al plan{' '}
-              <Text style={{ fontWeight: '700', color: colors.text }}>{confirmPlan?.name}</Text>?
+              <Text style={{ fontWeight: '700', color: T.text }}>{confirmPlan?.name}</Text>?
             </Text>
-            <Text style={[styles.modalNote, { color: colors.textMuted }]}>
+            <Text style={[styles.modalNote, { color: T.textMuted }]}>
               (Pago simulado — integración con Stripe próximamente)
             </Text>
             <View style={styles.modalActions}>
               <TouchableOpacity
                 onPress={() => setConfirmPlan(null)}
-                style={[styles.modalBtn, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}
+                style={[styles.modalBtn, { backgroundColor: T.bg, borderColor: T.border, borderWidth: 1 }]}
               >
-                <Text style={{ color: colors.text, fontWeight: '600' }}>Cancelar</Text>
+                <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleSubscribe}
                 disabled={subscribing}
-                style={[styles.modalBtn, { backgroundColor: colors.primary }]}
+                style={[styles.modalBtn, { backgroundColor: T.accent }]}
               >
                 {subscribing
                   ? <ActivityIndicator color="#fff" size="small" />
@@ -127,21 +133,22 @@ export default function ClientPlansScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1 },
-  title: { fontSize: 22, fontWeight: '700' },
-  empty: { textAlign: 'center', marginTop: 40, fontSize: 15 },
+  pageTitle: { fontSize: 24, fontWeight: '800', marginBottom: 2 },
+  pageSubtitle: { fontSize: 13, marginBottom: 16 },
+  empty: { alignItems: 'center', paddingVertical: 60 },
+  emptyText: { fontSize: 15, textAlign: 'center' },
   modalOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center', alignItems: 'center', padding: 24,
   },
   modalCard: {
-    borderRadius: 16, padding: 24, width: '100%',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2, shadowRadius: 12, elevation: 8,
+    borderRadius: 18, padding: 24, width: '100%',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25, shadowRadius: 16, elevation: 10,
   },
-  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
+  modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8 },
   modalDesc: { fontSize: 15, lineHeight: 22, marginBottom: 6 },
   modalNote: { fontSize: 12, marginBottom: 20 },
   modalActions: { flexDirection: 'row', gap: 12 },
-  modalBtn: { flex: 1, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  modalBtn: { flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
 });

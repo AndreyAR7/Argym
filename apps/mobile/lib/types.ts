@@ -28,6 +28,7 @@ export interface TenantModule {
 
 export type UserTheme = 'system' | 'light' | 'dark';
 export type PrimaryRole = 'admin' | 'coach' | 'client';
+export type FitnessLevel = 'beginner' | 'intermediate' | 'advanced';
 
 export interface Profile {
   id: string;
@@ -38,6 +39,7 @@ export interface Profile {
   date_of_birth: string | null;
   locale: string;
   theme: UserTheme;
+  client_level: FitnessLevel | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

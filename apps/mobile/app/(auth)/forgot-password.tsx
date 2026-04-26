@@ -13,17 +13,14 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { useColorScheme } from 'react-native';
 import { forgotPasswordSchema, type ForgotPasswordFormValues } from '@/lib/validations';
 import { sendPasswordResetEmail } from '@/lib/auth.service';
 import { ErrorMessage } from '@/components/shared/ErrorMessage';
-import { Colors } from '@/constants/colors';
+import { useTheme } from '@/hooks/useTheme';
 
 export default function ForgotPasswordScreen() {
   const { t } = useTranslation();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const colors = isDark ? Colors.dark : Colors.light;
+  const T = useTheme();
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +50,7 @@ export default function ForgotPasswordScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.background }}
+      style={{ flex: 1, backgroundColor: T.bg }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
@@ -63,15 +60,15 @@ export default function ForgotPasswordScreen() {
         {/* Back button */}
         <Link href="/(auth)/login" asChild>
           <TouchableOpacity style={{ marginBottom: 32 }}>
-            <Text style={{ color: colors.primary, fontSize: 16 }}>← {t('common.back')}</Text>
+            <Text style={{ color: T.accent, fontSize: 16 }}>← {t('common.back')}</Text>
           </TouchableOpacity>
         </Link>
 
         <View style={{ marginBottom: 32 }}>
-          <Text style={{ fontSize: 28, fontWeight: '700', color: colors.text, marginBottom: 8 }}>
+          <Text style={{ fontSize: 28, fontWeight: '700', color: T.text, marginBottom: 8 }}>
             {t('auth.forgotPasswordTitle')}
           </Text>
-          <Text style={{ fontSize: 15, color: colors.textSecondary }}>
+          <Text style={{ fontSize: 15, color: T.textSecondary }}>
             {t('auth.forgotPasswordDescription')}
           </Text>
         </View>
@@ -79,14 +76,14 @@ export default function ForgotPasswordScreen() {
         {success ? (
           <View
             style={{
-              backgroundColor: isDark ? '#052e16' : '#f0fdf4',
+              backgroundColor: T.greenSoft,
               borderRadius: 10,
               padding: 16,
               borderWidth: 1,
-              borderColor: isDark ? '#166534' : '#bbf7d0',
+              borderColor: T.green + '66',
             }}
           >
-            <Text style={{ color: colors.success, fontSize: 15, fontWeight: '500' }}>
+            <Text style={{ color: T.green, fontSize: 15, fontWeight: '500' }}>
               {t('auth.resetLinkSent')}
             </Text>
           </View>
@@ -99,7 +96,7 @@ export default function ForgotPasswordScreen() {
             )}
 
             <View style={{ marginBottom: 24 }}>
-              <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text, marginBottom: 6 }}>
+              <Text style={{ fontSize: 14, fontWeight: '500', color: T.text, marginBottom: 6 }}>
                 {t('auth.email')}
               </Text>
               <Controller
@@ -109,16 +106,16 @@ export default function ForgotPasswordScreen() {
                   <TextInput
                     style={{
                       borderWidth: 1,
-                      borderColor: errors.email ? colors.error : colors.border,
+                      borderColor: errors.email ? T.red : T.border,
                       borderRadius: 10,
                       paddingHorizontal: 14,
                       paddingVertical: 12,
                       fontSize: 16,
-                      color: colors.text,
-                      backgroundColor: colors.surfaceElevated,
+                      color: T.text,
+                      backgroundColor: T.bgCardElevated,
                     }}
                     placeholder={t('auth.emailPlaceholder')}
-                    placeholderTextColor={colors.textMuted}
+                    placeholderTextColor={T.textMuted}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -129,7 +126,7 @@ export default function ForgotPasswordScreen() {
                 )}
               />
               {errors.email && (
-                <Text style={{ color: colors.error, fontSize: 12, marginTop: 4 }}>
+                <Text style={{ color: T.red, fontSize: 12, marginTop: 4 }}>
                   {errors.email.message}
                 </Text>
               )}
@@ -139,7 +136,7 @@ export default function ForgotPasswordScreen() {
               onPress={handleSubmit(onSubmit)}
               disabled={isLoading}
               style={{
-                backgroundColor: isLoading ? colors.textMuted : colors.primary,
+                backgroundColor: isLoading ? T.textMuted : T.accent,
                 borderRadius: 10,
                 paddingVertical: 14,
                 alignItems: 'center',

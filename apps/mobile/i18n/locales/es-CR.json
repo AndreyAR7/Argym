@@ -20,6 +20,8 @@
     "passwordPlaceholder": "Mínimo 8 caracteres",
     "errors": {
       "invalidCredentials": "Correo o contraseña incorrectos",
+      "emailNotConfirmed": "Debes confirmar tu correo antes de iniciar sesión. Revisa tu bandeja de entrada.",
+      "pendingApproval": "Tu cuenta está pendiente de aprobación por un administrador.",
       "rateLimitExceeded": "Demasiados intentos. Intente de nuevo en 15 minutos.",
       "generic": "Ocurrió un error. Intente de nuevo.",
       "emailRequired": "El correo es requerido",
