@@ -13,6 +13,7 @@ import { createNotifications } from '@/services/notifications.service';
 import { ToastManager } from '@/components/shared/Toast';
 import { SkeletonCard } from '@/components/shared/SkeletonLoader';
 import { StatusBadge } from '@/components/admin/StatusBadge';
+import { RescheduleModal } from '@/components/shared/RescheduleModal';
 import type { AppointmentStatus, UpdateAppointmentInput } from '@/types/appointments';
 import { useQueryClient } from '@tanstack/react-query';
 import { NOTIF_KEYS } from '@/hooks/useNotifications';
@@ -158,6 +159,7 @@ export default function AppointmentDetailScreen() {
   const [selectedCoachId, setSelectedCoachId] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<string[]>([]);
   const [actionLoading, setActionLoading] = useState<'save' | 'cancel' | 'complete' | null>(null);
+  const [showReschedule, setShowReschedule] = useState(false);
 
   // Populate form when appointment loads
   useEffect(() => {
@@ -568,7 +570,28 @@ export default function AppointmentDetailScreen() {
           </View>
         )}
 
+        {apt?.status === 'cancelled' && (
+          <TouchableOpacity
+            onPress={() => setShowReschedule(true)}
+            style={[s.reagendarBtn, { backgroundColor: '#10B98122', borderColor: '#10B98144' }]}
+          >
+            <Text style={{ color: '#10B981', fontSize: 14, fontWeight: '700' }}>🔄 Reagendar</Text>
+          </TouchableOpacity>
+        )}
+
       </ScrollView>
+
+      {apt && showReschedule && (
+        <RescheduleModal
+          visible={showReschedule}
+          onClose={() => setShowReschedule(false)}
+          appointment={apt}
+          tenantId={authTenantId}
+          invalidateId={authTenantId}
+          invalidateType="tenant"
+          onSuccess={() => { setShowReschedule(false); router.back(); }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -593,4 +616,5 @@ const s = StyleSheet.create({
   actionBtn: { borderRadius: 14, borderWidth: 1, paddingVertical: 14, alignItems: 'center' },
   noticeBanner: { borderRadius: 12, borderWidth: 1, padding: 14, marginTop: 16, alignItems: 'center' },
   coachChip: { borderRadius: 20, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8, marginRight: 8 },
+  reagendarBtn: { borderRadius: 10, borderWidth: 1, padding: 14, alignItems: 'center', marginBottom: 12 },
 });

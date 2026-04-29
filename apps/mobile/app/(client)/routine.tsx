@@ -4,6 +4,7 @@ import {
   StyleSheet, StatusBar, Alert, ActivityIndicator, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { ClientTopBar } from '@/components/client/ClientTopBar';
 import { useAuthStore } from '@/store/auth.store';
@@ -43,8 +44,8 @@ function CircularProgress({ pct, size = 52, color }: { pct: number; size?: numbe
 }
 
 // ─── Exercise checklist item ──────────────────────────────────
-function ExerciseCheckItem({ exercise, completed, onToggle, T }: {
-  exercise: Exercise; completed: boolean; onToggle: () => void; T: any;
+function ExerciseCheckItem({ exercise, completed, onToggle, onDemo, T }: {
+  exercise: Exercise; completed: boolean; onToggle: () => void; onDemo?: () => void; T: any;
 }) {
   return (
     <TouchableOpacity
@@ -81,20 +82,32 @@ function ExerciseCheckItem({ exercise, completed, onToggle, T }: {
         ) : null}
       </View>
 
-      {/* Muscle badge */}
-      <View style={[styles.muscleBadge, { backgroundColor: T.accent + '18' }]}>
-        <Text style={{ fontSize: 9, fontWeight: '700', color: T.accent }}>{exercise.muscle}</Text>
+      {/* Right column: demo button + muscle badge */}
+      <View style={{ alignItems: 'flex-end', gap: 6 }}>
+        {exercise.demo_video_storage_path && onDemo && (
+          <TouchableOpacity
+            onPress={(e) => { e.stopPropagation?.(); onDemo(); }}
+            style={[styles.demoBadge, { backgroundColor: T.accent }]}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff' }}>▶ Demo</Text>
+          </TouchableOpacity>
+        )}
+        <View style={[styles.muscleBadge, { backgroundColor: T.accent + '18' }]}>
+          <Text style={{ fontSize: 9, fontWeight: '700', color: T.accent }}>{exercise.muscle}</Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
 }
 
 // ─── Routine accordion card ───────────────────────────────────
-function RoutineAccordion({ routine, expanded, onToggleExpand, onToggleExercise, T }: {
+function RoutineAccordion({ routine, expanded, onToggleExpand, onToggleExercise, onDemo, T }: {
   routine: ClientRoutine;
   expanded: boolean;
   onToggleExpand: () => void;
   onToggleExercise: (exerciseId: string, completed: boolean) => void;
+  onDemo: (exercise: Exercise) => void;
   T: any;
 }) {
   const allDone = routine.completedCount === routine.totalCount && routine.totalCount > 0;
@@ -171,6 +184,7 @@ function RoutineAccordion({ routine, expanded, onToggleExpand, onToggleExercise,
                   exercise={ex}
                   completed={prog?.completed ?? false}
                   onToggle={() => onToggleExercise(ex.id, !(prog?.completed ?? false))}
+                  onDemo={() => onDemo(ex)}
                   T={T}
                 />
               );
@@ -194,6 +208,7 @@ function RoutineAccordion({ routine, expanded, onToggleExpand, onToggleExercise,
 // ─── Main screen ──────────────────────────────────────────────
 export default function RoutineScreen() {
   const T = useTheme();
+  const router = useRouter();
   const { user } = useAuthStore();
   const { mySubscription } = usePlansStore();
   const { clientRoutines, isLoadingClient, error, loadClientRoutines, toggleExerciseDone } = useRoutinesStore();
@@ -214,6 +229,18 @@ export default function RoutineScreen() {
       setExpandedId(clientRoutines[0].id);
     }
   }, [clientRoutines.length]);
+
+  const handleDemo = (exercise: Exercise) => {
+    if (!exercise.demo_video_storage_path) return;
+    router.push({
+      pathname: '/(client)/exercise-demo',
+      params: {
+        storagePath: exercise.demo_video_storage_path,
+        name: exercise.name,
+        muscle: exercise.muscle,
+      },
+    } as any);
+  };
 
   const handleToggle = async (routine: ClientRoutine, exerciseId: string, completed: boolean) => {
     if (!user?.id || !user?.tenant_id) return;
@@ -289,6 +316,7 @@ export default function RoutineScreen() {
                 expanded={expandedId === routine.id}
                 onToggleExpand={() => setExpandedId(expandedId === routine.id ? null : routine.id)}
                 onToggleExercise={(exerciseId, completed) => handleToggle(routine, exerciseId, completed)}
+                onDemo={handleDemo}
                 T={T}
               />
             ))}
@@ -324,6 +352,7 @@ const styles = StyleSheet.create({
   checkName: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
   checkMeta: { fontSize: 11 },
   muscleBadge: { borderRadius: 5, paddingHorizontal: 6, paddingVertical: 3, alignSelf: 'flex-start', marginTop: 2 },
+  demoBadge: { borderRadius: 5, paddingHorizontal: 7, paddingVertical: 3 },
   completedBanner: {
     borderRadius: 10, borderWidth: 1, padding: 12, marginTop: 8,
   },

@@ -17,6 +17,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useClientsWithPlan } from '@/hooks/useProfiles';
 import { useRouter } from 'expo-router';
 import { uploadVideoFile, uploadThumbnail, getThumbnailPublicUrl, assignVideoToClient } from '@/services/videos.service';
+import { addExercise, updateExercise, uploadExerciseDemoVideo, deleteExerciseDemoVideo } from '@/services/routines.service';
 import { MOCK_NUTRITION_PLANS } from '@/data/adminMock';
 import type { Video, VideoLevel, VideoPlan } from '@/types/videos';
 import type { Routine, Exercise, RoutineLevel, ExerciseMuscle, RoutinePlan } from '@/types/routines';
@@ -161,13 +162,21 @@ function ExerciseFormModal({ routineId, tenantId, exercise, visible, onClose, on
   visible: boolean; onClose: () => void; onSaved: () => void;
 }) {
   const T = useTheme();
-  const { addExerciseToRoutine, editExercise } = useRoutinesStore();
+  const { editExercise } = useRoutinesStore();
   const [name, setName] = useState('');
   const [muscle, setMuscle] = useState<ExerciseMuscle>('General');
   const [sets, setSets] = useState('3');
   const [reps, setReps] = useState('10');
   const [rest, setRest] = useState('60');
   const [notes, setNotes] = useState('');
+
+  // Demo video state
+  const [demoVideoPath, setDemoVideoPath] = useState<string | null>(null);
+  const [localDemoUri, setLocalDemoUri] = useState<string | null>(null);
+  const [localDemoMime, setLocalDemoMime] = useState('video/mp4');
+  const [pendingDeleteDemo, setPendingDeleteDemo] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState('');
+
   const [saving, setSaving] = useState(false);
   const isEdit = !!exercise;
 
@@ -179,22 +188,98 @@ function ExerciseFormModal({ routineId, tenantId, exercise, visible, onClose, on
       setReps(String(exercise?.reps ?? 10));
       setRest(String(exercise?.rest_seconds ?? 60));
       setNotes(exercise?.notes ?? '');
+      setDemoVideoPath(exercise?.demo_video_storage_path ?? null);
+      setLocalDemoUri(null);
+      setPendingDeleteDemo(false);
+      setUploadMsg('');
     }
   }, [visible, exercise]);
+
+  const pickDemoVideo = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'videos' as any,
+      quality: 1,
+      videoMaxDuration: 300,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    setLocalDemoUri(result.assets[0].uri);
+    setLocalDemoMime('video/mp4');
+    setPendingDeleteDemo(false);
+  };
+
+  const recordDemoVideo = async () => {
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: 'videos' as any,
+      quality: 1,
+      videoMaxDuration: 300,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    setLocalDemoUri(result.assets[0].uri);
+    setLocalDemoMime('video/mp4');
+    setPendingDeleteDemo(false);
+  };
+
+  const handleRemoveDemo = () => {
+    setLocalDemoUri(null);
+    setDemoVideoPath(null);
+    setPendingDeleteDemo(true);
+  };
 
   const handleSave = async () => {
     if (!name.trim()) { Alert.alert('Error', 'El nombre es requerido.'); return; }
     setSaving(true);
     try {
+      const basicFields = {
+        name: name.trim(), muscle,
+        sets: parseInt(sets) || 3, reps: parseInt(reps) || 10,
+        rest_seconds: parseInt(rest) || 60, notes: notes.trim() || null,
+      };
+
+      let exerciseId: string;
+
       if (isEdit && exercise) {
-        await editExercise(exercise.id, { name: name.trim(), muscle, sets: parseInt(sets) || 3, reps: parseInt(reps) || 10, rest_seconds: parseInt(rest) || 60, notes: notes.trim() || null });
+        // Delete old video from storage if replacing or removing
+        if ((pendingDeleteDemo || localDemoUri) && exercise.demo_video_storage_path) {
+          await deleteExerciseDemoVideo(exercise.demo_video_storage_path).catch(() => {});
+        }
+        const demoFields = pendingDeleteDemo && !localDemoUri
+          ? { demo_video_storage_path: null, demo_video_bucket: null, demo_video_mime_type: null }
+          : {};
+        await editExercise(exercise.id, { ...basicFields, ...demoFields });
+        exerciseId = exercise.id;
       } else {
-        await addExerciseToRoutine({ routine_id: routineId, tenant_id: tenantId, name: name.trim(), muscle, sets: parseInt(sets) || 3, reps: parseInt(reps) || 10, rest_seconds: parseInt(rest) || 60, notes: notes.trim() || null, sort_order: 0 });
+        // Create exercise first (need the ID for storage path)
+        const created = await addExercise({
+          routine_id: routineId, tenant_id: tenantId, sort_order: 0,
+          demo_video_storage_path: null, demo_video_bucket: null,
+          demo_video_mime_type: null, demo_duration_seconds: null,
+          ...basicFields,
+        });
+        exerciseId = created.id;
       }
+
+      // Upload new demo video if selected
+      if (localDemoUri) {
+        setUploadMsg('Subiendo video demo...');
+        const ext = localDemoUri.split('.').pop()?.split('?')[0] ?? 'mp4';
+        const storagePath = await uploadExerciseDemoVideo(
+          tenantId, exerciseId,
+          { uri: localDemoUri, mimeType: localDemoMime, extension: ext },
+          (pct) => setUploadMsg(`Subiendo video... ${pct}%`),
+        );
+        await updateExercise(exerciseId, {
+          demo_video_storage_path: storagePath,
+          demo_video_bucket: 'exercise-demos',
+          demo_video_mime_type: localDemoMime,
+        });
+      }
+
       onSaved(); onClose();
     } catch (e: any) { Alert.alert('Error', e.message); }
-    finally { setSaving(false); }
+    finally { setSaving(false); setUploadMsg(''); }
   };
+
+  const hasDemo = (demoVideoPath || localDemoUri) && !pendingDeleteDemo;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -228,12 +313,53 @@ function ExerciseFormModal({ routineId, tenantId, exercise, visible, onClose, on
               <Text style={[styles.label, { color: T.textSecondary }]}>Notas</Text>
               <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
                 value={notes} onChangeText={setNotes} placeholder="Instrucciones opcionales..." placeholderTextColor={T.textMuted} />
+
+              {/* ── Video de demostración ── */}
+              <Text style={[styles.label, { color: T.textSecondary }]}>Video de demostración</Text>
+              {hasDemo ? (
+                <View style={[styles.demoVideoRow, { backgroundColor: T.bg, borderColor: T.green + '66' }]}>
+                  <Text style={{ fontSize: 22 }}>🎬</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: T.green }}>
+                      {localDemoUri ? 'Video listo para guardar' : 'Video guardado ✓'}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>
+                      {localDemoUri ? 'Se subirá al guardar el ejercicio' : 'Los clientes podrán verlo en su rutina'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={handleRemoveDemo} style={{ padding: 4 }}>
+                    <Text style={{ fontSize: 11, color: T.red, fontWeight: '700' }}>Eliminar</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                  <TouchableOpacity onPress={pickDemoVideo}
+                    style={[styles.demoBtn, { flex: 1, borderColor: T.border, backgroundColor: T.bg }]}>
+                    <Text style={{ fontSize: 20 }}>📁</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: T.textSecondary, marginTop: 4 }}>Galería</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={recordDemoVideo}
+                    style={[styles.demoBtn, { flex: 1, borderColor: T.accent + '66', backgroundColor: T.accent + '10' }]}>
+                    <Text style={{ fontSize: 20 }}>🎥</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: T.accent, marginTop: 4 }}>Grabar</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Upload progress */}
+              {uploadMsg ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12, padding: 12, borderRadius: 10, backgroundColor: T.accent + '12' }}>
+                  <ActivityIndicator size="small" color={T.accent} />
+                  <Text style={{ color: T.accent, fontSize: 13, fontWeight: '600' }}>{uploadMsg}</Text>
+                </View>
+              ) : null}
+
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
                   <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.btn, { backgroundColor: T.accent, flex: 1 }]}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? 'Guardando...' : 'Guardar'}</Text>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? (uploadMsg || 'Guardando...') : 'Guardar'}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -250,10 +376,12 @@ function AssignRoutineModal({ routine, visible, onClose, tenantId }: {
 }) {
   const T = useTheme();
   const { user } = useAuthStore();
-  const { data: clients = [] } = useClientsWithPlan();
+  const { data: clients = [], isLoading: loadingClients, error: clientsError, refetch } = useClientsWithPlan();
   const { assignRoutine } = useRoutinesStore();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => { if (visible) { setSelectedId(null); refetch(); } }, [visible]);
 
   const handleAssign = async () => {
     if (!routine || !selectedId || !user?.id) return;
@@ -272,8 +400,35 @@ function AssignRoutineModal({ routine, visible, onClose, tenantId }: {
         <View style={[styles.sheet, { backgroundColor: T.bgCard, maxHeight: '80%' }]}>
           <View style={styles.handle} />
           <Text style={[styles.sheetTitle, { color: T.text }]}>Asignar rutina</Text>
+          {routine && (
+            <Text style={{ fontSize: 13, color: T.textSecondary, marginBottom: 12, marginTop: -12 }}>
+              {routine.name}
+            </Text>
+          )}
           <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-            {clients
+            {loadingClients ? (
+              <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+                <ActivityIndicator color={T.accent} />
+                <Text style={{ color: T.textMuted, fontSize: 13, marginTop: 8 }}>Cargando clientes...</Text>
+              </View>
+            ) : clientsError ? (
+              <View style={{ paddingVertical: 24, alignItems: 'center', gap: 8 }}>
+                <Text style={{ color: T.red, fontSize: 13, textAlign: 'center' }}>
+                  Error al cargar clientes.{'\n'}{(clientsError as any)?.message}
+                </Text>
+                <TouchableOpacity onPress={() => refetch()}>
+                  <Text style={{ color: T.accent, fontWeight: '700' }}>Reintentar</Text>
+                </TouchableOpacity>
+              </View>
+            ) : clients.length === 0 ? (
+              <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+                <Text style={{ fontSize: 32, marginBottom: 8 }}>👤</Text>
+                <Text style={{ color: T.textMuted, fontSize: 14, textAlign: 'center' }}>
+                  No hay clientes aprobados.{'\n'}Verifica que tengan estado "approved".
+                </Text>
+              </View>
+            ) : (
+              clients
               .filter((c: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === c.id) === i)
               .map((c: any) => {
                 const active = selectedId === c.id;
@@ -285,11 +440,15 @@ function AssignRoutineModal({ routine, visible, onClose, tenantId }: {
                         {c.full_name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()}
                       </Text>
                     </View>
-                    <Text style={{ flex: 1, color: T.text, fontSize: 14, fontWeight: active ? '700' : '400' }}>{c.full_name}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: T.text, fontSize: 14, fontWeight: active ? '700' : '400' }}>{c.full_name}</Text>
+                      {c.plan_name && <Text style={{ fontSize: 11, color: T.textMuted }}>{c.plan_name}</Text>}
+                    </View>
                     {active && <Text style={{ color: T.accent }}>✓</Text>}
                   </TouchableOpacity>
                 );
-              })}
+              })
+            )}
           </ScrollView>
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
             <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
@@ -317,6 +476,7 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
   const [allowedPlans, setAllowedPlans] = useState<VideoPlan[]>([]);
   const [allowedLevels, setAllowedLevels] = useState<VideoLevel[]>([]);
   const [isFeatured, setIsFeatured] = useState(false);
+  const [isFree, setIsFree] = useState(false);
   const [saving, setSaving] = useState(false);
 
   React.useEffect(() => {
@@ -327,6 +487,7 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
       setAllowedPlans((video.allowed_plans ?? []) as VideoPlan[]);
       setAllowedLevels((video.allowed_levels ?? []) as VideoLevel[]);
       setIsFeatured(video.is_featured);
+      setIsFree(video.is_free ?? false);
     }
   }, [video, visible]);
 
@@ -346,6 +507,7 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
         allowed_plans: allowedPlans,
         allowed_levels: allowedLevels,
         is_featured: isFeatured,
+        is_free: isFree,
       });
       onSaved(); onClose();
     } catch (e: any) { Alert.alert('Error', e.message); }
@@ -399,9 +561,17 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
                 ))}
               </View>
 
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <Text style={[styles.label, { color: T.textSecondary, marginBottom: 0 }]}>Destacado</Text>
                 <Switch value={isFeatured} onValueChange={setIsFeatured} trackColor={{ true: T.accent, false: T.border }} />
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.label, { color: T.textSecondary, marginBottom: 0 }]}>Acceso libre</Text>
+                  <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 16 }}>Visible para todos sin suscripción</Text>
+                </View>
+                <Switch value={isFree} onValueChange={setIsFree} trackColor={{ true: T.green, false: T.border }} />
               </View>
 
               <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -499,6 +669,7 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
   const [allowedPlans, setAllowedPlans] = useState<VideoPlan[]>([]);
   const [allowedLevels, setAllowedLevels] = useState<VideoLevel[]>([]);
   const [isFeatured, setIsFeatured] = useState(false);
+  const [isFree, setIsFree] = useState(false);
   const [thumbColor, setThumbColor] = useState(THUMB_COLORS[0]);
   const [errors, setErrors] = useState<string[]>([]);
 
@@ -541,7 +712,7 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
   const reset = () => {
     setStep('meta'); setTitle(''); setDescription(''); setCategorySlug('general');
     setLevel('beginner'); setAllowedPlans([]); setAllowedLevels([]);
-    setIsFeatured(false); setThumbColor(THUMB_COLORS[0]); setErrors([]);
+    setIsFeatured(false); setIsFree(false); setThumbColor(THUMB_COLORS[0]); setErrors([]);
     setVideoFile(null); setThumbFile(null); setUploadProgress('');
   };
 
@@ -573,6 +744,7 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
         allowed_levels: allowedLevels,
         status: 'draft',
         is_featured: isFeatured,
+        is_free: isFree,
         sort_order: 0,
         created_by: user?.id ?? null,
         updated_by: null,
@@ -743,9 +915,17 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
                   ))}
                 </View>
 
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <Text style={[styles.label, { color: T.textSecondary, marginBottom: 0 }]}>Marcar como destacado</Text>
                   <Switch value={isFeatured} onValueChange={setIsFeatured} trackColor={{ true: T.accent, false: T.border }} />
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.label, { color: T.textSecondary, marginBottom: 0 }]}>Acceso libre</Text>
+                    <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 16 }}>Visible para todos sin suscripción</Text>
+                  </View>
+                  <Switch value={isFree} onValueChange={setIsFree} trackColor={{ true: T.green, false: T.border }} />
                 </View>
 
                 <View style={{ flexDirection: 'row', gap: 12, marginBottom: 8 }}>
@@ -891,7 +1071,14 @@ export default function AdminContentScreen() {
                   {expanded && (r.exercises ?? []).map((ex) => (
                     <View key={ex.id} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: T.border, gap: 10 }}>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: T.text }}>{ex.name}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: T.text }}>{ex.name}</Text>
+                          {ex.demo_video_storage_path && (
+                            <View style={{ backgroundColor: T.green + '20', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
+                              <Text style={{ fontSize: 9, fontWeight: '700', color: T.green }}>🎬 DEMO</Text>
+                            </View>
+                          )}
+                        </View>
                         <Text style={{ fontSize: 11, color: T.textSecondary }}>{ex.sets}×{ex.reps} · {ex.rest_seconds}s · {ex.muscle}</Text>
                       </View>
                       <TouchableOpacity onPress={() => { setEditExerciseTarget({ routineId: r.id, exercise: ex }); setShowExerciseForm(true); }}>
@@ -1073,5 +1260,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
     borderWidth: 1, borderRadius: 12, padding: 14, marginBottom: 16,
     borderStyle: 'dashed',
+  },
+  demoVideoRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 16,
+  },
+  demoBtn: {
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderRadius: 12, paddingVertical: 14,
+    marginBottom: 16,
   },
 });

@@ -1,9 +1,10 @@
 module.exports = {
   expo: {
-    name: "saas-client-management-mobile",
-    slug: "saas-client-management-mobile",
+    name: "ARGYM",
+    slug: "ARGYM",
     version: "1.0.0",
     orientation: "portrait",
+    icon: "./assets/images/icon.png",
     userInterfaceStyle: "automatic",
     scheme: "saas-client-management",
     assetBundlePatterns: ["**/*"],
@@ -39,7 +40,11 @@ module.exports = {
     },
     android: {
       package: "com.saas.clientmanagement",
-      permissions: ["android.permission.RECORD_AUDIO"]
+      permissions: ["android.permission.RECORD_AUDIO"],
+      adaptiveIcon: {
+        foregroundImage: "./assets/images/icon.png",
+        backgroundColor: "#0D1B2A"
+      }
     },
     extra: {
       supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL || "fallback",

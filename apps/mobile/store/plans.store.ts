@@ -30,6 +30,7 @@ export interface Promotion {
   discount_percentage: number | null;
   discount_amount: number | null;
   applies_to_plan_id: string | null;
+  target_level: 'all' | 'beginner' | 'intermediate' | 'advanced';
   start_date: string;
   end_date: string | null;
   is_active: boolean;
@@ -52,7 +53,8 @@ interface PlansState {
   plans: Plan[];
   promotions: Promotion[];
   activePromotion: Promotion | null; // for banner/modal
-  mySubscription: UserSubscription | null;
+  mySubscription: UserSubscription | null;  // latest active (backwards compat)
+  mySubscriptions: UserSubscription[];      // all active subscriptions
   isLoadingPlans: boolean;
   isLoadingPromos: boolean;
   error: string | null;
@@ -78,6 +80,7 @@ export const usePlansStore = create<PlansState & PlansActions>()((set, get) => (
   promotions: [],
   activePromotion: null,
   mySubscription: null,
+  mySubscriptions: [],
   isLoadingPlans: false,
   isLoadingPromos: false,
   error: null,
@@ -128,10 +131,9 @@ export const usePlansStore = create<PlansState & PlansActions>()((set, get) => (
       .eq('user_id', userId)
       .eq('tenant_id', tenantId)
       .eq('status', 'active')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-    set({ mySubscription: data as UserSubscription | null });
+      .order('created_at', { ascending: false });
+    const subs = (data ?? []) as UserSubscription[];
+    set({ mySubscriptions: subs, mySubscription: subs[0] ?? null });
   },
 
   createPlan: async (plan) => {
@@ -187,8 +189,16 @@ export const usePlansStore = create<PlansState & PlansActions>()((set, get) => (
   },
 
   subscribeToRealtime: (tenantId) => {
+    const channelName = `plans-promos-${tenantId}`;
+
+    // Supabase returns the same channel object for a given name, and throws if
+    // you call .on() after .subscribe().  Remove any stale channel first.
+    supabase.getChannels()
+      .filter((ch) => ch.topic === `realtime:${channelName}`)
+      .forEach((ch) => supabase.removeChannel(ch));
+
     const channel = supabase
-      .channel(`plans-promos-${tenantId}`)
+      .channel(channelName)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -264,6 +274,10 @@ export const usePlansStore = create<PlansState & PlansActions>()((set, get) => (
       .single();
 
     if (error) throw error;
-    set({ mySubscription: data as UserSubscription });
+    const newSub = data as UserSubscription;
+    set((s) => ({
+      mySubscription: newSub,
+      mySubscriptions: [...s.mySubscriptions, newSub],
+    }));
   },
 }));

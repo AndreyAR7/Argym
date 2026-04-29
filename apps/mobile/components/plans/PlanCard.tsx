@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
-import { Colors } from '@/constants/colors';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useTheme } from '@/hooks/useTheme';
 import type { Plan, Promotion } from '@/store/plans.store';
 
 interface Props {
@@ -27,42 +27,41 @@ function cycleLabel(cycle: Plan['billing_cycle']): string {
 }
 
 export function PlanCard({ plan, activePromo, isSubscribed, onSubscribe, onEdit, isAdmin }: Props) {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? Colors.dark : Colors.light;
+  const T = useTheme();
   const discounted = discountedPrice(plan, activePromo);
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: T.bgCardElevated, borderColor: T.border }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.name, { color: colors.text }]}>{plan.name}</Text>
+        <Text style={[styles.name, { color: T.text }]}>{plan.name}</Text>
         {!plan.is_active && (
-          <View style={[styles.inactiveBadge, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.inactiveBadgeText, { color: colors.textMuted }]}>Inactivo</Text>
+          <View style={[styles.inactiveBadge, { backgroundColor: T.bgCard }]}>
+            <Text style={[styles.inactiveBadgeText, { color: T.textMuted }]}>Inactivo</Text>
           </View>
         )}
         {isSubscribed && (
-          <View style={[styles.activeBadge, { backgroundColor: '#dcfce7' }]}>
-            <Text style={[styles.activeBadgeText, { color: '#16a34a' }]}>✓ Activo</Text>
+          <View style={[styles.activeBadge, { backgroundColor: T.green + '22' }]}>
+            <Text style={[styles.activeBadgeText, { color: T.green }]}>✓ Activo</Text>
           </View>
         )}
       </View>
 
       {plan.description ? (
-        <Text style={[styles.desc, { color: colors.textSecondary }]}>{plan.description}</Text>
+        <Text style={[styles.desc, { color: T.textSecondary }]}>{plan.description}</Text>
       ) : null}
 
       {/* Price */}
       <View style={styles.priceRow}>
         {discounted !== null ? (
           <>
-            <Text style={[styles.originalPrice, { color: colors.textMuted }]}>
+            <Text style={[styles.originalPrice, { color: T.textMuted }]}>
               {plan.currency} {plan.price.toLocaleString()}
             </Text>
-            <Text style={[styles.price, { color: '#7c3aed' }]}>
+            <Text style={[styles.price, { color: T.purple }]}>
               {plan.currency} {discounted.toLocaleString('es-CR', { minimumFractionDigits: 0 })}
             </Text>
-            <View style={styles.discountBadge}>
+            <View style={[styles.discountBadge, { backgroundColor: T.purple }]}>
               <Text style={styles.discountBadgeText}>
                 {activePromo?.discount_percentage
                   ? `${activePromo.discount_percentage}% OFF`
@@ -71,11 +70,11 @@ export function PlanCard({ plan, activePromo, isSubscribed, onSubscribe, onEdit,
             </View>
           </>
         ) : (
-          <Text style={[styles.price, { color: colors.primary }]}>
+          <Text style={[styles.price, { color: T.accent }]}>
             {plan.currency} {plan.price.toLocaleString()}
           </Text>
         )}
-        <Text style={[styles.cycle, { color: colors.textMuted }]}>{cycleLabel(plan.billing_cycle)}</Text>
+        <Text style={[styles.cycle, { color: T.textMuted }]}>{cycleLabel(plan.billing_cycle)}</Text>
       </View>
 
       {/* Features */}
@@ -83,8 +82,8 @@ export function PlanCard({ plan, activePromo, isSubscribed, onSubscribe, onEdit,
         <View style={styles.features}>
           {plan.features.map((f, i) => (
             <View key={i} style={styles.featureRow}>
-              <Text style={{ color: colors.success, fontSize: 13 }}>✓ </Text>
-              <Text style={[styles.featureText, { color: colors.textSecondary }]}>
+              <Text style={{ color: T.green, fontSize: 13 }}>✓ </Text>
+              <Text style={[styles.featureText, { color: T.textSecondary }]}>
                 {f.name}{f.value && f.value !== 'true' ? `: ${f.value}` : ''}
               </Text>
             </View>
@@ -96,15 +95,15 @@ export function PlanCard({ plan, activePromo, isSubscribed, onSubscribe, onEdit,
       {isAdmin ? (
         <TouchableOpacity
           onPress={() => onEdit?.(plan)}
-          style={[styles.btn, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}
+          style={[styles.btn, { backgroundColor: T.bgCard, borderColor: T.border, borderWidth: 1 }]}
         >
-          <Text style={[styles.btnText, { color: colors.text }]}>Editar plan</Text>
+          <Text style={[styles.btnText, { color: T.text }]}>Editar plan</Text>
         </TouchableOpacity>
       ) : (
         !isSubscribed && (
           <TouchableOpacity
             onPress={() => onSubscribe?.(plan)}
-            style={[styles.btn, { backgroundColor: discounted !== null ? '#7c3aed' : colors.primary }]}
+            style={[styles.btn, { backgroundColor: discounted !== null ? T.purple : T.accent }]}
           >
             <Text style={[styles.btnText, { color: '#fff' }]}>
               {discounted !== null ? '🎉 Suscribirse con descuento' : 'Suscribirse'}

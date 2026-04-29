@@ -3,19 +3,25 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase';
 
-// How notifications appear when the app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// expo-notifications push features were removed from Expo Go in SDK 53.
+// Guard all registration logic so the app works in both Expo Go and dev builds.
+const isExpoGo =
+  (Constants as any).executionEnvironment === 'storeClient' ||
+  Constants.appOwnership === 'expo';
+
+// Only set the handler in real builds — crashes Expo Go at SDK 53+
+if (!isExpoGo) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+}
 
 export async function registerPushToken(userId: string): Promise<void> {
-  // Push tokens only work on physical devices and development/production builds
-  // (not in Expo Go with SDK 53+)
-  if (!Constants.isDevice) return;
+  if (!Constants.isDevice || isExpoGo) return;
 
   try {
     const { status: existing } = await Notifications.getPermissionsAsync();

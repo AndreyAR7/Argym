@@ -27,7 +27,7 @@ interface VideosActions {
   changeVideoStatus: (id: string, status: VideoStatus, userId: string) => Promise<void>;
   removeVideo: (id: string) => Promise<void>;
   // Client
-  loadClientVideos: (tenantId: string, clientId: string, plan: VideoPlan | null, level: VideoLevel | null) => Promise<void>;
+  loadClientVideos: (tenantId: string, clientId: string, plan: VideoPlan | null, level: VideoLevel | null, planIds?: string[], promotionIds?: string[]) => Promise<void>;
   // Assignments
   assignVideo: (videoId: string, clientId: string, tenantId: string, assignedBy: string, note?: string) => Promise<void>;
   unassignVideo: (videoId: string, clientId: string) => Promise<void>;
@@ -83,10 +83,10 @@ export const useVideosStore = create<VideosState & VideosActions>()((set, get) =
     set((s) => ({ adminVideos: s.adminVideos.filter((v) => v.id !== id) }));
   },
 
-  loadClientVideos: async (tenantId, clientId, plan, level) => {
+  loadClientVideos: async (tenantId, clientId, plan, level, planIds, promotionIds) => {
     set({ isLoadingClient: true, error: null });
     try {
-      const videos = await fetchVideosForClient(tenantId, clientId, plan, level);
+      const videos = await fetchVideosForClient(tenantId, clientId, plan, level, planIds, promotionIds);
       set({ clientVideos: videos, isLoadingClient: false });
     } catch (e: any) {
       set({ isLoadingClient: false, error: e.message });

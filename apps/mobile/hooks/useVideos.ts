@@ -9,7 +9,7 @@ import type { VideoLevel, VideoPlan, ClientVideo } from '@/types/videos';
 
 export function useClientVideos() {
   const { user } = useAuthStore();
-  const { mySubscription, fetchMySubscription } = usePlansStore();
+  const { mySubscription, mySubscriptions, fetchMySubscription } = usePlansStore();
   const { clientVideos, isLoadingClient, error, loadClientVideos } = useVideosStore();
 
   // Ensure subscription is loaded — needed to resolve plan tier
@@ -22,13 +22,19 @@ export function useClientVideos() {
   // client_level comes from the profile (auth store, select('*') includes it)
   const clientLevel = (user?.client_level ?? null) as VideoLevel | null;
 
-  // plan_tier comes from the active subscription's plan
+  // Use plan_tier from any active subscription for tier-based access
   const clientPlan = (mySubscription?.plan?.plan_tier ?? null) as VideoPlan | null;
+
+  // All active subscription plan/promo IDs for junction-table access
+  const planIds      = mySubscriptions.map((s) => s.plan_id);
+  const promotionIds = mySubscriptions.map((s) => s.promotion_id).filter((id): id is string => !!id);
+  const planIdsKey   = planIds.join(',');
+  const promoIdsKey  = promotionIds.join(',');
 
   useEffect(() => {
     if (!user?.id || !user?.tenant_id) return;
-    loadClientVideos(user.tenant_id, user.id, clientPlan, clientLevel);
-  }, [user?.id, user?.tenant_id, clientPlan, clientLevel]);
+    loadClientVideos(user.tenant_id, user.id, clientPlan, clientLevel, planIds, promotionIds);
+  }, [user?.id, user?.tenant_id, clientPlan, clientLevel, planIdsKey, promoIdsKey]);
 
   const featured   = clientVideos.filter((v) => v.is_featured && v.is_accessible);
   const assigned   = clientVideos.filter((v) => v.is_assigned && v.is_accessible);
@@ -59,7 +65,7 @@ export function useClientVideos() {
     clientLevel,
     reload: () => {
       if (user?.id && user?.tenant_id) {
-        loadClientVideos(user.tenant_id, user.id, clientPlan, clientLevel);
+        loadClientVideos(user.tenant_id, user.id, clientPlan, clientLevel, planIds, promotionIds);
       }
     },
   };

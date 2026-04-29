@@ -6,10 +6,18 @@ buildscript {
     mavenCentral()
   }
   dependencies {
-    classpath('com.android.tools.build:gradle')
+    classpath('com.android.tools.build:gradle:8.13.2')
     classpath('com.facebook.react:react-native-gradle-plugin')
     classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
   }
+}
+
+ext {
+    buildToolsVersion = "35.0.0"
+    minSdkVersion = 24
+    compileSdkVersion = 36
+    targetSdkVersion = 36
+    ndkVersion = "27.2.12479018"
 }
 
 allprojects {
@@ -18,6 +26,28 @@ allprojects {
     mavenCentral()
     maven { url 'https://www.jitpack.io' }
   }
+}
+
+task printSdkPath {
+    doLast {
+        println "SDK Path: ${android.sdkDirectory}"
+    }
+}
+
+subprojects {
+    afterEvaluate { project ->
+        tasks.configureEach { task ->
+            if (task.name.startsWith('extract') && task.name.endsWith('Annotations')) {
+                task.enabled = false
+                // Create the expected output file so LibraryAarJarsTask (syncLibJars) doesn't fail
+                def variant = task.name.replace('extract', '').replace('Annotations', '').uncapitalize()
+                def typedefsFile = new File(task.project.buildDir,
+                    "intermediates/annotations_typedef_file/${variant}/${task.name}/typedefs.txt")
+                typedefsFile.parentFile.mkdirs()
+                typedefsFile.createNewFile()
+            }
+        }
+    }
 }
 
 apply plugin: "expo-root-project"

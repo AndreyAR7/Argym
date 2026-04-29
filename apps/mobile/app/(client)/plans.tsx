@@ -1,27 +1,52 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, FlatList, StyleSheet,
-  ActivityIndicator, Alert, Modal, TouchableOpacity, StatusBar,
+  View, Text, FlatList, Modal, ScrollView,
+  StyleSheet, ActivityIndicator, StatusBar, TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
 import { usePlansStore } from '@/store/plans.store';
 import { useAuthStore } from '@/store/auth.store';
 import { PlanCard } from '@/components/plans/PlanCard';
+import { OfferCard } from '@/components/plans/OfferCard';
+import { PaymentModal } from '@/components/plans/PaymentModal';
 import { ClientTopBar } from '@/components/client/ClientTopBar';
-import type { Plan } from '@/store/plans.store';
+import { getOfferPlans } from '@/services/offers.service';
+import type { Plan, Promotion } from '@/store/plans.store';
+
+const LEVEL_LABEL: Record<string, string> = {
+  beginner:     'Principiante',
+  intermediate: 'Intermedio',
+  advanced:     'Avanzado',
+};
+
+function isPromoLive(p: Promotion): boolean {
+  const now = Date.now();
+  return (
+    p.is_active &&
+    new Date(p.start_date).getTime() <= now &&
+    (p.end_date === null || new Date(p.end_date).getTime() > now)
+  );
+}
 
 export default function ClientPlansScreen() {
   const T = useTheme();
   const { user } = useAuthStore();
   const {
-    plans, promotions, mySubscription,
-    isLoadingPlans, fetchPlans, fetchPromotions, fetchMySubscription,
+    promotions, mySubscriptions,
+    isLoadingPromos, fetchPlans, fetchPromotions, fetchMySubscription,
     subscribeToRealtime, mockSubscribe,
   } = usePlansStore();
 
-  const [confirmPlan, setConfirmPlan] = useState<Plan | null>(null);
-  const [subscribing, setSubscribing] = useState(false);
+  // Offer drill-in state
+  const [selectedOffer, setSelectedOffer] = useState<Promotion | null>(null);
+  const [offerPlans, setOfferPlans] = useState<Plan[]>([]);
+  const [offerPlansLoading, setOfferPlansLoading] = useState(false);
+
+  // Payment state
+  const [paymentPlan, setPaymentPlan] = useState<Plan | null>(null);
+
+  const subscribedPlanIds = new Set(mySubscriptions.map((s) => s.plan_id));
 
   useEffect(() => {
     if (!user?.tenant_id) return;
@@ -32,123 +57,181 @@ export default function ClientPlansScreen() {
     return unsub;
   }, [user?.tenant_id]);
 
-  const handleSubscribe = async () => {
-    if (!confirmPlan || !user) return;
-    setSubscribing(true);
-    try {
-      const promo = promotions.find(
-        (p) => p.type === 'discount' && (!p.applies_to_plan_id || p.applies_to_plan_id === confirmPlan.id)
-      );
-      await mockSubscribe(confirmPlan.id, user.id, user.tenant_id, promo?.id);
-      setConfirmPlan(null);
-      Alert.alert('¡Listo!', `Te suscribiste al plan ${confirmPlan.name}`);
-    } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'No se pudo completar la suscripción');
-    } finally {
-      setSubscribing(false);
-    }
+  // Load plans for the selected offer
+  useEffect(() => {
+    if (!selectedOffer) { setOfferPlans([]); return; }
+    setOfferPlansLoading(true);
+    getOfferPlans(selectedOffer.id)
+      .then(setOfferPlans)
+      .catch(() => setOfferPlans([]))
+      .finally(() => setOfferPlansLoading(false));
+  }, [selectedOffer?.id]);
+
+  const myLevel = user?.client_level;
+
+  // Offers visible to this client (matches their level or 'all')
+  const visibleOffers = promotions.filter(
+    (p) =>
+      isPromoLive(p) &&
+      (p.target_level === 'all' || !myLevel || p.target_level === myLevel)
+  );
+
+  const handlePaymentConfirm = async (plan: Plan, promoId?: string) => {
+    if (!user) throw new Error('Usuario no autenticado');
+    await mockSubscribe(plan.id, user.id, user.tenant_id, promoId);
   };
 
-  const activePlans = plans.filter((p) => p.is_active);
+  // The active discount promo for the current offer (if discount type)
+  const offerPromo =
+    selectedOffer?.type === 'discount' && isPromoLive(selectedOffer)
+      ? selectedOffer
+      : null;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <ClientTopBar title="Planes" />
+      <ClientTopBar title="Ofertas" />
 
-      {isLoadingPlans ? (
+      {isLoadingPromos ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={T.accent} size="large" />
         </View>
       ) : (
         <FlatList
-          data={activePlans}
+          data={visibleOffers}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
           ListHeaderComponent={
-            <View style={{ marginBottom: 8 }}>
-              <Text style={[styles.pageTitle, { color: T.text }]}>Planes disponibles</Text>
-              <Text style={[styles.pageSubtitle, { color: T.textSecondary }]}>
-                {activePlans.length} {activePlans.length === 1 ? 'plan activo' : 'planes activos'}
-              </Text>
+            <View style={{ marginBottom: 12 }}>
+              <Text style={[styles.pageTitle, { color: T.text }]}>Ofertas disponibles</Text>
+              {myLevel ? (
+                <Text style={[styles.pageSubtitle, { color: T.textSecondary }]}>
+                  {LEVEL_LABEL[myLevel]} · {visibleOffers.length} oferta{visibleOffers.length !== 1 ? 's' : ''} activa{visibleOffers.length !== 1 ? 's' : ''}
+                </Text>
+              ) : (
+                <Text style={[styles.pageSubtitle, { color: T.textSecondary }]}>
+                  {visibleOffers.length} oferta{visibleOffers.length !== 1 ? 's' : ''} activa{visibleOffers.length !== 1 ? 's' : ''}
+                </Text>
+              )}
             </View>
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={{ fontSize: 36, marginBottom: 12 }}>📋</Text>
+              <Text style={{ fontSize: 40, marginBottom: 12 }}>🎯</Text>
+              <Text style={[styles.emptyTitle, { color: T.text }]}>Sin ofertas disponibles</Text>
               <Text style={[styles.emptyText, { color: T.textMuted }]}>
-                No hay planes disponibles en este momento.
+                No hay ofertas activas en este momento.{'\n'}Vuelve pronto para nuevas novedades.
               </Text>
             </View>
           }
           renderItem={({ item }) => (
-            <PlanCard
-              plan={item}
-              activePromo={promotions.find(
-                (p) => p.type === 'discount' && p.is_active &&
-                  (!p.applies_to_plan_id || p.applies_to_plan_id === item.id)
-              )}
-              isSubscribed={mySubscription?.plan_id === item.id}
-              onSubscribe={setConfirmPlan}
-            />
+            <OfferCard offer={item} onPress={setSelectedOffer} />
           )}
         />
       )}
 
-      {/* Confirm subscription modal */}
-      <Modal visible={!!confirmPlan} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: T.bgCard }]}>
-            <Text style={[styles.modalTitle, { color: T.text }]}>Confirmar suscripción</Text>
-            <Text style={[styles.modalDesc, { color: T.textSecondary }]}>
-              ¿Deseas suscribirte al plan{' '}
-              <Text style={{ fontWeight: '700', color: T.text }}>{confirmPlan?.name}</Text>?
-            </Text>
-            <Text style={[styles.modalNote, { color: T.textMuted }]}>
-              (Pago simulado — integración con Stripe próximamente)
-            </Text>
-            <View style={styles.modalActions}>
+      {/* ── Offer detail bottom sheet ── */}
+      <Modal
+        visible={!!selectedOffer}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedOffer(null)}
+      >
+        <View style={styles.sheetOverlay}>
+          <TouchableOpacity style={styles.sheetBackdrop} onPress={() => setSelectedOffer(null)} />
+          <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
+            <View style={styles.sheetHandle} />
+
+            {/* Offer header */}
+            <View style={styles.sheetHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.sheetTitle, { color: T.text }]} numberOfLines={2}>
+                  {selectedOffer?.title}
+                </Text>
+                {selectedOffer?.description ? (
+                  <Text style={[styles.sheetDesc, { color: T.textSecondary }]} numberOfLines={3}>
+                    {selectedOffer.description}
+                  </Text>
+                ) : null}
+              </View>
               <TouchableOpacity
-                onPress={() => setConfirmPlan(null)}
-                style={[styles.modalBtn, { backgroundColor: T.bg, borderColor: T.border, borderWidth: 1 }]}
+                onPress={() => setSelectedOffer(null)}
+                style={[styles.closeBtn, { backgroundColor: T.bg }]}
               >
-                <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleSubscribe}
-                disabled={subscribing}
-                style={[styles.modalBtn, { backgroundColor: T.accent }]}
-              >
-                {subscribing
-                  ? <ActivityIndicator color="#fff" size="small" />
-                  : <Text style={{ color: '#fff', fontWeight: '700' }}>Confirmar</Text>
-                }
+                <Text style={{ color: T.textMuted, fontSize: 16 }}>✕</Text>
               </TouchableOpacity>
             </View>
+
+            <Text style={[styles.plansLabel, { color: T.textMuted }]}>PLANES DISPONIBLES</Text>
+
+            {offerPlansLoading ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <ActivityIndicator color={T.accent} />
+              </View>
+            ) : offerPlans.length === 0 ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <Text style={{ color: T.textMuted, fontSize: 14 }}>No hay planes configurados para esta oferta.</Text>
+              </View>
+            ) : (
+              <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+                {offerPlans.map((plan) => (
+                  <PlanCard
+                    key={plan.id}
+                    plan={plan}
+                    activePromo={offerPromo}
+                    isSubscribed={subscribedPlanIds.has(plan.id)}
+                    onSubscribe={(p) => setPaymentPlan(p)}
+                  />
+                ))}
+              </ScrollView>
+            )}
           </View>
         </View>
       </Modal>
+
+      {/* Payment modal */}
+      <PaymentModal
+        plan={paymentPlan}
+        promotion={offerPromo}
+        visible={!!paymentPlan}
+        onClose={() => setPaymentPlan(null)}
+        onConfirm={async (plan, promoId) => {
+          await handlePaymentConfirm(plan, promoId);
+        }}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   pageTitle: { fontSize: 24, fontWeight: '800', marginBottom: 2 },
-  pageSubtitle: { fontSize: 13, marginBottom: 16 },
-  empty: { alignItems: 'center', paddingVertical: 60 },
-  emptyText: { fontSize: 15, textAlign: 'center' },
-  modalOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center', alignItems: 'center', padding: 24,
+  pageSubtitle: { fontSize: 13 },
+  empty: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 32 },
+  emptyTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8 },
+  emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  sheetOverlay: { flex: 1 },
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+  sheet: {
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    maxHeight: '82%', minHeight: '50%',
   },
-  modalCard: {
-    borderRadius: 18, padding: 24, width: '100%',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25, shadowRadius: 16, elevation: 10,
+  sheetHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignSelf: 'center', marginTop: 12, marginBottom: 16,
   },
-  modalTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8 },
-  modalDesc: { fontSize: 15, lineHeight: 22, marginBottom: 6 },
-  modalNote: { fontSize: 12, marginBottom: 20 },
-  modalActions: { flexDirection: 'row', gap: 12 },
-  modalBtn: { flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
+  sheetHeader: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    paddingHorizontal: 16, paddingBottom: 12,
+  },
+  sheetTitle: { fontSize: 18, fontWeight: '800', marginBottom: 4 },
+  sheetDesc: { fontSize: 13, lineHeight: 18 },
+  closeBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  plansLabel: {
+    fontSize: 10, fontWeight: '800', letterSpacing: 1.5,
+    paddingHorizontal: 16, paddingBottom: 4,
+  },
 });

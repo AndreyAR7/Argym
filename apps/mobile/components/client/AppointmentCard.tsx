@@ -14,6 +14,7 @@ interface Props {
     status?: string;
   };
   onPress?: () => void;
+  onReschedule?: () => void;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -44,7 +45,7 @@ function formatTime(iso: string) {
   return { day, time };
 }
 
-export function AppointmentCard({ appointment, onPress }: Props) {
+export function AppointmentCard({ appointment, onPress, onReschedule }: Props) {
   const T = useTheme();
   const { day, time } = formatTime(appointment.start_time);
   const isVirtual = appointment.appointment_type === 'virtual';
@@ -83,6 +84,14 @@ export function AppointmentCard({ appointment, onPress }: Props) {
         {appointment.notes && (
           <Text style={[styles.notes, { color: T.textMuted }]}>{appointment.notes}</Text>
         )}
+        {onReschedule && (status === 'cancelled' || status === 'no_show') && (
+          <TouchableOpacity
+            onPress={(e) => { e.stopPropagation?.(); onReschedule(); }}
+            style={[styles.rescheduleBtn, { backgroundColor: '#10B98122', borderColor: '#10B98155' }]}
+          >
+            <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '700' }}>🔄 Reagendar</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <View style={styles.arrow}>
         <Text style={{ color: T.textMuted, fontSize: 18 }}>›</Text>
@@ -108,4 +117,5 @@ const styles = StyleSheet.create({
   location: { fontSize: 12 },
   notes: { fontSize: 12, marginTop: 2, fontStyle: 'italic' },
   arrow: { paddingRight: 14 },
+  rescheduleBtn: { alignSelf: 'flex-start', marginTop: 8, borderRadius: 6, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5 },
 });

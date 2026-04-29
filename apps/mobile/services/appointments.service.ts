@@ -162,3 +162,23 @@ export async function createGroupAppointment(
 
   return apt;
 }
+
+export async function cancelExpiredAppointments(tenantId: string): Promise<void> {
+  const now = new Date().toISOString();
+  await supabase
+    .from('appointments')
+    .update({ status: 'cancelled' })
+    .eq('tenant_id', tenantId)
+    .in('status', ['scheduled', 'confirmed'])
+    .lt('end_time', now);
+}
+
+export async function cancelExpiredClientAppointments(userId: string): Promise<void> {
+  const now = new Date().toISOString();
+  await supabase
+    .from('appointments')
+    .update({ status: 'cancelled' })
+    .eq('client_id', userId)
+    .in('status', ['scheduled', 'confirmed'])
+    .lt('end_time', now);
+}

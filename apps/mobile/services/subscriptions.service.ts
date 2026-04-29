@@ -59,6 +59,17 @@ export async function getClientSubscription(userId: string): Promise<Subscriptio
   return { ...row, plan: row.plans ?? null };
 }
 
+export async function getClientSubscriptions(userId: string): Promise<SubscriptionRecord[]> {
+  const { data, error } = await supabase
+    .from('user_subscriptions')
+    .select('id, user_id, tenant_id, plan_id, status, start_date, end_date, final_price, plans(id, name, price, currency, billing_cycle)')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .order('start_date', { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as unknown as RawSubscriptionRow[]).map((row) => ({ ...row, plan: row.plans ?? null }));
+}
+
 // Uses a SECURITY DEFINER RPC so cancel + insert run in one transaction.
 // This prevents the user from being left without a plan if the insert fails.
 export async function assignPlanToClient(

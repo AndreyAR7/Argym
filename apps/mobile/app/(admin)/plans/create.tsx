@@ -8,6 +8,8 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { usePlansStore, type PlanFeature } from '@/store/plans.store';
 import { useAuthStore } from '@/store/auth.store';
+import { setPlanVideos } from '@/services/videos.service';
+import { VideoSelector } from '@/components/admin/VideoSelector';
 
 const CYCLES = [
   { label: 'Mensual', value: 'monthly' },
@@ -33,6 +35,7 @@ export default function CreatePlanScreen() {
   const [currency, setCurrency] = useState('CRC');
   const [cycle, setCycle] = useState<'monthly' | 'yearly' | 'one_time'>('monthly');
   const [features, setFeatures] = useState<PlanFeature[]>([{ name: '', value: 'true' }]);
+  const [videoIds, setVideoIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   const addFeature = () => setFeatures((f) => [...f, { name: '', value: 'true' }]);
@@ -48,7 +51,7 @@ export default function CreatePlanScreen() {
     if (!user?.tenant_id) return;
     setSaving(true);
     try {
-      await createPlan({
+      const newPlan = await createPlan({
         tenant_id: user.tenant_id,
         name: name.trim(),
         description: description.trim() || null,
@@ -60,6 +63,7 @@ export default function CreatePlanScreen() {
         sort_order: 0,
         updated_at: new Date().toISOString(),
       } as any);
+      if (videoIds.length > 0) await setPlanVideos(newPlan.id, videoIds);
       router.back();
     } catch (e: any) {
       Alert.alert('Error', e.message ?? 'No se pudo crear el plan');
@@ -140,6 +144,14 @@ export default function CreatePlanScreen() {
             </TouchableOpacity>
           </View>
         ))}
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, marginBottom: 8 }}>
+          <Text style={{ fontSize: 13, fontWeight: '500', color: T.textSecondary }}>Videos incluidos</Text>
+          <Text style={{ fontSize: 11, color: T.textMuted }}>{videoIds.length} seleccionados</Text>
+        </View>
+        {user?.tenant_id ? (
+          <VideoSelector tenantId={user.tenant_id} selectedIds={videoIds} onChange={setVideoIds} />
+        ) : null}
 
         <TouchableOpacity
           onPress={handleSave}

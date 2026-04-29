@@ -175,6 +175,7 @@ export default function AdminDashboard() {
             icon="💰"
             accent={AdminT.orange}
             sub="suscripciones activas"
+            onPress={() => router.push('/(admin)/revenue')}
           />
           <View style={{ width: 10 }} />
           <AdminStatCard

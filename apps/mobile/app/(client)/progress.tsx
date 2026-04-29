@@ -1,39 +1,48 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, StatusBar } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar,
+  Alert, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, Dimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
-import { StatCard } from '@/components/client/StatCard';
-import { SectionHeader } from '@/components/client/SectionHeader';
 import { ClientTopBar } from '@/components/client/ClientTopBar';
-import { MOCK_PROGRESS } from '@/data/clientMock';
+import { useAuthStore } from '@/store/auth.store';
+import { useProgressStore } from '@/store/progress.store';
+import { calculateBMI, getBMICategory } from '@/services/progress.service';
+import type { BodyMeasurement } from '@/types/progress';
 
-function WeekBar({ day, completed, minutes, accent, border, bgSurface }: {
-  day: string; completed: boolean; minutes: number; accent: string; border: string; bgSurface: string;
+const SCREEN_W = Dimensions.get('window').width;
+const CHART_W = SCREEN_W - 64; // 16 scroll + 16 card * 2
+
+// ─── Tab config ───────────────────────────────────────────────
+const TABS = [
+  { id: 'routines', label: '💪 Rutinas' },
+  { id: 'measures', label: '📏 Medidas' },
+  { id: 'streak',   label: '🔥 Racha'   },
+] as const;
+type TabId = typeof TABS[number]['id'];
+
+const DAY_ABBR = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+
+// ─── Bar Chart ────────────────────────────────────────────────
+function BarChart({ data, T }: {
+  data: { label: string; pct: number }[];
+  T: any;
 }) {
-  const maxH = 60;
-  const h = minutes > 0 ? Math.max(8, (minutes / 70) * maxH) : 4;
   return (
-    <View style={{ alignItems: 'center', gap: 6, flex: 1 }}>
-      <View style={[styles.barBg, { height: maxH, backgroundColor: bgSurface }]}>
-        <View style={[styles.barFill, { height: h, backgroundColor: completed ? accent : border }]} />
-      </View>
-      <Text style={[styles.dayLabel, { color: completed ? '#F0F0FF' : '#5A5A7A' }]}>{day}</Text>
-      {completed && <View style={[styles.dot, { backgroundColor: accent }]} />}
-    </View>
-  );
-}
-
-function MiniChart({ values, color }: { values: number[]; color: string }) {
-  const max = Math.max(...values);
-  const min = Math.min(...values);
-  const range = max - min || 1;
-  return (
-    <View style={styles.miniChart}>
-      {values.map((v, i) => {
-        const h = ((v - min) / range) * 40 + 8;
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 90, gap: 3 }}>
+      {data.map((d, i) => {
+        const h = Math.max(3, (d.pct / 100) * 64);
+        const color = d.pct === 100 ? T.green : d.pct > 0 ? T.orange : T.border;
         return (
-          <View key={i} style={{ flex: 1, justifyContent: 'flex-end', alignItems: 'center' }}>
-            <View style={[styles.miniBar, { height: h, backgroundColor: i === values.length - 1 ? color : color + '55' }]} />
+          <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+            {d.pct > 0 && (
+              <Text style={{ fontSize: 8, color: T.textMuted, marginBottom: 2 }}>{d.pct}%</Text>
+            )}
+            <View style={{ flex: 1, justifyContent: 'flex-end', width: '80%' }}>
+              <View style={{ height: h, backgroundColor: color, borderRadius: 3 }} />
+            </View>
+            <Text style={{ fontSize: 10, color: T.textMuted, marginTop: 3 }}>{d.label}</Text>
           </View>
         );
       })}
@@ -41,134 +50,583 @@ function MiniChart({ values, color }: { values: number[]; color: string }) {
   );
 }
 
+// ─── Line Sparkline (pure RN, no SVG) ────────────────────────
+function Sparkline({ values, color }: { values: number[]; color: string }) {
+  if (values.length < 2) return null;
+  const w = CHART_W - 32;
+  const h = 70;
+  const pad = 8;
+  const maxV = Math.max(...values);
+  const minV = Math.min(...values);
+  const range = maxV - minV || 1;
+
+  const pts = values.map((v, i) => ({
+    x: (i / (values.length - 1)) * w,
+    y: pad + (h - pad * 2) - ((v - minV) / range) * (h - pad * 2),
+  }));
+
+  return (
+    <View style={{ width: w, height: h, position: 'relative', alignSelf: 'center' }}>
+      {pts.slice(1).map((p, i) => {
+        const prev = pts[i];
+        const dx = p.x - prev.x;
+        const dy = p.y - prev.y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+        return (
+          <View
+            key={`l${i}`}
+            style={{
+              position: 'absolute',
+              left: (prev.x + p.x) / 2 - len / 2,
+              top: (prev.y + p.y) / 2 - 1,
+              width: len,
+              height: 2,
+              backgroundColor: color + 'AA',
+              transform: [{ rotate: `${angle}deg` }],
+            }}
+          />
+        );
+      })}
+      {pts.map((p, i) => (
+        <View
+          key={`d${i}`}
+          style={{
+            position: 'absolute',
+            left: p.x - 5,
+            top: p.y - 5,
+            width: 10,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: i === pts.length - 1 ? color : color + '66',
+            borderWidth: i === pts.length - 1 ? 2 : 0,
+            borderColor: '#fff',
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
+// ─── Streak Calendar ──────────────────────────────────────────
+function StreakCalendar({ activeDates, T }: { activeDates: string[]; T: any }) {
+  const today = new Date();
+  // Align to Monday of current week, go back 4 more weeks = 5 weeks total
+  const dow = today.getDay(); // 0=Sun
+  const daysFromMon = dow === 0 ? 6 : dow - 1;
+  const startMon = new Date(today);
+  startMon.setDate(today.getDate() - daysFromMon - 28);
+
+  const activeSet = new Set(activeDates);
+  const weeks: { date: string; dayNum: number; active: boolean; future: boolean }[][] = [];
+
+  for (let w = 0; w < 5; w++) {
+    const week = [];
+    for (let d = 0; d < 7; d++) {
+      const cell = new Date(startMon);
+      cell.setDate(startMon.getDate() + w * 7 + d);
+      const dateStr = cell.toISOString().split('T')[0];
+      week.push({
+        date: dateStr,
+        dayNum: cell.getDate(),
+        active: cell <= today && activeSet.has(dateStr),
+        future: cell > today,
+      });
+    }
+    weeks.push(week);
+  }
+
+  const dayLabels = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+
+  return (
+    <View>
+      <View style={{ flexDirection: 'row', marginBottom: 6 }}>
+        {dayLabels.map((d) => (
+          <View key={d} style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={{ fontSize: 10, color: T.textMuted, fontWeight: '600' }}>{d}</Text>
+          </View>
+        ))}
+      </View>
+      {weeks.map((week, wi) => (
+        <View key={wi} style={{ flexDirection: 'row', marginBottom: 5 }}>
+          {week.map((day) => (
+            <View key={day.date} style={{ flex: 1, alignItems: 'center' }}>
+              <View style={[
+                styles.calCell,
+                day.future
+                  ? { backgroundColor: 'transparent', borderColor: 'transparent' }
+                  : day.active
+                  ? { backgroundColor: T.green + 'CC', borderColor: T.green + '55' }
+                  : { backgroundColor: T.bgSurface, borderColor: T.border },
+              ]}>
+                {!day.future && (
+                  <Text style={{ fontSize: 9, color: day.active ? '#fff' : T.textMuted, fontWeight: day.active ? '700' : '400' }}>
+                    {day.dayNum}
+                  </Text>
+                )}
+              </View>
+            </View>
+          ))}
+        </View>
+      ))}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
+        <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: T.green }} />
+        <Text style={{ fontSize: 11, color: T.textMuted }}>Día activo</Text>
+        <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: T.bgSurface, borderWidth: 1, borderColor: T.border }} />
+        <Text style={{ fontSize: 11, color: T.textMuted }}>Sin actividad</Text>
+      </View>
+    </View>
+  );
+}
+
+// ─── Add Measurement Modal ────────────────────────────────────
+function AddMeasurementModal({ visible, onClose, onSave, lastHeight, T }: {
+  visible: boolean;
+  onClose: () => void;
+  onSave: (m: Partial<BodyMeasurement>) => Promise<void>;
+  lastHeight: string;
+  T: any;
+}) {
+  const [weight, setWeight] = useState('');
+  const [height, setHeight] = useState(lastHeight);
+  const [bodyFat, setBodyFat] = useState('');
+  const [waist, setWaist] = useState('');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { if (visible) setHeight(lastHeight); }, [visible, lastHeight]);
+
+  const handleSave = async () => {
+    if (!weight) { Alert.alert('Error', 'El peso es requerido'); return; }
+    setSaving(true);
+    try {
+      await onSave({
+        weight_kg: parseFloat(weight),
+        height_cm: height ? parseFloat(height) : null,
+        body_fat_pct: bodyFat ? parseFloat(bodyFat) : null,
+        waist_cm: waist ? parseFloat(waist) : null,
+        notes: notes || null,
+      });
+      setWeight(''); setBodyFat(''); setWaist(''); setNotes('');
+      onClose();
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: '#00000088' }}>
+          <View style={{ backgroundColor: T.bgCard, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 }}>
+            <Text style={{ fontSize: 18, fontWeight: '800', color: T.text, marginBottom: 20 }}>📏 Nueva Medición</Text>
+
+            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.inputLabel, { color: T.textMuted }]}>Peso (kg) *</Text>
+                <TextInput
+                  value={weight} onChangeText={setWeight}
+                  keyboardType="decimal-pad"
+                  style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
+                  placeholder="75.5" placeholderTextColor={T.textMuted}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.inputLabel, { color: T.textMuted }]}>Altura (cm)</Text>
+                <TextInput
+                  value={height} onChangeText={setHeight}
+                  keyboardType="decimal-pad"
+                  style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
+                  placeholder="170" placeholderTextColor={T.textMuted}
+                />
+              </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.inputLabel, { color: T.textMuted }]}>% Grasa corporal</Text>
+                <TextInput
+                  value={bodyFat} onChangeText={setBodyFat}
+                  keyboardType="decimal-pad"
+                  style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
+                  placeholder="18.0" placeholderTextColor={T.textMuted}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.inputLabel, { color: T.textMuted }]}>Cintura (cm)</Text>
+                <TextInput
+                  value={waist} onChangeText={setWaist}
+                  keyboardType="decimal-pad"
+                  style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
+                  placeholder="80" placeholderTextColor={T.textMuted}
+                />
+              </View>
+            </View>
+
+            <View style={{ marginBottom: 20 }}>
+              <Text style={[styles.inputLabel, { color: T.textMuted }]}>Notas</Text>
+              <TextInput
+                value={notes} onChangeText={setNotes}
+                style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
+                placeholder="Opcional..." placeholderTextColor={T.textMuted}
+              />
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                onPress={onClose}
+                style={{ flex: 1, padding: 14, borderRadius: 10, borderWidth: 1, borderColor: T.border, alignItems: 'center' }}
+              >
+                <Text style={{ color: T.textMuted, fontWeight: '600' }}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleSave} disabled={saving}
+                style={{ flex: 1, padding: 14, borderRadius: 10, backgroundColor: T.orange, alignItems: 'center' }}
+              >
+                {saving
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={{ color: '#fff', fontWeight: '700' }}>Guardar</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ─── Routines Tab ─────────────────────────────────────────────
+function RoutinesTab({ T }: { T: any }) {
+  const { dailyProgress, routineStreak } = useProgressStore();
+  const last7 = dailyProgress.slice(-7);
+  const barData = last7.map((d) => ({
+    label: DAY_ABBR[new Date(d.date + 'T12:00:00').getDay()],
+    pct: d.pct,
+  }));
+
+  const activeDays = dailyProgress.filter((d) => d.pct > 0).length;
+  const activeDaysWithExercises = dailyProgress.filter((d) => d.pct > 0);
+  const avgPct = activeDaysWithExercises.length > 0
+    ? Math.round(activeDaysWithExercises.reduce((s, d) => s + d.pct, 0) / activeDaysWithExercises.length)
+    : 0;
+
+  return (
+    <View style={{ gap: 12 }}>
+      <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border }]}>
+        <Text style={[styles.cardTitle, { color: T.text }]}>Actividad últimos 7 días</Text>
+        <Text style={{ fontSize: 12, color: T.textMuted, marginBottom: 12 }}>
+          {barData.filter((d) => d.pct > 0).length} de 7 días activos
+        </Text>
+        <BarChart data={barData} T={T} />
+      </View>
+
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <View style={[styles.statMini, { backgroundColor: T.bgCard, borderColor: T.border }]}>
+          <Text style={{ fontSize: 28, fontWeight: '900', color: T.orange }}>{activeDays}</Text>
+          <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2, textAlign: 'center' }}>Días activos</Text>
+          <Text style={{ fontSize: 10, color: T.textMuted, textAlign: 'center' }}>últimas 2 sem.</Text>
+        </View>
+        <View style={[styles.statMini, { backgroundColor: T.bgCard, borderColor: T.border }]}>
+          <Text style={{ fontSize: 28, fontWeight: '900', color: T.green }}>{avgPct}%</Text>
+          <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2, textAlign: 'center' }}>Promedio</Text>
+          <Text style={{ fontSize: 10, color: T.textMuted, textAlign: 'center' }}>completado</Text>
+        </View>
+        <View style={[styles.statMini, { backgroundColor: T.bgCard, borderColor: T.border }]}>
+          <Text style={{ fontSize: 26, fontWeight: '900', color: T.orange }}>
+            {routineStreak?.currentStreak ?? 0}🔥
+          </Text>
+          <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2, textAlign: 'center' }}>Racha actual</Text>
+          <Text style={{ fontSize: 10, color: T.textMuted, textAlign: 'center' }}>días seguidos</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ─── Medidas Tab ──────────────────────────────────────────────
+function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
+  const { measurements } = useProgressStore();
+  const latest = measurements[0];
+
+  const bmi = latest?.weight_kg && latest?.height_cm
+    ? calculateBMI(latest.weight_kg, latest.height_cm)
+    : null;
+  const bmiInfo = bmi ? getBMICategory(bmi) : null;
+
+  const weightHistory = [...measurements]
+    .filter((m) => m.weight_kg != null)
+    .reverse()
+    .slice(-10)
+    .map((m) => m.weight_kg as number);
+
+  const firstWeight = weightHistory[0];
+  const lastWeight = weightHistory[weightHistory.length - 1];
+  const weightChange = weightHistory.length >= 2 && firstWeight != null && lastWeight != null
+    ? lastWeight - firstWeight
+    : null;
+
+  return (
+    <View style={{ gap: 12 }}>
+      {latest && (
+        <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border }]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={[styles.cardTitle, { color: T.text }]}>Última medición</Text>
+            <Text style={{ fontSize: 12, color: T.textMuted }}>
+              {new Date(latest.measured_at + 'T12:00:00').toLocaleDateString('es-CR', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+            {latest.weight_kg != null && (
+              <View style={[styles.measureBadge, { borderColor: T.orange + '44', backgroundColor: T.orange + '18' }]}>
+                <Text style={{ fontSize: 22, fontWeight: '900', color: T.orange }}>{latest.weight_kg}</Text>
+                <Text style={{ fontSize: 10, color: T.textMuted }}>kg</Text>
+              </View>
+            )}
+            {latest.height_cm != null && (
+              <View style={[styles.measureBadge, { borderColor: T.accent + '44', backgroundColor: T.accent + '18' }]}>
+                <Text style={{ fontSize: 22, fontWeight: '900', color: T.accent }}>{latest.height_cm}</Text>
+                <Text style={{ fontSize: 10, color: T.textMuted }}>cm</Text>
+              </View>
+            )}
+            {bmi != null && (
+              <View style={[styles.measureBadge, { borderColor: (bmiInfo?.color ?? T.green) + '44', backgroundColor: (bmiInfo?.color ?? T.green) + '18' }]}>
+                <Text style={{ fontSize: 22, fontWeight: '900', color: bmiInfo?.color ?? T.green }}>{bmi}</Text>
+                <Text style={{ fontSize: 10, color: T.textMuted }}>IMC</Text>
+                <Text style={{ fontSize: 9, color: bmiInfo?.color ?? T.green, fontWeight: '700' }}>{bmiInfo?.label}</Text>
+              </View>
+            )}
+            {latest.body_fat_pct != null && (
+              <View style={[styles.measureBadge, { borderColor: T.border, backgroundColor: T.bgSurface }]}>
+                <Text style={{ fontSize: 22, fontWeight: '900', color: T.text }}>{latest.body_fat_pct}%</Text>
+                <Text style={{ fontSize: 10, color: T.textMuted }}>grasa</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
+
+      {weightHistory.length >= 2 && (
+        <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border }]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={[styles.cardTitle, { color: T.text }]}>Evolución de peso</Text>
+            {weightChange != null && (
+              <Text style={{ fontSize: 13, fontWeight: '700', color: weightChange < 0 ? T.green : weightChange > 0 ? T.orange : T.textMuted }}>
+                {weightChange > 0 ? '+' : ''}{weightChange.toFixed(1)} kg
+              </Text>
+            )}
+          </View>
+          <Sparkline values={weightHistory} color={T.orange} />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
+            <Text style={{ fontSize: 11, color: T.textMuted }}>Min: {Math.min(...weightHistory)} kg</Text>
+            <Text style={{ fontSize: 11, color: T.textMuted }}>Máx: {Math.max(...weightHistory)} kg</Text>
+          </View>
+        </View>
+      )}
+
+      <TouchableOpacity
+        onPress={onAdd}
+        style={{ backgroundColor: T.orange, borderRadius: 12, padding: 14, alignItems: 'center' }}
+      >
+        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>+ Agregar medición de hoy</Text>
+      </TouchableOpacity>
+
+      {measurements.length > 0 ? (
+        <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border }]}>
+          <Text style={[styles.cardTitle, { color: T.text, marginBottom: 12 }]}>Historial</Text>
+          {measurements.slice(0, 12).map((m, idx) => (
+            <View key={m.id} style={{
+              flexDirection: 'row', paddingVertical: 10,
+              borderBottomWidth: idx < measurements.slice(0, 12).length - 1 ? 1 : 0,
+              borderColor: T.border + '55',
+            }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: T.text }}>
+                  {new Date(m.measured_at + 'T12:00:00').toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                </Text>
+                {m.notes ? <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{m.notes}</Text> : null}
+              </View>
+              <View style={{ alignItems: 'flex-end', gap: 3 }}>
+                {m.weight_kg != null && (
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: T.orange }}>{m.weight_kg} kg</Text>
+                )}
+                {m.weight_kg && m.height_cm ? (
+                  <Text style={{ fontSize: 11, color: T.textMuted }}>
+                    IMC {calculateBMI(m.weight_kg, m.height_cm)}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+          <Text style={{ fontSize: 40, marginBottom: 12 }}>📏</Text>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: T.text, marginBottom: 6 }}>Sin mediciones aún</Text>
+          <Text style={{ fontSize: 13, color: T.textMuted, textAlign: 'center', paddingHorizontal: 20 }}>
+            Registra tu peso y medidas para hacer seguimiento de tu progreso.
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ─── Racha Tab ────────────────────────────────────────────────
+function RachaTab({ T }: { T: any }) {
+  const { routineStreak, dailyProgress } = useProgressStore();
+  const current = routineStreak?.currentStreak ?? 0;
+  const longest = routineStreak?.longestStreak ?? 0;
+  const totalActive = dailyProgress.filter((d) => d.pct > 0).length;
+
+  const msg = current === 0 ? 'Empieza hoy tu racha'
+    : current < 3   ? '¡Buen inicio, sigue así!'
+    : current < 7   ? '¡Vas muy bien!'
+    : current < 14  ? '¡Semanas seguidas!'
+    : current < 30  ? '¡Increíble constancia!'
+    : '¡Leyenda del gym!';
+
+  return (
+    <View style={{ gap: 12 }}>
+      <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.orange + '44', alignItems: 'center', paddingVertical: 28 }]}>
+        <Text style={{ fontSize: 56 }}>🔥</Text>
+        <Text style={{ fontSize: 72, fontWeight: '900', color: T.orange, lineHeight: 82 }}>{current}</Text>
+        <Text style={{ fontSize: 16, fontWeight: '700', color: T.text }}>días de racha</Text>
+        <Text style={{ fontSize: 13, color: T.textMuted, marginTop: 4 }}>{msg}</Text>
+      </View>
+
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <View style={[styles.card, { flex: 1, backgroundColor: T.bgCard, borderColor: T.border, alignItems: 'center' }]}>
+          <Text style={{ fontSize: 30, fontWeight: '900', color: T.orange }}>{current}</Text>
+          <Text style={{ fontSize: 11, color: T.textMuted, textAlign: 'center', marginTop: 2 }}>Racha actual</Text>
+        </View>
+        <View style={[styles.card, { flex: 1, backgroundColor: T.bgCard, borderColor: T.border, alignItems: 'center' }]}>
+          <Text style={{ fontSize: 30, fontWeight: '900', color: T.green }}>{longest}</Text>
+          <Text style={{ fontSize: 11, color: T.textMuted, textAlign: 'center', marginTop: 2 }}>Mejor racha</Text>
+        </View>
+        <View style={[styles.card, { flex: 1, backgroundColor: T.bgCard, borderColor: T.border, alignItems: 'center' }]}>
+          <Text style={{ fontSize: 30, fontWeight: '900', color: T.accent }}>{totalActive}</Text>
+          <Text style={{ fontSize: 11, color: T.textMuted, textAlign: 'center', marginTop: 2 }}>Días activos</Text>
+          <Text style={{ fontSize: 10, color: T.textMuted, textAlign: 'center' }}>últimas 2 sem.</Text>
+        </View>
+      </View>
+
+      <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border }]}>
+        <Text style={[styles.cardTitle, { color: T.text, marginBottom: 14 }]}>Últimas 5 semanas</Text>
+        <StreakCalendar activeDates={routineStreak?.activeDates ?? []} T={T} />
+      </View>
+
+      {current === 0 && (
+        <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.orange + '33' }]}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: T.text, marginBottom: 4 }}>💡 ¿Cómo funciona la racha?</Text>
+          <Text style={{ fontSize: 13, color: T.textMuted, lineHeight: 20 }}>
+            Completa al menos un ejercicio de tu rutina cada día para mantener tu racha activa. Si un día no entrenas, la racha se reinicia.
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ─── Main Screen ──────────────────────────────────────────────
 export default function ProgressScreen() {
   const T = useTheme();
-  const p = MOCK_PROGRESS;
+  const { user } = useAuthStore();
+  const { isLoading, error, measurements, loadAll, addMeasurement } = useProgressStore();
+  const [activeTab, setActiveTab] = useState<TabId>('routines');
+  const [showAddMeasure, setShowAddMeasure] = useState(false);
+
+  useEffect(() => {
+    if (user?.id && user?.tenant_id) loadAll(user.id, user.tenant_id);
+  }, [user?.id, user?.tenant_id]);
+
+  const lastHeight = measurements.find((m) => m.height_cm != null)?.height_cm?.toString() ?? '';
+
+  const handleAddMeasurement = async (m: Partial<BodyMeasurement>) => {
+    if (!user?.id || !user?.tenant_id) return;
+    await addMeasurement({
+      client_id: user.id,
+      tenant_id: user.tenant_id,
+      measured_at: new Date().toISOString().split('T')[0],
+      weight_kg: m.weight_kg ?? null,
+      height_cm: m.height_cm ?? null,
+      body_fat_pct: m.body_fat_pct ?? null,
+      muscle_mass_kg: null,
+      waist_cm: m.waist_cm ?? null,
+      chest_cm: null,
+      hip_cm: null,
+      arm_cm: null,
+      notes: m.notes ?? null,
+    });
+  };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
       <ClientTopBar title="Mi Progreso" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: T.text }]}>Mi Progreso</Text>
-          <Text style={[styles.subtitle, { color: T.textMuted }]}>Semana actual</Text>
-        </View>
 
-        <View style={[styles.weekCard, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd, ...T.shadowCard }]}>
-          <View style={styles.weekHeader}>
-            <View>
-              <Text style={[styles.cardTitle, { color: T.text }]}>Actividad semanal</Text>
-              <Text style={[styles.cardSub, { color: T.textMuted }]}>{p.weeklyActivity.filter((d) => d.completed).length} de 7 días completados</Text>
+      {/* Tab pills */}
+      <View style={[styles.tabRow, { borderBottomColor: T.border }]}>
+        {TABS.map((tab) => (
+          <TouchableOpacity
+            key={tab.id}
+            onPress={() => setActiveTab(tab.id)}
+            style={[
+              styles.tabPill,
+              activeTab === tab.id
+                ? { backgroundColor: T.orange, borderColor: T.orange }
+                : { backgroundColor: T.bgCard, borderColor: T.border },
+            ]}
+          >
+            <Text style={{ fontSize: 12, fontWeight: '700', color: activeTab === tab.id ? '#fff' : T.textMuted }}>
+              {tab.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {isLoading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator color={T.orange} size="large" />
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          {error ? (
+            <View style={{ padding: 16, borderRadius: 10, backgroundColor: T.redSoft, marginBottom: 8 }}>
+              <Text style={{ color: T.red, fontSize: 13 }}>Error al cargar datos: {error}</Text>
             </View>
-            <View style={[styles.completionBadge, { backgroundColor: T.accentGlow }]}>
-              <Text style={[styles.completionText, { color: T.accent }]}>{p.completionRate}%</Text>
-            </View>
-          </View>
-          <View style={styles.weekBars}>
-            {p.weeklyActivity.map((d) => (
-              <WeekBar key={d.day} day={d.day} completed={d.completed} minutes={d.minutes} accent={T.accent} border={T.border} bgSurface={T.bgSurface} />
-            ))}
-          </View>
-        </View>
+          ) : null}
 
-        <View style={styles.statsRow}>
-          <StatCard label="Entrenamientos" value={p.totalWorkouts} icon="💪" accent={T.accent} />
-          <View style={{ width: 10 }} />
-          <StatCard label="Minutos activos" value={p.totalMinutes} icon="⏱" accent={T.green} />
-        </View>
+          {activeTab === 'routines' && <RoutinesTab T={T} />}
+          {activeTab === 'measures' && <MedidasTab onAdd={() => setShowAddMeasure(true)} T={T} />}
+          {activeTab === 'streak' && <RachaTab T={T} />}
 
-        <View style={styles.section}>
-          <SectionHeader title="Métricas corporales" subtitle="Última medición" />
-          {p.metrics.map((m) => (
-            <View key={m.label} style={[styles.metricRow, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd, ...T.shadowCard }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.metricLabel, { color: T.textMuted }]}>{m.label}</Text>
-                <View style={styles.metricValueRow}>
-                  <Text style={[styles.metricValue, { color: T.text }]}>{m.value}</Text>
-                  <Text style={[styles.metricUnit, { color: T.textSecondary }]}>{m.unit}</Text>
-                </View>
-              </View>
-              <View style={styles.changeContainer}>
-                <Text style={[styles.changeText, { color: m.change < 0 ? T.green : T.orange }]}>
-                  {m.change > 0 ? '+' : ''}{m.change} {m.unit}
-                </Text>
-                <Text style={[styles.changeDate, { color: T.textMuted }]}>{new Date(m.date).toLocaleDateString('es-CR', { day: 'numeric', month: 'short' })}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
+          <View style={{ height: 32 }} />
+        </ScrollView>
+      )}
 
-        <View style={styles.section}>
-          <SectionHeader title="Evolución de peso" subtitle="Últimas 6 semanas" />
-          <View style={[styles.chartCard, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
-            <MiniChart values={p.weightHistory} color={T.accent} />
-            <View style={styles.chartLabels}>
-              {p.weekLabels.map((l) => <Text key={l} style={[styles.chartLabel, { color: T.textMuted }]}>{l}</Text>)}
-            </View>
-            <View style={styles.chartLegend}>
-              <Text style={[styles.chartLegendText, { color: T.textSecondary }]}>
-                Inicio: {p.weightHistory[0]} kg → Actual: {p.weightHistory[p.weightHistory.length - 1]} kg
-              </Text>
-              <Text style={[styles.chartLegendChange, { color: T.green }]}>
-                {(p.weightHistory[p.weightHistory.length - 1] - p.weightHistory[0]).toFixed(1)} kg
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={[styles.streakCard, { backgroundColor: T.bgCard, borderColor: T.orange + '44', borderRadius: T.radiusMd, ...T.shadowCard }]}>
-          <Text style={{ fontSize: 32 }}>🔥</Text>
-          <View style={{ flex: 1, marginLeft: 14 }}>
-            <Text style={[styles.streakTitle, { color: T.text }]}>¡Racha activa!</Text>
-            <Text style={[styles.streakDesc, { color: T.textSecondary }]}>Llevas 7 días consecutivos entrenando. ¡Sigue así!</Text>
-          </View>
-          <Text style={[styles.streakNumber, { color: T.orange }]}>7</Text>
-        </View>
-
-        <View style={{ height: 24 }} />
-      </ScrollView>
+      <AddMeasurementModal
+        visible={showAddMeasure}
+        onClose={() => setShowAddMeasure(false)}
+        onSave={handleAddMeasurement}
+        lastHeight={lastHeight}
+        T={T}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  content: { padding: 16 },
-  header: { marginBottom: 20 },
-  title: { fontSize: 26, fontWeight: '800' },
-  subtitle: { fontSize: 14, marginTop: 2 },
-  weekCard: { padding: 16, marginBottom: 14, borderWidth: 1 },
-  weekHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  content: { padding: 16, gap: 12 },
+  tabRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8, borderBottomWidth: 1 },
+  tabPill: { flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
+  card: { borderWidth: 1, borderRadius: 14, padding: 16 },
   cardTitle: { fontSize: 15, fontWeight: '700' },
-  cardSub: { fontSize: 12, marginTop: 2 },
-  completionBadge: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 },
-  completionText: { fontSize: 18, fontWeight: '800' },
-  weekBars: { flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
-  barBg: { width: '100%', borderRadius: 4, justifyContent: 'flex-end', overflow: 'hidden' },
-  barFill: { width: '100%', borderRadius: 4 },
-  dayLabel: { fontSize: 11, fontWeight: '600' },
-  dot: { width: 5, height: 5, borderRadius: 3 },
-  statsRow: { flexDirection: 'row', marginBottom: 24 },
-  section: { marginBottom: 24 },
-  metricRow: { flexDirection: 'row', alignItems: 'center', padding: 14, marginBottom: 8, borderWidth: 1 },
-  metricLabel: { fontSize: 12, fontWeight: '500', marginBottom: 2 },
-  metricValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
-  metricValue: { fontSize: 22, fontWeight: '800' },
-  metricUnit: { fontSize: 13 },
-  changeContainer: { alignItems: 'flex-end' },
-  changeText: { fontSize: 14, fontWeight: '700' },
-  changeDate: { fontSize: 11, marginTop: 2 },
-  miniChart: { flexDirection: 'row', alignItems: 'flex-end', height: 56, gap: 4, marginBottom: 8 },
-  miniBar: { width: '100%', borderRadius: 3 },
-  chartCard: { padding: 16, borderWidth: 1 },
-  chartLabels: { flexDirection: 'row', justifyContent: 'space-between' },
-  chartLabel: { fontSize: 10, flex: 1, textAlign: 'center' },
-  chartLegend: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  chartLegendText: { fontSize: 12 },
-  chartLegendChange: { fontSize: 13, fontWeight: '700' },
-  streakCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderWidth: 1, marginBottom: 8 },
-  streakTitle: { fontSize: 15, fontWeight: '700' },
-  streakDesc: { fontSize: 12, marginTop: 2 },
-  streakNumber: { fontSize: 36, fontWeight: '900' },
+  statMini: { flex: 1, borderWidth: 1, borderRadius: 12, padding: 12, alignItems: 'center' },
+  measureBadge: { borderWidth: 1, borderRadius: 10, padding: 10, alignItems: 'center', minWidth: 64 },
+  calCell: { width: 28, height: 28, borderRadius: 6, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
+  inputLabel: { fontSize: 12, marginBottom: 4 },
+  input: { borderWidth: 1, borderRadius: 8, padding: 10 },
 });

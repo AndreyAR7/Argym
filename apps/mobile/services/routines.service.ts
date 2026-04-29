@@ -1,5 +1,8 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseUrl, supabaseAnonKey } from '@/lib/supabase';
+import { getInfoAsync, FileSystemUploadType, uploadAsync } from 'expo-file-system/legacy';
 import type { Routine, Exercise, RoutineAssignment, ExerciseProgress, ClientRoutine } from '@/types/routines';
+
+const DEMO_BUCKET = 'exercise-demos';
 
 // ─── Admin ────────────────────────────────────────────────────
 
@@ -194,6 +197,82 @@ export async function fetchClientRoutines(
   });
 }
 
+// ─── Exercise Demo Videos ─────────────────────────────────────
+
+export async function uploadExerciseDemoVideo(
+  tenantId: string,
+  exerciseId: string,
+  file: { uri: string; mimeType: string; extension?: string },
+  onProgress?: (pct: number) => void,
+): Promise<string> {
+  const ext = file.extension ?? 'mp4';
+  const storagePath = `${tenantId}/${exerciseId}/${Date.now().toString(36)}.${ext}`;
+
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token ?? supabaseAnonKey;
+
+  const info = await getInfoAsync(file.uri);
+  const fileSize = (info as any).size as number;
+
+  const createRes = await fetch(`${supabaseUrl}/storage/v1/upload/resumable`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/offset+octet-stream',
+      'Content-Length': '0',
+      'Tus-Resumable': '1.0.0',
+      'Upload-Length': String(fileSize),
+      'Upload-Metadata': [
+        `bucketName ${btoa(DEMO_BUCKET)}`,
+        `objectName ${btoa(storagePath)}`,
+        `contentType ${btoa(file.mimeType)}`,
+        `cacheControl ${btoa('3600')}`,
+        `x-upsert ${btoa('true')}`,
+      ].join(','),
+    },
+  });
+
+  if (!createRes.ok) {
+    const body = await createRes.text();
+    throw new Error(`Upload failed: ${createRes.status} ${body}`);
+  }
+
+  const uploadUrl = createRes.headers.get('Location');
+  if (!uploadUrl) throw new Error('No se recibió URL de subida');
+
+  onProgress?.(5);
+
+  const result = await uploadAsync(uploadUrl, file.uri, {
+    httpMethod: 'PATCH',
+    uploadType: FileSystemUploadType.BINARY_CONTENT,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/offset+octet-stream',
+      'Content-Length': String(fileSize),
+      'Tus-Resumable': '1.0.0',
+      'Upload-Offset': '0',
+    },
+  });
+
+  if (result.status !== 204 && result.status !== 200) {
+    throw new Error(`Upload failed: ${result.status} ${result.body}`);
+  }
+
+  onProgress?.(100);
+  return storagePath;
+}
+
+export async function deleteExerciseDemoVideo(storagePath: string): Promise<void> {
+  const { error } = await supabase.storage.from(DEMO_BUCKET).remove([storagePath]);
+  if (error) throw error;
+}
+
+export async function getExerciseDemoSignedUrl(storagePath: string, expiresIn = 7200): Promise<string> {
+  const { data, error } = await supabase.storage.from(DEMO_BUCKET).createSignedUrl(storagePath, expiresIn);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
 // ─── Progress ─────────────────────────────────────────────────
 
 export async function upsertExerciseProgress(
@@ -206,14 +285,17 @@ export async function upsertExerciseProgress(
   const today = new Date().toISOString().split('T')[0];
   const { error } = await supabase
     .from('exercise_progress')
-    .upsert({
-      routine_id: routineId,
-      exercise_id: exerciseId,
-      client_id: clientId,
-      tenant_id: tenantId,
-      completed,
-      completed_at: completed ? new Date().toISOString() : null,
-      session_date: today,
-    });
+    .upsert(
+      {
+        routine_id: routineId,
+        exercise_id: exerciseId,
+        client_id: clientId,
+        tenant_id: tenantId,
+        completed,
+        completed_at: completed ? new Date().toISOString() : null,
+        session_date: today,
+      },
+      { onConflict: 'exercise_id,client_id,session_date' },
+    );
   if (error) throw error;
 }

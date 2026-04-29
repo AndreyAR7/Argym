@@ -8,6 +8,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { usePlansStore, type Plan, type PlanFeature } from '@/store/plans.store';
 import { supabase } from '@/lib/supabase';
+import { getPlanVideoIds, setPlanVideos } from '@/services/videos.service';
+import { VideoSelector } from '@/components/admin/VideoSelector';
 
 const CYCLES = [
   { label: 'Mensual', value: 'monthly' },
@@ -35,19 +37,22 @@ export default function EditPlanScreen() {
   const [cycle, setCycle] = useState<'monthly' | 'yearly' | 'one_time'>('monthly');
   const [features, setFeatures] = useState<PlanFeature[]>([]);
   const [isActive, setIsActive] = useState(true);
+  const [videoIds, setVideoIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(!plan);
 
   // Fetch from DB if not in store
   useEffect(() => {
-    if (plan) {
-      populate(plan);
-      return;
-    }
     if (!id) return;
+    const loadPlan = async (p: Plan) => {
+      populate(p);
+      const ids = await getPlanVideoIds(p.id);
+      setVideoIds(ids);
+    };
+    if (plan) { loadPlan(plan); return; }
     supabase.from('plans').select('*').eq('id', id).single().then(({ data }) => {
-      if (data) { setPlan(data as Plan); populate(data as Plan); }
-      setLoading(false);
+      if (data) { setPlan(data as Plan); loadPlan(data as Plan); }
+      else setLoading(false);
     });
   }, [id]);
 
@@ -75,15 +80,18 @@ export default function EditPlanScreen() {
     if (!id) return;
     setSaving(true);
     try {
-      await updatePlan(id, {
-        name: name.trim(),
-        description: description.trim() || null,
-        price: parseFloat(price),
-        currency,
-        billing_cycle: cycle,
-        features: features.filter((f) => f.name.trim()),
-        is_active: isActive,
-      });
+      await Promise.all([
+        updatePlan(id, {
+          name: name.trim(),
+          description: description.trim() || null,
+          price: parseFloat(price),
+          currency,
+          billing_cycle: cycle,
+          features: features.filter((f) => f.name.trim()),
+          is_active: isActive,
+        }),
+        setPlanVideos(id, videoIds),
+      ]);
       Alert.alert('✅ Guardado', 'El plan fue actualizado.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
@@ -209,6 +217,14 @@ export default function EditPlanScreen() {
             </TouchableOpacity>
           </View>
         ))}
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, marginBottom: 8 }}>
+          <Text style={{ fontSize: 13, fontWeight: '500', color: T.textSecondary }}>Videos incluidos</Text>
+          <Text style={{ fontSize: 11, color: T.textMuted }}>{videoIds.length} seleccionados</Text>
+        </View>
+        {plan?.tenant_id ? (
+          <VideoSelector tenantId={plan.tenant_id} selectedIds={videoIds} onChange={setVideoIds} />
+        ) : null}
 
         <TouchableOpacity
           onPress={handleSave}

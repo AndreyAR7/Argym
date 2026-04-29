@@ -55,6 +55,7 @@ export interface Video {
   // Lifecycle
   status: VideoStatus;
   is_featured: boolean;
+  is_free: boolean;     // accessible without any subscription (teaser/hook)
   sort_order: number;
 
   // Analytics

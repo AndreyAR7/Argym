@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, FlatList, StyleSheet, StatusBar,
   TouchableOpacity,
@@ -14,6 +14,8 @@ import { SkeletonCard } from '@/components/shared/SkeletonLoader';
 import { CalendarDayView } from '@/components/admin/CalendarDayView';
 import { useAuthStore } from '@/store/auth.store';
 import { useAppointmentsClient } from '@/hooks/useAppointments';
+import { RescheduleModal } from '@/components/shared/RescheduleModal';
+import { cancelExpiredClientAppointments } from '@/services/appointments.service';
 import type { Appointment } from '@/types/appointments';
 
 // ── Date strip ────────────────────────────────────────────────
@@ -59,6 +61,8 @@ export default function ClientAppointments() {
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [page, setPage] = useState(1);
+  const [rescheduleApt, setRescheduleApt] = useState<Appointment | null>(null);
+  const cancelledExpired = useRef(false);
   const PAGE_SIZE = 10;
 
   const today = new Date();
@@ -117,6 +121,14 @@ export default function ClientAppointments() {
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
     };
   }, [viewMode]);
+
+  useEffect(() => {
+    if (!user?.id || cancelledExpired.current) return;
+    cancelledExpired.current = true;
+    cancelExpiredClientAppointments(user.id)
+      .then(() => refetch())
+      .catch(() => {});
+  }, [user?.id]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
@@ -229,10 +241,26 @@ export default function ClientAppointments() {
                     status: apt.status,
                   }}
                   onPress={() => router.push(`/(client)/appointment/${apt.id}` as any)}
+                  onReschedule={
+                    (item._type === 'apt' && (item.apt.status === 'cancelled' || item.apt.status === 'no_show'))
+                      ? () => setRescheduleApt(item.apt)
+                      : undefined
+                  }
                 />
               </View>
             );
           }}
+        />
+      )}
+      {rescheduleApt && (
+        <RescheduleModal
+          visible={!!rescheduleApt}
+          onClose={() => setRescheduleApt(null)}
+          appointment={rescheduleApt}
+          tenantId={user?.tenant_id ?? ''}
+          invalidateId={user?.id ?? ''}
+          invalidateType="client"
+          onSuccess={() => { setRescheduleApt(null); refetch(); }}
         />
       )}
     </SafeAreaView>

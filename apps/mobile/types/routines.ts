@@ -15,6 +15,10 @@ export interface Exercise {
   rest_seconds: number;
   notes: string | null;
   sort_order: number;
+  demo_video_storage_path: string | null;
+  demo_video_bucket: string | null;
+  demo_video_mime_type: string | null;
+  demo_duration_seconds: number | null;
 }
 
 export interface Routine {

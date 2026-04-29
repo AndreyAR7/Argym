@@ -203,8 +203,9 @@ export function getThumbnailPublicUrl(storagePath: string): string {
 /**
  * Fetch videos accessible to a client based on:
  * 1. Direct assignment (always accessible)
- * 2. Plan match (allowed_plans empty = all plans)
- * 3. Level match (allowed_levels empty = all levels)
+ * 2. Plan tier match via allowed_plans/allowed_levels arrays
+ * 3. Plan-level video assignment via plan_videos table
+ * 4. Promotion-level video assignment via promotion_videos table
  * Only returns published videos.
  */
 export async function fetchVideosForClient(
@@ -212,10 +213,13 @@ export async function fetchVideosForClient(
   clientId: string,
   clientPlan: VideoPlan | null,
   clientLevel: VideoLevel | null,
+  planIds?: string[],
+  promotionIds?: string[],
 ): Promise<ClientVideo[]> {
-  console.log('[Videos] fetchVideosForClient', { tenantId, clientId, clientPlan, clientLevel });
+  const activePlanIds  = planIds?.filter(Boolean) ?? [];
+  const activePromoIds = promotionIds?.filter(Boolean) ?? [];
 
-  const [videosRes, assignmentsRes, progressRes] = await Promise.all([
+  const [videosRes, assignmentsRes, progressRes, planVideosRes, promoVideosRes] = await Promise.all([
     supabase
       .from('videos')
       .select('*, category:video_categories(*)')
@@ -232,16 +236,22 @@ export async function fetchVideosForClient(
       .select('*')
       .eq('client_id', clientId)
       .eq('tenant_id', tenantId),
+    activePlanIds.length > 0
+      ? supabase.from('plan_videos').select('video_id').in('plan_id', activePlanIds)
+      : Promise.resolve({ data: [] as { video_id: string }[], error: null }),
+    activePromoIds.length > 0
+      ? supabase.from('promotion_videos').select('video_id').in('promotion_id', activePromoIds)
+      : Promise.resolve({ data: [] as { video_id: string }[], error: null }),
   ]);
 
   if (videosRes.error) throw videosRes.error;
   if (assignmentsRes.error) throw assignmentsRes.error;
   if (progressRes.error) throw progressRes.error;
 
-  console.log('[Videos] raw published videos found:', videosRes.data?.length ?? 0);
-
-  const assignedIds = new Set((assignmentsRes.data ?? []).map((a) => a.video_id));
-  const progressMap = new Map((progressRes.data ?? []).map((p) => [p.video_id, p as VideoProgress]));
+  const assignedIds   = new Set((assignmentsRes.data ?? []).map((a) => a.video_id));
+  const planVideoIds  = new Set((planVideosRes.data ?? []).map((r) => r.video_id));
+  const promoVideoIds = new Set((promoVideosRes.data ?? []).map((r) => r.video_id));
+  const progressMap   = new Map((progressRes.data ?? []).map((p) => [p.video_id, p as VideoProgress]));
 
   return (videosRes.data ?? []).map((v): ClientVideo => {
     const isAssigned = assignedIds.has(v.id);
@@ -254,9 +264,13 @@ export async function fetchVideosForClient(
       v.allowed_levels.length === 0 ||
       (clientLevel != null && (v.allowed_levels as VideoLevel[]).includes(clientLevel));
 
-    const isAccessible = isAssigned || (planOk && levelOk);
+    const isAccessible =
+      v.is_free ||                     // free videos: always accessible
+      isAssigned ||
+      (planOk && levelOk) ||
+      planVideoIds.has(v.id) ||
+      promoVideoIds.has(v.id);
 
-    // Resolve thumbnail URL if path exists
     const thumbnail_public_url = v.thumbnail_storage_path
       ? getThumbnailPublicUrl(v.thumbnail_storage_path)
       : undefined;
@@ -269,6 +283,44 @@ export async function fetchVideosForClient(
       thumbnail_public_url,
     };
   });
+}
+
+// ─── Plan / Promotion video associations ─────────────────────
+
+export async function getPlanVideoIds(planId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from('plan_videos')
+    .select('video_id')
+    .eq('plan_id', planId);
+  return (data ?? []).map((r) => r.video_id);
+}
+
+export async function setPlanVideos(planId: string, videoIds: string[]): Promise<void> {
+  await supabase.from('plan_videos').delete().eq('plan_id', planId);
+  if (videoIds.length > 0) {
+    const { error } = await supabase
+      .from('plan_videos')
+      .insert(videoIds.map((video_id) => ({ plan_id: planId, video_id })));
+    if (error) throw error;
+  }
+}
+
+export async function getPromotionVideoIds(promotionId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from('promotion_videos')
+    .select('video_id')
+    .eq('promotion_id', promotionId);
+  return (data ?? []).map((r) => r.video_id);
+}
+
+export async function setPromotionVideos(promotionId: string, videoIds: string[]): Promise<void> {
+  await supabase.from('promotion_videos').delete().eq('promotion_id', promotionId);
+  if (videoIds.length > 0) {
+    const { error } = await supabase
+      .from('promotion_videos')
+      .insert(videoIds.map((video_id) => ({ promotion_id: promotionId, video_id })));
+    if (error) throw error;
+  }
 }
 
 // ─── Assignments ──────────────────────────────────────────────

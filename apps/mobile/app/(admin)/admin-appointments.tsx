@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, StatusBar, TouchableOpacity,
   Modal, TextInput, ActivityIndicator, Alert, ScrollView, KeyboardAvoidingView, Platform,
@@ -15,7 +15,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useClientSelectionStore } from '@/store/clientSelection.store';
 import { useCoaches } from '@/hooks/useProfiles';
 import { createNotifications } from '@/services/notifications.service';
-import { checkAppointmentConflicts, createGroupAppointment, createIndividualAppointments } from '@/services/appointments.service';
+import { checkAppointmentConflicts, createGroupAppointment, createIndividualAppointments, cancelExpiredAppointments } from '@/services/appointments.service';
 import { ToastManager } from '@/components/shared/Toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { NOTIF_KEYS } from '@/hooks/useNotifications';
@@ -162,6 +162,14 @@ export default function AdminAppointmentsScreen() {
   const { data: appointments = [], isLoading, error, refetch } = useAppointmentsAdmin(authTenantId || undefined);
   const createMutation = useCreateAppointment(authTenantId || undefined);
 
+  useEffect(() => {
+    if (!authTenantId || cancelledExpired.current) return;
+    cancelledExpired.current = true;
+    cancelExpiredAppointments(authTenantId)
+      .then(() => refetch())
+      .catch(() => {});
+  }, [authTenantId]);
+
   // Client selection via dedicated screen
   const clientStore = useClientSelectionStore();
   const selectedClients = clientStore.selected;
@@ -180,6 +188,7 @@ export default function AdminAppointmentsScreen() {
   const [selectedCoachId, setSelectedCoachId] = useState<string | null>(null);
   const [groupMode, setGroupMode] = useState<'individual' | 'group'>('individual');
   const [isCheckingConflicts, setIsCheckingConflicts] = useState(false);
+  const cancelledExpired = useRef(false);
 
   const { data: coaches = [] } = useCoaches();
 

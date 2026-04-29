@@ -92,13 +92,8 @@ async function fetchAdminStats(tenantId: string): Promise<AdminStats> {
       .eq('tenant_id', tenantId)
       .eq('status', 'active'),
 
-    // Total approved active clients
-    supabase
-      .from('profiles')
-      .select('id', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId)
-      .eq('approval_status', 'approved')
-      .eq('is_active', true),
+    // Total approved active clients (role='client' only, via SECURITY DEFINER RPC)
+    supabase.rpc('get_approved_client_count'),
   ]);
 
   const monthlyRevenue = (revenueRes.data ?? []).reduce(
@@ -106,7 +101,7 @@ async function fetchAdminStats(tenantId: string): Promise<AdminStats> {
   );
 
   const subscribedIds = new Set((subscribedRes.data ?? []).map((r) => r.user_id));
-  const totalApproved = approvedRes.count ?? 0;
+  const totalApproved = (approvedRes.data as number) ?? 0;
 
   return {
     monthlyRevenue,
