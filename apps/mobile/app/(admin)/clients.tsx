@@ -133,53 +133,175 @@ const tabStyles = StyleSheet.create({
   badge: { borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1, minWidth: 18, alignItems: 'center' },
 });
 
+// ─── Level picker sheet ───────────────────────────────────────
+// Tap-to-save mini sheet: opens from the level badge on each client row.
+const LEVEL_PICKER_OPTIONS = [
+  { value: 'beginner',     label: 'Principiante', emoji: '🌱', desc: 'Comienza su camino fitness' },
+  { value: 'intermediate', label: 'Intermedio',   emoji: '💪', desc: '3–12 meses de entrenamiento' },
+  { value: 'advanced',     label: 'Avanzado',     emoji: '🏆', desc: 'Más de un año, alta exigencia' },
+] as const;
+
+function LevelPickerSheet({ client, visible, onClose, onSaved }: {
+  client: ClientWithPlan | null; visible: boolean; onClose: () => void; onSaved: () => void;
+}) {
+  const T = useTheme();
+  const updateMutation = useUpdateProfile('client');
+  const [saving, setSaving] = useState<string | null>(null);
+
+  const handlePick = async (level: 'beginner' | 'intermediate' | 'advanced' | null) => {
+    if (!client || saving) return;
+    const key = level ?? '__none__';
+    setSaving(key);
+    try {
+      await updateMutation.mutateAsync({ id: client.id, input: { client_level: level } });
+      const label = level ? CLIENT_LEVEL_LABELS[level] : 'Sin nivel';
+      ToastManager.show({ message: `${client.full_name?.split(' ')[0]}: ${label}`, type: 'success' });
+      onSaved();
+      onClose();
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const currentLevel = client?.client_level ?? null;
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity activeOpacity={1} style={modalStyles.overlay} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} style={[modalStyles.sheet, { backgroundColor: T.bgCard }]}>
+          <View style={modalStyles.handle} />
+          <Text style={{ fontSize: 17, fontWeight: '800', color: T.text, marginBottom: 2 }}>
+            Nivel de {client?.full_name?.split(' ')[0]}
+          </Text>
+          <Text style={{ fontSize: 12, color: T.textMuted, marginBottom: 20 }}>
+            Toca para asignar al instante
+          </Text>
+
+          {LEVEL_PICKER_OPTIONS.map(({ value, label, emoji, desc }) => {
+            const isActive = currentLevel === value;
+            const isSaving = saving === value;
+            const color = value === 'beginner' ? T.green : value === 'intermediate' ? T.accent : T.red;
+            return (
+              <TouchableOpacity key={value} onPress={() => handlePick(value)} disabled={!!saving}
+                style={[levelPickerStyles.option, {
+                  borderColor: isActive ? color : T.border,
+                  backgroundColor: isActive ? color + '14' : T.bg,
+                }]}
+              >
+                <Text style={{ fontSize: 28 }}>{emoji}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: isActive ? color : T.text }}>{label}</Text>
+                  <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 1 }}>{desc}</Text>
+                </View>
+                {isSaving
+                  ? <ActivityIndicator size="small" color={color} />
+                  : isActive
+                    ? <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: color, justifyContent: 'center', alignItems: 'center' }}>
+                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>✓</Text>
+                      </View>
+                    : <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: T.border }} />
+                }
+              </TouchableOpacity>
+            );
+          })}
+
+          {currentLevel && (
+            <TouchableOpacity onPress={() => handlePick(null)} disabled={!!saving}
+              style={[levelPickerStyles.option, { borderColor: T.border, backgroundColor: T.bg, marginTop: 4 }]}
+            >
+              <Text style={{ fontSize: 20 }}>✕</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: T.textMuted }}>Quitar nivel</Text>
+              </View>
+              {saving === '__none__' && <ActivityIndicator size="small" color={T.textMuted} />}
+            </TouchableOpacity>
+          )}
+          <View style={{ height: 8 }} />
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
+const levelPickerStyles = StyleSheet.create({
+  option: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    borderRadius: 14, borderWidth: 1.5, padding: 14, marginBottom: 10,
+  },
+});
+
 // ─── Client row ───────────────────────────────────────────────
-function ClientRow({ client, onEdit, onPlan }: {
-  client: ClientWithPlan; onEdit: () => void; onPlan: () => void;
+function ClientRow({ client, onEdit, onPlan, onLevelPress }: {
+  client: ClientWithPlan; onEdit: () => void; onPlan: () => void; onLevelPress: () => void;
 }) {
   const T = useTheme();
   const initials = (client.full_name ?? '?').split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
-  const levelLabel = client.client_level ? CLIENT_LEVEL_LABELS[client.client_level] : null;
+  const hasLevel = !!client.client_level;
+  const levelLabel = hasLevel ? CLIENT_LEVEL_LABELS[client.client_level!] : null;
   const levelColor = client.client_level === 'beginner' ? T.green
     : client.client_level === 'intermediate' ? T.accent
-    : client.client_level === 'advanced' ? T.red : T.textMuted;
+    : client.client_level === 'advanced' ? T.red : '#F59E0B';
 
   return (
-    <View style={[rowStyles.wrap, { borderBottomColor: T.border }]}>
-      <TouchableOpacity onPress={onEdit} activeOpacity={0.8} style={[rowStyles.row]}>
-        <View style={[rowStyles.avatar, { backgroundColor: T.accentGlow }]}>
-          <Text style={[rowStyles.avatarText, { color: T.accent }]}>{initials}</Text>
-        </View>
-        <View style={{ flex: 1 }}>
+    <View style={[
+      rowStyles.wrap,
+      { borderBottomColor: T.border },
+      !hasLevel && { borderLeftWidth: 3, borderLeftColor: '#F59E0B66' },
+    ]}>
+      <View style={rowStyles.row}>
+        <TouchableOpacity onPress={onEdit} activeOpacity={0.7} style={{ flex: 0 }}>
+          <View style={[rowStyles.avatar, { backgroundColor: T.accentGlow }]}>
+            <Text style={[rowStyles.avatarText, { color: T.accent }]}>{initials}</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={onEdit} activeOpacity={0.7} style={{ flex: 1 }}>
           <Text style={[rowStyles.name, { color: T.text }]}>{client.full_name}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-            {levelLabel && (
-              <View style={{ backgroundColor: levelColor + '20', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
-                <Text style={{ fontSize: 10, fontWeight: '700', color: levelColor }}>{levelLabel}</Text>
-              </View>
-            )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
             <Text style={{ fontSize: 11, color: T.textMuted }} numberOfLines={1}>
               {client.plan_name ?? 'Sin plan'}
               {client.promotion_title ? ` · 🎁 ${client.promotion_title}` : ''}
             </Text>
           </View>
-        </View>
+        </TouchableOpacity>
+
+        {/* Level quick-change badge */}
+        <TouchableOpacity onPress={onLevelPress} style={[
+          rowStyles.levelBadge,
+          hasLevel
+            ? { backgroundColor: levelColor + '18', borderColor: levelColor + '55' }
+            : { backgroundColor: '#F59E0B11', borderColor: '#F59E0B44', borderStyle: 'dashed' },
+        ]}>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: levelColor }}>
+            {levelLabel ?? '❔ Nivel'}
+          </Text>
+          <Text style={{ fontSize: 8, color: levelColor, opacity: 0.8 }}>▾</Text>
+        </TouchableOpacity>
+
+        {/* Plan button */}
         <TouchableOpacity onPress={onPlan} style={[rowStyles.planBtn, { borderColor: T.accent + '55' }]}>
           <Text style={{ fontSize: 11, color: T.accent, fontWeight: '700' }}>
             {client.plan_name ? '🔄' : '➕'} Plan
           </Text>
         </TouchableOpacity>
-      </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const rowStyles = StyleSheet.create({
   wrap: { borderBottomWidth: StyleSheet.hairlineWidth },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 16 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 16 },
   avatar: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   avatarText: { fontSize: 15, fontWeight: '800' },
   name: { fontSize: 15, fontWeight: '700' },
+  levelBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    borderRadius: 8, borderWidth: 1,
+    paddingHorizontal: 8, paddingVertical: 5,
+  },
   planBtn: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5 },
 });
 
@@ -281,7 +403,7 @@ function EditClientModal({ clientId, client, visible, onClose, onSaved }: {
         full_name: fullName.trim(),
         phone: phone.trim() || undefined,
         date_of_birth: dob.trim() || undefined,
-        client_level: clientLevel ?? undefined,
+        client_level: clientLevel,
       }});
       ToastManager.show({ message: 'Cliente actualizado', type: 'success' });
       onSaved(); onClose();
@@ -560,6 +682,7 @@ export default function AdminClientsScreen() {
   const [showCreate, setShowCreate] = useState(false);
   const [planTarget, setPlanTarget] = useState<ClientWithPlan | null>(null);
   const [showPlan, setShowPlan] = useState(false);
+  const [levelPickerTarget, setLevelPickerTarget] = useState<ClientWithPlan | null>(null);
 
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [pendingLoading, setPendingLoading] = useState(false);
@@ -696,6 +819,7 @@ export default function AdminClientsScreen() {
               client={item}
               onEdit={() => { setEditTargetId(item.id); setEditTargetClient(item); setShowEdit(true); }}
               onPlan={() => { setPlanTarget(item); setShowPlan(true); }}
+              onLevelPress={() => setLevelPickerTarget(item)}
             />
           )}
         />
@@ -706,6 +830,12 @@ export default function AdminClientsScreen() {
       <CreateClientModal visible={showCreate} onClose={() => setShowCreate(false)} onCreated={() => refetch()} />
       <AssignPlanModal client={planTarget} visible={showPlan} onClose={() => setShowPlan(false)}
         onSaved={() => refetch()} tenantId={tenantId} />
+      <LevelPickerSheet
+        client={levelPickerTarget}
+        visible={!!levelPickerTarget}
+        onClose={() => setLevelPickerTarget(null)}
+        onSaved={() => refetch()}
+      />
     </SafeAreaView>
   );
 }

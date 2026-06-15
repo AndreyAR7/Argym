@@ -69,12 +69,13 @@ export async function getProfilesByRole(roleName: 'client' | 'coach'): Promise<P
 // The RPC validates that the caller is staff in the same tenant.
 export async function updateProfile(id: string, input: UpdateProfileInput): Promise<ProfileRecord> {
   const { data, error } = await supabase.rpc('update_profile_by_staff', {
-    p_target_user_id: id,
-    p_full_name:      input.full_name      ?? null,
-    p_phone:          input.phone          ?? null,
-    p_date_of_birth:  input.date_of_birth  ?? null,
-    p_client_level:   input.client_level   ?? null,
-    p_is_active:      input.is_active      ?? null,
+    p_target_user_id:     id,
+    p_full_name:          input.full_name     ?? null,
+    p_phone:              input.phone         ?? null,
+    p_date_of_birth:      input.date_of_birth ?? null,
+    p_client_level:       input.client_level  ?? null,
+    p_clear_client_level: input.client_level  === null,
+    p_is_active:          input.is_active     ?? null,
   });
 
   if (error) throw error;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Image,
   StatusBar, Switch, ActivityIndicator, Alert, Modal,
@@ -18,12 +18,13 @@ import { useClientsWithPlan } from '@/hooks/useProfiles';
 import { useRouter } from 'expo-router';
 import { uploadVideoFile, uploadThumbnail, getThumbnailPublicUrl, assignVideoToClient } from '@/services/videos.service';
 import { addExercise, updateExercise, uploadExerciseDemoVideo, deleteExerciseDemoVideo } from '@/services/routines.service';
-import { MOCK_NUTRITION_PLANS } from '@/data/adminMock';
 import type { Video, VideoLevel, VideoPlan } from '@/types/videos';
 import type { Routine, Exercise, RoutineLevel, ExerciseMuscle, RoutinePlan } from '@/types/routines';
+import type { NutritionPlan, NutritionStatus } from '@/types/nutrition';
+import { NUTRITION_STATUS_LABELS } from '@/types/nutrition';
+import { useNutritionStore } from '@/store/nutrition.store';
 import { formatDuration, VIDEO_STATUS_LABELS } from '@/types/videos';
 import { ROUTINE_LEVEL_LABELS, ROUTINE_PLAN_LABELS, ROUTINE_PLAN_OPTIONS, ROUTINE_LEVEL_OPTIONS, MUSCLE_OPTIONS } from '@/types/routines';
-import { useEffect } from 'react';
 
 const TABS = ['Rutinas', 'Nutrición', 'Videos'];
 
@@ -202,8 +203,9 @@ function ExerciseFormModal({ routineId, tenantId, exercise, visible, onClose, on
       videoMaxDuration: 300,
     });
     if (result.canceled || !result.assets?.[0]) return;
-    setLocalDemoUri(result.assets[0].uri);
-    setLocalDemoMime('video/mp4');
+    const asset = result.assets[0];
+    setLocalDemoUri(asset.uri);
+    setLocalDemoMime(asset.mimeType ?? 'video/mp4');
     setPendingDeleteDemo(false);
   };
 
@@ -214,8 +216,9 @@ function ExerciseFormModal({ routineId, tenantId, exercise, visible, onClose, on
       videoMaxDuration: 300,
     });
     if (result.canceled || !result.assets?.[0]) return;
-    setLocalDemoUri(result.assets[0].uri);
-    setLocalDemoMime('video/mp4');
+    const asset = result.assets[0];
+    setLocalDemoUri(asset.uri);
+    setLocalDemoMime(asset.mimeType ?? 'video/mp4');
     setPendingDeleteDemo(false);
   };
 
@@ -370,6 +373,191 @@ function ExerciseFormModal({ routineId, tenantId, exercise, visible, onClose, on
   );
 }
 
+// ─── Client Picker Sheet ──────────────────────────────────────
+type PickerLevel = 'all' | 'beginner' | 'intermediate' | 'advanced';
+
+const PICKER_LEVEL_TABS: { key: PickerLevel; emoji: string; label: string }[] = [
+  { key: 'all',          emoji: '👥', label: 'Todos' },
+  { key: 'beginner',     emoji: '🌱', label: 'Principiante' },
+  { key: 'intermediate', emoji: '💪', label: 'Intermedio' },
+  { key: 'advanced',     emoji: '🏆', label: 'Avanzado' },
+];
+
+function ClientPickerSheet({
+  clients, loading, error, selectedId, onSelect, onRetry, resetKey,
+}: {
+  clients: any[]; loading: boolean; error: any;
+  selectedId: string | null; onSelect: (id: string) => void;
+  onRetry?: () => void; resetKey?: number;
+}) {
+  const T = useTheme();
+  const [search, setSearch] = useState('');
+  const [levelFilter, setLevelFilter] = useState<PickerLevel>('all');
+
+  useEffect(() => { setSearch(''); setLevelFilter('all'); }, [resetKey]);
+
+  const unique = useMemo(
+    () => clients.filter((c, i, arr) => arr.findIndex((x) => x.id === c.id) === i),
+    [clients]
+  );
+
+  const levelCounts = useMemo(() => ({
+    all:          unique.length,
+    beginner:     unique.filter((c) => c.client_level === 'beginner').length,
+    intermediate: unique.filter((c) => c.client_level === 'intermediate').length,
+    advanced:     unique.filter((c) => c.client_level === 'advanced').length,
+  }), [unique]);
+
+  const filtered = useMemo(() => {
+    let list = levelFilter === 'all' ? unique : unique.filter((c) => c.client_level === levelFilter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((c) => (c.full_name ?? '').toLowerCase().includes(q));
+    }
+    return list;
+  }, [unique, levelFilter, search]);
+
+  if (loading) {
+    return (
+      <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+        <ActivityIndicator color={T.accent} />
+        <Text style={{ color: T.textMuted, fontSize: 13, marginTop: 8 }}>Cargando clientes...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={{ paddingVertical: 24, alignItems: 'center', gap: 8 }}>
+        <Text style={{ color: T.red, fontSize: 13, textAlign: 'center' }}>
+          Error al cargar clientes.{'\n'}{(error as any)?.message}
+        </Text>
+        {onRetry && (
+          <TouchableOpacity onPress={onRetry}>
+            <Text style={{ color: T.accent, fontWeight: '700' }}>Reintentar</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={[pickerStyles.searchBar, { backgroundColor: T.bg, borderColor: T.border }]}>
+        <Text style={{ fontSize: 15, marginRight: 8 }}>🔍</Text>
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Buscar por nombre..."
+          placeholderTextColor={T.textMuted}
+          style={{ flex: 1, color: T.text, fontSize: 14 }}
+        />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => setSearch('')}>
+            <Text style={{ color: T.textMuted, fontSize: 16, paddingLeft: 4 }}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}
+        style={{ height: 44, marginBottom: 10 }}
+        contentContainerStyle={{ gap: 6, paddingRight: 4, alignItems: 'center' }}>
+        {PICKER_LEVEL_TABS.map((tab) => {
+          const active = levelFilter === tab.key;
+          const count = levelCounts[tab.key];
+          return (
+            <TouchableOpacity key={tab.key} onPress={() => setLevelFilter(tab.key)}
+              style={[pickerStyles.levelTab, {
+                backgroundColor: active ? T.accent + '18' : T.bg,
+                borderColor: active ? T.accent : T.border,
+              }]}>
+              <Text style={{ fontSize: 13 }}>{tab.emoji}</Text>
+              <Text style={{ fontSize: 12, fontWeight: active ? '700' : '500', color: active ? T.accent : T.textSecondary }}>
+                {tab.label}
+              </Text>
+              <View style={[pickerStyles.countBadge, { backgroundColor: active ? T.accent : T.bgCard }]}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: active ? '#fff' : T.textMuted }}>{count}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+        {filtered.length === 0 ? (
+          <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+            <Text style={{ fontSize: 28, marginBottom: 8 }}>👤</Text>
+            <Text style={{ color: T.textMuted, fontSize: 13, textAlign: 'center' }}>
+              {search.trim() ? 'Sin resultados para tu búsqueda.' : 'Sin clientes en este nivel.'}
+            </Text>
+          </View>
+        ) : (
+          filtered.map((c: any) => {
+            const active = selectedId === c.id;
+            const levelEmoji = c.client_level === 'beginner' ? '🌱'
+              : c.client_level === 'intermediate' ? '💪'
+              : c.client_level === 'advanced' ? '🏆' : null;
+            return (
+              <TouchableOpacity key={`picker-${c.id}`} onPress={() => onSelect(c.id)}
+                style={[pickerStyles.clientRow, { borderBottomColor: T.border, backgroundColor: active ? T.accent + '0D' : 'transparent' }]}>
+                <View style={[pickerStyles.avatar, { backgroundColor: active ? T.accent + '30' : T.bgCard }]}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: active ? T.accent : T.textSecondary }}>
+                    {c.full_name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: T.text, fontSize: 14, fontWeight: active ? '700' : '400' }}>{c.full_name}</Text>
+                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
+                    {levelEmoji && (
+                      <Text style={{ fontSize: 11, color: T.textMuted }}>{levelEmoji} {LEVEL_LABELS[c.client_level as VideoLevel]}</Text>
+                    )}
+                    {c.plan_name && <Text style={{ fontSize: 11, color: T.textMuted }}>· {c.plan_name}</Text>}
+                  </View>
+                </View>
+                {active && (
+                  <View style={[pickerStyles.checkCircle, { backgroundColor: T.accent }]}>
+                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>✓</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+const pickerStyles = StyleSheet.create({
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 10,
+    marginBottom: 10,
+  },
+  levelTab: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingVertical: 7, paddingHorizontal: 10,
+    borderRadius: 20, borderWidth: 1,
+  },
+  countBadge: {
+    minWidth: 18, height: 18, borderRadius: 9,
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4,
+  },
+  clientRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, gap: 12,
+  },
+  avatar: {
+    width: 36, height: 36, borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  checkCircle: {
+    width: 22, height: 22, borderRadius: 11,
+    justifyContent: 'center', alignItems: 'center',
+  },
+});
+
 // ─── Assign Routine Modal ─────────────────────────────────────
 function AssignRoutineModal({ routine, visible, onClose, tenantId }: {
   routine: Routine | null; visible: boolean; onClose: () => void; tenantId: string;
@@ -380,8 +568,9 @@ function AssignRoutineModal({ routine, visible, onClose, tenantId }: {
   const { assignRoutine } = useRoutinesStore();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
 
-  useEffect(() => { if (visible) { setSelectedId(null); refetch(); } }, [visible]);
+  useEffect(() => { if (visible) { setSelectedId(null); setResetKey((k) => k + 1); refetch(); } }, [visible]);
 
   const handleAssign = async () => {
     if (!routine || !selectedId || !user?.id) return;
@@ -397,7 +586,7 @@ function AssignRoutineModal({ routine, visible, onClose, tenantId }: {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={[styles.sheet, { backgroundColor: T.bgCard, maxHeight: '80%' }]}>
+        <View style={[styles.sheet, { backgroundColor: T.bgCard, height: '82%' }]}>
           <View style={styles.handle} />
           <Text style={[styles.sheetTitle, { color: T.text }]}>Asignar rutina</Text>
           {routine && (
@@ -405,51 +594,11 @@ function AssignRoutineModal({ routine, visible, onClose, tenantId }: {
               {routine.name}
             </Text>
           )}
-          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-            {loadingClients ? (
-              <View style={{ paddingVertical: 32, alignItems: 'center' }}>
-                <ActivityIndicator color={T.accent} />
-                <Text style={{ color: T.textMuted, fontSize: 13, marginTop: 8 }}>Cargando clientes...</Text>
-              </View>
-            ) : clientsError ? (
-              <View style={{ paddingVertical: 24, alignItems: 'center', gap: 8 }}>
-                <Text style={{ color: T.red, fontSize: 13, textAlign: 'center' }}>
-                  Error al cargar clientes.{'\n'}{(clientsError as any)?.message}
-                </Text>
-                <TouchableOpacity onPress={() => refetch()}>
-                  <Text style={{ color: T.accent, fontWeight: '700' }}>Reintentar</Text>
-                </TouchableOpacity>
-              </View>
-            ) : clients.length === 0 ? (
-              <View style={{ paddingVertical: 32, alignItems: 'center' }}>
-                <Text style={{ fontSize: 32, marginBottom: 8 }}>👤</Text>
-                <Text style={{ color: T.textMuted, fontSize: 14, textAlign: 'center' }}>
-                  No hay clientes aprobados.{'\n'}Verifica que tengan estado "approved".
-                </Text>
-              </View>
-            ) : (
-              clients
-              .filter((c: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === c.id) === i)
-              .map((c: any) => {
-                const active = selectedId === c.id;
-                return (
-                  <TouchableOpacity key={`assign-r-${c.id}`} onPress={() => setSelectedId(c.id)}
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: T.border, gap: 12 }}>
-                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: active ? T.accent + '30' : T.bgCard, justifyContent: 'center', alignItems: 'center' }}>
-                      <Text style={{ fontSize: 13, fontWeight: '800', color: active ? T.accent : T.textSecondary }}>
-                        {c.full_name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: T.text, fontSize: 14, fontWeight: active ? '700' : '400' }}>{c.full_name}</Text>
-                      {c.plan_name && <Text style={{ fontSize: 11, color: T.textMuted }}>{c.plan_name}</Text>}
-                    </View>
-                    {active && <Text style={{ color: T.accent }}>✓</Text>}
-                  </TouchableOpacity>
-                );
-              })
-            )}
-          </ScrollView>
+          <ClientPickerSheet
+            clients={clients} loading={loadingClients} error={clientsError}
+            selectedId={selectedId} onSelect={setSelectedId} onRetry={refetch}
+            resetKey={resetKey}
+          />
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
             <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
               <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
@@ -591,21 +740,56 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
 }
 
 // ─── Assign Video Modal ───────────────────────────────────────
-function AssignVideoModal({ video, visible, onClose }: {
-  video: Video | null; visible: boolean; onClose: () => void;
+// Two modes:
+//   "Por Nivel"       → updates video.allowed_levels[] (global access for all clients at those levels)
+//   "Usuario Directo" → inserts into video_assignments (direct per-client access)
+function AssignVideoModal({ video, visible, onClose, onSaved }: {
+  video: Video | null; visible: boolean; onClose: () => void; onSaved?: () => void;
 }) {
   const T = useTheme();
   const { user } = useAuthStore();
-  const { data: clients = [] } = useClientsWithPlan();
+  const { data: clients = [], isLoading: loadingClients, error: clientsError, refetch } = useClientsWithPlan();
+  const { editVideo } = useVideosStore();
+  const [mode, setMode] = useState<'level' | 'direct'>('level');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedLevels, setSelectedLevels] = useState<VideoLevel[]>([]);
   const [saving, setSaving] = useState(false);
+  const [pickerResetKey, setPickerResetKey] = useState(0);
 
-  const handleAssign = async () => {
+  useEffect(() => {
+    if (visible) {
+      setSelectedId(null);
+      setSelectedLevels((video?.allowed_levels ?? []) as VideoLevel[]);
+      setMode('level');
+      setPickerResetKey((k) => k + 1);
+      refetch();
+    }
+  }, [visible, video]);
+
+  const toggleLevel = (l: VideoLevel) =>
+    setSelectedLevels((prev) => prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l]);
+
+  const handleAssignByLevel = async () => {
+    if (!video) return;
+    setSaving(true);
+    try {
+      await editVideo(video.id, { allowed_levels: selectedLevels });
+      const msg = selectedLevels.length === 0
+        ? 'Acceso por nivel desactivado. Solo acceso directo activo.'
+        : `Acceso global para: ${selectedLevels.map((l) => LEVEL_LABELS[l]).join(', ')}.`;
+      Alert.alert('✅', msg);
+      onSaved?.();
+      onClose();
+    } catch (e: any) { Alert.alert('Error', e.message); }
+    finally { setSaving(false); }
+  };
+
+  const handleAssignDirect = async () => {
     if (!video || !selectedId || !user?.id || !user?.tenant_id) return;
     setSaving(true);
     try {
       await assignVideoToClient(video.id, selectedId, user.tenant_id, user.id);
-      Alert.alert('✅', 'Video asignado correctamente.');
+      Alert.alert('✅', 'Video asignado directamente al cliente.');
       onClose();
     } catch (e: any) { Alert.alert('Error', e.message); }
     finally { setSaving(false); }
@@ -614,36 +798,100 @@ function AssignVideoModal({ video, visible, onClose }: {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={[styles.sheet, { backgroundColor: T.bgCard, maxHeight: '80%' }]}>
+        <View style={[styles.sheet, { backgroundColor: T.bgCard, height: '85%' }]}>
           <View style={styles.handle} />
-          <Text style={[styles.sheetTitle, { color: T.text }]}>Asignar a cliente</Text>
-          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-            {clients
-              .filter((c: any, idx: number, arr: any[]) => arr.findIndex((x: any) => x.id === c.id) === idx)
-              .map((c: any) => {
-                const active = selectedId === c.id;
-                return (
-                  <TouchableOpacity key={`assign-client-${c.id}`} onPress={() => setSelectedId(c.id)}
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: T.border, gap: 12 }}>
-                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: active ? T.accent + '30' : T.bgCard, justifyContent: 'center', alignItems: 'center' }}>
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: active ? T.accent : T.textSecondary }}>
-                        {c.full_name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()}
-                      </Text>
-                    </View>
-                    <Text style={{ flex: 1, color: T.text, fontSize: 14, fontWeight: active ? '700' : '400' }}>{c.full_name}</Text>
-                    {active && <Text style={{ color: T.accent, fontSize: 16 }}>✓</Text>}
-                  </TouchableOpacity>
-                );
-              })}
-          </ScrollView>
-          <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
-            <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
-              <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+          <Text style={[styles.sheetTitle, { color: T.text }]}>Asignar video</Text>
+          {video && (
+            <Text style={{ fontSize: 12, color: T.textSecondary, marginTop: -16, marginBottom: 16 }} numberOfLines={1}>
+              {video.title}
+            </Text>
+          )}
+
+          {/* Mode selector */}
+          <View style={{ flexDirection: 'row', gap: 6, marginBottom: 20, backgroundColor: T.bg, borderRadius: 10, padding: 4 }}>
+            <TouchableOpacity onPress={() => setMode('level')} style={{
+              flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 8,
+              backgroundColor: mode === 'level' ? T.accent : 'transparent',
+            }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: mode === 'level' ? '#fff' : T.textMuted }}>
+                🎯 Por Nivel
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleAssign} disabled={!selectedId || saving} style={[styles.btn, { backgroundColor: selectedId ? T.accent : T.bgCard, flex: 1, opacity: selectedId ? 1 : 0.5 }]}>
-              <Text style={{ color: selectedId ? '#fff' : T.textMuted, fontWeight: '700' }}>{saving ? 'Asignando...' : 'Asignar'}</Text>
+            <TouchableOpacity onPress={() => setMode('direct')} style={{
+              flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 8,
+              backgroundColor: mode === 'direct' ? T.accent : 'transparent',
+            }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: mode === 'direct' ? '#fff' : T.textMuted }}>
+                👤 Usuario Directo
+              </Text>
             </TouchableOpacity>
           </View>
+
+          {/* ── Level mode ── */}
+          {mode === 'level' && (
+            <>
+              <Text style={{ fontSize: 13, color: T.textSecondary, marginBottom: 4 }}>
+                Elige los niveles con acceso global a este video.
+              </Text>
+              <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 16 }}>
+                Sin selección = solo clientes con asignación directa pueden verlo.
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24 }}>
+                {LEVEL_OPTIONS.map((l) => {
+                  const active = selectedLevels.includes(l);
+                  return (
+                    <TouchableOpacity key={`lvl-${l}`} onPress={() => toggleLevel(l)} style={{ flex: 1 }}>
+                      <View style={[styles.chip, {
+                        paddingVertical: 14, justifyContent: 'center',
+                        backgroundColor: active ? T.accent + '18' : T.bg,
+                        borderColor: active ? T.accent : T.border,
+                        borderWidth: active ? 2 : 1,
+                      }]}>
+                        <Text style={{ fontSize: 20, textAlign: 'center', marginBottom: 4 }}>
+                          {l === 'beginner' ? '🌱' : l === 'intermediate' ? '💪' : '🏆'}
+                        </Text>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: active ? T.accent : T.textSecondary, textAlign: 'center' }}>
+                          {LEVEL_LABELS[l]}
+                        </Text>
+                        {active && (
+                          <Text style={{ fontSize: 10, color: T.accent, textAlign: 'center', marginTop: 2, fontWeight: '700' }}>✓</Text>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleAssignByLevel} disabled={saving}
+                  style={[styles.btn, { backgroundColor: T.accent, flex: 1 }]}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? 'Guardando...' : 'Guardar acceso'}</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
+          {/* ── Direct mode ── */}
+          {mode === 'direct' && (
+            <View style={{ flex: 1 }}>
+              <ClientPickerSheet
+                clients={clients} loading={loadingClients} error={clientsError}
+                selectedId={selectedId} onSelect={setSelectedId} onRetry={refetch}
+                resetKey={pickerResetKey}
+              />
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
+                <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleAssignDirect} disabled={!selectedId || saving}
+                  style={[styles.btn, { backgroundColor: selectedId ? T.accent : T.bgCard, flex: 1, opacity: selectedId ? 1 : 0.5 }]}>
+                  <Text style={{ color: selectedId ? '#fff' : T.textMuted, fontWeight: '700' }}>{saving ? 'Asignando...' : 'Asignar'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
       </View>
     </Modal>
@@ -949,6 +1197,196 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
   );
 }
 
+// ─── Nutrition Form Modal ─────────────────────────────────────
+function NutritionFormModal({ plan, visible, onClose, onSaved, tenantId }: {
+  plan?: NutritionPlan | null; visible: boolean; onClose: () => void; onSaved: () => void; tenantId: string;
+}) {
+  const T = useTheme();
+  const { user } = useAuthStore();
+  const { addPlan, editPlan } = useNutritionStore();
+  const isEdit = !!plan;
+
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [goal, setGoal] = useState('');
+  const [calories, setCalories] = useState('');
+  const [protein, setProtein] = useState('');
+  const [carbs, setCarbs] = useState('');
+  const [fat, setFat] = useState('');
+  const [status, setStatus] = useState<NutritionStatus>('draft');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setName(plan?.name ?? '');
+      setDescription(plan?.description ?? '');
+      setGoal(plan?.goal ?? '');
+      setCalories(plan?.calories_target?.toString() ?? '');
+      setProtein(plan?.protein_g?.toString() ?? '');
+      setCarbs(plan?.carbs_g?.toString() ?? '');
+      setFat(plan?.fat_g?.toString() ?? '');
+      setStatus(plan?.status ?? 'draft');
+    }
+  }, [visible, plan]);
+
+  const handleSave = async () => {
+    if (!name.trim()) { Alert.alert('Error', 'El nombre es requerido.'); return; }
+    setSaving(true);
+    try {
+      const payload = {
+        tenant_id: tenantId,
+        name: name.trim(),
+        description: description.trim() || null,
+        goal: goal.trim() || null,
+        calories_target: calories ? parseInt(calories, 10) : null,
+        protein_g: protein ? parseInt(protein, 10) : null,
+        carbs_g: carbs ? parseInt(carbs, 10) : null,
+        fat_g: fat ? parseInt(fat, 10) : null,
+        status,
+        is_template: false,
+        sort_order: 0,
+        created_by: user?.id ?? null,
+      };
+      if (isEdit && plan) {
+        await editPlan(plan.id, payload);
+      } else {
+        await addPlan(payload);
+      }
+      onSaved(); onClose();
+    } catch (e: any) { Alert.alert('Error', e.message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
+            <View style={styles.handle} />
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <Text style={[styles.sheetTitle, { color: T.text }]}>{isEdit ? 'Editar plan' : 'Nuevo plan nutricional'}</Text>
+
+              <Text style={[styles.label, { color: T.textSecondary }]}>Nombre *</Text>
+              <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
+                value={name} onChangeText={setName} placeholder="Ej: Plan Proteico Fase 1" placeholderTextColor={T.textMuted} />
+
+              <Text style={[styles.label, { color: T.textSecondary }]}>Objetivo</Text>
+              <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
+                value={goal} onChangeText={setGoal} placeholder="Ej: Ganancia muscular" placeholderTextColor={T.textMuted} />
+
+              <Text style={[styles.label, { color: T.textSecondary }]}>Descripción</Text>
+              <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text, minHeight: 60, textAlignVertical: 'top' }]}
+                value={description} onChangeText={setDescription} placeholder="Descripción del plan..." placeholderTextColor={T.textMuted} multiline />
+
+              <Text style={[styles.label, { color: T.textSecondary }]}>Macros diarios</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                {([
+                  { label: 'Calorías', value: calories, set: setCalories, unit: 'kcal' },
+                  { label: 'Proteína', value: protein, set: setProtein, unit: 'g' },
+                  { label: 'Carbs', value: carbs, set: setCarbs, unit: 'g' },
+                  { label: 'Grasa', value: fat, set: setFat, unit: 'g' },
+                ] as { label: string; value: string; set: (v: string) => void; unit: string }[]).map((m) => (
+                  <View key={m.label} style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 4, textAlign: 'center' }}>{m.label}</Text>
+                    <TextInput
+                      style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text, marginBottom: 0, textAlign: 'center', fontSize: 14, paddingHorizontal: 6 }]}
+                      value={m.value} onChangeText={m.set}
+                      placeholder="—" placeholderTextColor={T.textMuted}
+                      keyboardType="numeric"
+                    />
+                    <Text style={{ fontSize: 10, color: T.textMuted, textAlign: 'center', marginTop: 2 }}>{m.unit}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <Text style={[styles.label, { color: T.textSecondary }]}>Estado</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 24 }}>
+                {(['draft', 'published', 'archived'] as NutritionStatus[]).map((s) => (
+                  <TouchableOpacity key={s} onPress={() => setStatus(s)}
+                    style={[styles.chip, { flex: 1, justifyContent: 'center', backgroundColor: status === s ? T.accent : T.bg, borderColor: status === s ? T.accent : T.border }]}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: status === s ? '#fff' : T.textSecondary, textAlign: 'center' }}>
+                      {NUTRITION_STATUS_LABELS[s]}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.btn, { backgroundColor: T.accent, flex: 1 }]}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? 'Guardando...' : 'Guardar'}</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ─── Assign Nutrition Modal ───────────────────────────────────
+function AssignNutritionModal({ plan, visible, onClose, tenantId }: {
+  plan: NutritionPlan | null; visible: boolean; onClose: () => void; tenantId: string;
+}) {
+  const T = useTheme();
+  const { user } = useAuthStore();
+  const { data: clients = [], isLoading: loadingClients, error: clientsError, refetch } = useClientsWithPlan();
+  const { assignPlan } = useNutritionStore();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
+
+  useEffect(() => {
+    if (visible) { setSelectedId(null); setResetKey((k) => k + 1); refetch(); }
+  }, [visible]);
+
+  const handleAssign = async () => {
+    if (!plan || !selectedId || !user?.id || !user?.tenant_id) return;
+    setSaving(true);
+    try {
+      await assignPlan(plan.id, selectedId, user.tenant_id, user.id);
+      Alert.alert('✅', 'Plan nutricional asignado correctamente.');
+      onClose();
+    } catch (e: any) { Alert.alert('Error', e.message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.sheet, { backgroundColor: T.bgCard, height: '82%' }]}>
+          <View style={styles.handle} />
+          <Text style={[styles.sheetTitle, { color: T.text }]}>Asignar plan nutricional</Text>
+          {plan && (
+            <Text style={{ fontSize: 13, color: T.textSecondary, marginBottom: 12, marginTop: -12 }}>
+              {plan.name}
+            </Text>
+          )}
+          <ClientPickerSheet
+            clients={clients} loading={loadingClients} error={clientsError}
+            selectedId={selectedId} onSelect={setSelectedId} onRetry={refetch}
+            resetKey={resetKey}
+          />
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
+            <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
+              <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleAssign} disabled={!selectedId || saving}
+              style={[styles.btn, { backgroundColor: selectedId ? T.accent : T.bgCard, flex: 1, opacity: selectedId ? 1 : 0.5 }]}>
+              <Text style={{ color: selectedId ? '#fff' : T.textMuted, fontWeight: '700' }}>
+                {saving ? 'Asignando...' : 'Asignar'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // ─── Main Screen ──────────────────────────────────────────────
 export default function AdminContentScreen() {
   const T = useTheme();
@@ -968,8 +1406,17 @@ export default function AdminContentScreen() {
   const [showExerciseForm, setShowExerciseForm] = useState(false);
   const [editExerciseTarget, setEditExerciseTarget] = useState<{ routineId: string; exercise?: Exercise } | null>(null);
 
+  // Nutrition state
+  const { adminPlans: nutritionPlans, isLoading: nutritionLoading, loadAdminPlans, removePlan: removeNutritionPlan, changePlanStatus } = useNutritionStore();
+  const [showNutritionForm, setShowNutritionForm] = useState(false);
+  const [editNutritionTarget, setEditNutritionTarget] = useState<NutritionPlan | null>(null);
+  const [assignNutritionTarget, setAssignNutritionTarget] = useState<NutritionPlan | null>(null);
+
   useEffect(() => {
-    if (user?.tenant_id) loadAdminRoutines(user.tenant_id);
+    if (user?.tenant_id) {
+      loadAdminRoutines(user.tenant_id);
+      loadAdminPlans(user.tenant_id);
+    }
   }, [user?.tenant_id]);
 
   const { videos, isLoading, publish, archive, reload } = useAdminVideos();
@@ -1002,6 +1449,7 @@ export default function AdminContentScreen() {
         onAction={() => {
           if (tab === 'Videos') setShowCreate(true);
           if (tab === 'Rutinas') { setEditRoutineTarget(null); setShowRoutineForm(true); }
+          if (tab === 'Nutrición') { setEditNutritionTarget(null); setShowNutritionForm(true); }
         }}
       />
 
@@ -1092,18 +1540,75 @@ export default function AdminContentScreen() {
           )
         )}
 
-        {tab === 'Nutrición' && MOCK_NUTRITION_PLANS.map((n) => (
-          <TouchableOpacity key={n.id} activeOpacity={0.8}
-            style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
-            <View style={[styles.cardIcon, { backgroundColor: T.greenSoft }]}><Text style={{ fontSize: 20 }}>🥗</Text></View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.cardTitle, { color: T.text }]}>{n.name}</Text>
-              <Text style={[styles.cardMeta, { color: T.textSecondary }]}>{n.calories} kcal/día · {n.clients} clientes</Text>
-              <Text style={[styles.cardSub, { color: T.textMuted }]}>{n.goal}</Text>
+        {tab === 'Nutrición' && (
+          nutritionLoading ? (
+            <View style={{ paddingVertical: 40, alignItems: 'center' }}><ActivityIndicator color={T.accent} /></View>
+          ) : nutritionPlans.length === 0 ? (
+            <View style={{ paddingVertical: 60, alignItems: 'center' }}>
+              <Text style={{ fontSize: 36, marginBottom: 12 }}>🥗</Text>
+              <Text style={{ color: T.textMuted, fontSize: 15, textAlign: 'center' }}>
+                No hay planes nutricionales.{'\n'}Toca "+ Nuevo" para crear el primero.
+              </Text>
             </View>
-            <Text style={{ fontSize: 12, color: T.accent, fontWeight: '700' }}>Asignar</Text>
-          </TouchableOpacity>
-        ))}
+          ) : (
+            nutritionPlans.map((n) => {
+              const isPublished = n.status === 'published';
+              const macroText = [
+                n.calories_target ? `${n.calories_target} kcal` : null,
+                n.protein_g ? `P ${n.protein_g}g` : null,
+                n.carbs_g ? `C ${n.carbs_g}g` : null,
+                n.fat_g ? `G ${n.fat_g}g` : null,
+              ].filter(Boolean).join(' · ');
+              return (
+                <View key={n.id} style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd, flexDirection: 'column', padding: 0, overflow: 'hidden' }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 }}>
+                    <View style={[styles.cardIcon, { backgroundColor: T.greenSoft }]}><Text style={{ fontSize: 20 }}>🥗</Text></View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={[styles.cardTitle, { color: T.text }]} numberOfLines={1}>{n.name}</Text>
+                        <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: isPublished ? T.green + '20' : T.accent + '20' }}>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: isPublished ? T.green : T.accent }}>
+                            {NUTRITION_STATUS_LABELS[n.status]}
+                          </Text>
+                        </View>
+                      </View>
+                      {macroText ? <Text style={[styles.cardMeta, { color: T.textSecondary }]}>{macroText}</Text> : null}
+                      {n.goal ? <Text style={[styles.cardSub, { color: T.textMuted }]}>{n.goal}</Text> : null}
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: T.border }}>
+                    <TouchableOpacity onPress={() => { setEditNutritionTarget(n); setShowNutritionForm(true); }}
+                      style={{ flex: 1, paddingVertical: 10, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 11, color: T.accent, fontWeight: '700' }}>✏️ Editar</Text>
+                    </TouchableOpacity>
+                    <View style={{ width: StyleSheet.hairlineWidth, backgroundColor: T.border }} />
+                    <TouchableOpacity onPress={() => setAssignNutritionTarget(n)}
+                      style={{ flex: 1, paddingVertical: 10, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 11, color: T.blue, fontWeight: '700' }}>👤 Asignar</Text>
+                    </TouchableOpacity>
+                    <View style={{ width: StyleSheet.hairlineWidth, backgroundColor: T.border }} />
+                    <TouchableOpacity
+                      onPress={() => changePlanStatus(n.id, isPublished ? 'archived' : 'published')}
+                      style={{ flex: 1, paddingVertical: 10, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 11, color: isPublished ? T.textMuted : T.green, fontWeight: '700' }}>
+                        {isPublished ? '📦 Archivar' : '✅ Publicar'}
+                      </Text>
+                    </TouchableOpacity>
+                    <View style={{ width: StyleSheet.hairlineWidth, backgroundColor: T.border }} />
+                    <TouchableOpacity
+                      onPress={() => Alert.alert('Eliminar', `¿Eliminar "${n.name}"?`, [
+                        { text: 'Cancelar', style: 'cancel' },
+                        { text: 'Eliminar', style: 'destructive', onPress: () => removeNutritionPlan(n.id).catch((e: any) => Alert.alert('Error', e.message)) },
+                      ])}
+                      style={{ flex: 1, paddingVertical: 10, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 11, color: T.red, fontWeight: '700' }}>🗑 Eliminar</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })
+          )
+        )}
 
         {tab === 'Videos' && (
           isLoading ? (
@@ -1201,6 +1706,7 @@ export default function AdminContentScreen() {
         video={assignTarget}
         visible={!!assignTarget}
         onClose={() => setAssignTarget(null)}
+        onSaved={() => { setAssignTarget(null); reload(); }}
       />
       {/* Routine modals */}
       <RoutineFormModal
@@ -1222,6 +1728,20 @@ export default function AdminContentScreen() {
         routine={assignRoutineTarget}
         visible={!!assignRoutineTarget}
         onClose={() => setAssignRoutineTarget(null)}
+        tenantId={user?.tenant_id ?? ''}
+      />
+      {/* Nutrition modals */}
+      <NutritionFormModal
+        plan={editNutritionTarget}
+        visible={showNutritionForm}
+        onClose={() => { setShowNutritionForm(false); setEditNutritionTarget(null); }}
+        onSaved={() => { if (user?.tenant_id) loadAdminPlans(user.tenant_id); }}
+        tenantId={user?.tenant_id ?? ''}
+      />
+      <AssignNutritionModal
+        plan={assignNutritionTarget}
+        visible={!!assignNutritionTarget}
+        onClose={() => setAssignNutritionTarget(null)}
         tenantId={user?.tenant_id ?? ''}
       />
     </SafeAreaView>
