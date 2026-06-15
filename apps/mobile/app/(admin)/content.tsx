@@ -1,9 +1,12 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Image,
   StatusBar, Switch, ActivityIndicator, Alert, Modal,
-  TextInput, KeyboardAvoidingView, Platform,
+  TextInput, KeyboardAvoidingView, Platform, RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
+import { showToast, ToastNotification } from '@/components/ui/Toast';
+import { ActionSheet, type SheetAction } from '@/components/ui/ActionSheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -577,7 +580,7 @@ function AssignRoutineModal({ routine, visible, onClose, tenantId }: {
     setSaving(true);
     try {
       await assignRoutine(routine.id, selectedId, tenantId, user.id);
-      Alert.alert('✅', 'Rutina asignada correctamente.');
+      showToast('Rutina asignada correctamente');
       onClose();
     } catch (e: any) { Alert.alert('Error', e.message); }
     finally { setSaving(false); }
@@ -775,9 +778,9 @@ function AssignVideoModal({ video, visible, onClose, onSaved }: {
     try {
       await editVideo(video.id, { allowed_levels: selectedLevels });
       const msg = selectedLevels.length === 0
-        ? 'Acceso por nivel desactivado. Solo acceso directo activo.'
-        : `Acceso global para: ${selectedLevels.map((l) => LEVEL_LABELS[l]).join(', ')}.`;
-      Alert.alert('✅', msg);
+        ? 'Acceso por nivel desactivado'
+        : `Acceso global: ${selectedLevels.map((l) => LEVEL_LABELS[l]).join(', ')}`;
+      showToast(msg);
       onSaved?.();
       onClose();
     } catch (e: any) { Alert.alert('Error', e.message); }
@@ -789,7 +792,7 @@ function AssignVideoModal({ video, visible, onClose, onSaved }: {
     setSaving(true);
     try {
       await assignVideoToClient(video.id, selectedId, user.tenant_id, user.id);
-      Alert.alert('✅', 'Video asignado directamente al cliente.');
+      showToast('Video asignado al cliente');
       onClose();
     } catch (e: any) { Alert.alert('Error', e.message); }
     finally { setSaving(false); }
@@ -1348,7 +1351,7 @@ function AssignNutritionModal({ plan, visible, onClose, tenantId }: {
     setSaving(true);
     try {
       await assignPlan(plan.id, selectedId, user.tenant_id, user.id);
-      Alert.alert('✅', 'Plan nutricional asignado correctamente.');
+      showToast('Plan nutricional asignado correctamente');
       onClose();
     } catch (e: any) { Alert.alert('Error', e.message); }
     finally { setSaving(false); }
@@ -1392,10 +1395,20 @@ export default function AdminContentScreen() {
   const T = useTheme();
   const { user } = useAuthStore();
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const [tab, setTab] = useState('Rutinas');
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState<Video | null>(null);
   const [assignTarget, setAssignTarget] = useState<Video | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // ActionSheet state
+  const [sheet, setSheet] = useState<{
+    visible: boolean; title?: string; subtitle?: string; actions: SheetAction[];
+  }>({ visible: false, actions: [] });
+  const openSheet = useCallback((title: string, subtitle: string, actions: SheetAction[]) => {
+    setSheet({ visible: true, title, subtitle, actions });
+  }, []);
 
   // Routines state
   const { adminRoutines, isLoadingAdmin: routinesLoading, loadAdminRoutines, removeRoutine, toggleActive: toggleRoutineActive } = useRoutinesStore();
@@ -1422,6 +1435,20 @@ export default function AdminContentScreen() {
   const { videos, isLoading, publish, archive, reload } = useAdminVideos();
   const { removeVideo } = useVideosStore();
 
+  const onRefresh = useCallback(async () => {
+    if (!user?.tenant_id) return;
+    setRefreshing(true);
+    try {
+      reload();
+      await Promise.all([
+        loadAdminRoutines(user.tenant_id),
+        loadAdminPlans(user.tenant_id),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [user?.tenant_id]);
+
   const statusColor = (status: string) => {
     if (status === 'published') return T.green;
     if (status === 'archived') return T.textMuted;
@@ -1430,21 +1457,25 @@ export default function AdminContentScreen() {
   };
 
   const handleDelete = (v: Video) => {
-    Alert.alert('Eliminar video', `¿Eliminar "${v.title}"? Esta acción no se puede deshacer.`, [
+    Alert.alert('Eliminar video', `¿Eliminar "${v.title}"?`, [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
-        try { await removeVideo(v.id); }
-        catch (e: any) { Alert.alert('Error', e.message); }
+        try {
+          await removeVideo(v.id);
+          showToast('Video eliminado', 'info');
+        } catch (e: any) { Alert.alert('Error', e.message); }
       }},
     ]);
   };
+
+  const isTablet = width >= 768;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
       <AdminTopBar
         title="Contenido"
-        subtitle="v2 · Rutinas · Nutrición · Videos"
+        subtitle="Rutinas · Nutrición · Videos"
         actionLabel="+ Nuevo"
         onAction={() => {
           if (tab === 'Videos') setShowCreate(true);
@@ -1462,7 +1493,18 @@ export default function AdminContentScreen() {
         ))}
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ padding: isTablet ? 24 : 16 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={T.accent}
+            colors={[T.accent]}
+          />
+        }
+      >
 
         {tab === 'Rutinas' && (
           routinesLoading ? (
@@ -1480,38 +1522,37 @@ export default function AdminContentScreen() {
               return (
                 <View key={r.id} style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd, flexDirection: 'column', padding: 0, overflow: 'hidden' }]}>
                   {/* Header row */}
-                  <TouchableOpacity onPress={() => setExpandedRoutineId(expanded ? null : r.id)} activeOpacity={0.8}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 }}>
-                    <View style={[styles.cardIcon, { backgroundColor: T.accentGlow }]}><Text style={{ fontSize: 20 }}>💪</Text></View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.cardTitle, { color: T.text }]}>{r.name}</Text>
-                      <Text style={[styles.cardMeta, { color: T.textSecondary }]}>
-                        {ROUTINE_LEVEL_LABELS[r.level]} · {r.exercises?.length ?? 0} ejercicios
-                        {r.is_template ? ' · 📋 Plantilla' : ''}
-                      </Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                      <Switch value={r.is_active} onValueChange={(v) => toggleRoutineActive(r.id, v)} trackColor={{ true: T.green, false: T.border }} />
-                      <Text style={{ fontSize: 11, color: T.textMuted }}>{expanded ? '▲' : '▼'}</Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* CRUD actions */}
-                  <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingBottom: 10, flexWrap: 'wrap' }}>
-                    <TouchableOpacity onPress={() => { setEditRoutineTarget(r); setShowRoutineForm(true); }}>
-                      <Text style={{ fontSize: 11, color: T.accent, fontWeight: '700' }}>✏️ Editar</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 }}>
+                    <TouchableOpacity onPress={() => setExpandedRoutineId(expanded ? null : r.id)} activeOpacity={0.7}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                      <View style={[styles.cardIcon, { backgroundColor: T.accentGlow }]}><Text style={{ fontSize: 20 }}>💪</Text></View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.cardTitle, { color: T.text }]}>{r.name}</Text>
+                        <Text style={[styles.cardMeta, { color: T.textSecondary }]}>
+                          {ROUTINE_LEVEL_LABELS[r.level]} · {r.exercises?.length ?? 0} ejercicios
+                          {r.is_template ? ' · Plantilla' : ''}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setAssignRoutineTarget(r)}>
-                      <Text style={{ fontSize: 11, color: T.blue, fontWeight: '700' }}>👤 Asignar</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => { setEditExerciseTarget({ routineId: r.id }); setShowExerciseForm(true); }}>
-                      <Text style={{ fontSize: 11, color: T.green, fontWeight: '700' }}>➕ Ejercicio</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => Alert.alert('Eliminar', `¿Eliminar "${r.name}"?`, [
-                      { text: 'Cancelar', style: 'cancel' },
-                      { text: 'Eliminar', style: 'destructive', onPress: () => removeRoutine(r.id) },
-                    ])}>
-                      <Text style={{ fontSize: 11, color: T.red, fontWeight: '700' }}>🗑 Eliminar</Text>
+                    <Switch value={r.is_active} onValueChange={(v) => toggleRoutineActive(r.id, v)} trackColor={{ true: T.green, false: T.border }} />
+                    <TouchableOpacity
+                      onPress={() => openSheet('Rutina', r.name, [
+                        { icon: '✏️', label: 'Editar', onPress: () => { setEditRoutineTarget(r); setShowRoutineForm(true); } },
+                        { icon: '👤', label: 'Asignar a cliente', onPress: () => setAssignRoutineTarget(r) },
+                        { icon: '➕', label: 'Agregar ejercicio', onPress: () => { setEditExerciseTarget({ routineId: r.id }); setShowExerciseForm(true); } },
+                        { icon: '🗑', label: 'Eliminar', destructive: true, onPress: () =>
+                          Alert.alert('Eliminar', `¿Eliminar "${r.name}"?`, [
+                            { text: 'Cancelar', style: 'cancel' },
+                            { text: 'Eliminar', style: 'destructive', onPress: () => {
+                              removeRoutine(r.id).then(() => showToast('Rutina eliminada', 'info')).catch((e: any) => Alert.alert('Error', e.message));
+                            }},
+                          ])
+                        },
+                      ])}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      style={[styles.menuBtn, { backgroundColor: T.bg, borderColor: T.border }]}
+                    >
+                      <Text style={{ color: T.textSecondary, fontSize: 16, fontWeight: '700' }}>⋯</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -1575,33 +1616,33 @@ export default function AdminContentScreen() {
                       {macroText ? <Text style={[styles.cardMeta, { color: T.textSecondary }]}>{macroText}</Text> : null}
                       {n.goal ? <Text style={[styles.cardSub, { color: T.textMuted }]}>{n.goal}</Text> : null}
                     </View>
-                  </View>
-                  <View style={{ flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: T.border }}>
-                    <TouchableOpacity onPress={() => { setEditNutritionTarget(n); setShowNutritionForm(true); }}
-                      style={{ flex: 1, paddingVertical: 10, alignItems: 'center' }}>
-                      <Text style={{ fontSize: 11, color: T.accent, fontWeight: '700' }}>✏️ Editar</Text>
-                    </TouchableOpacity>
-                    <View style={{ width: StyleSheet.hairlineWidth, backgroundColor: T.border }} />
-                    <TouchableOpacity onPress={() => setAssignNutritionTarget(n)}
-                      style={{ flex: 1, paddingVertical: 10, alignItems: 'center' }}>
-                      <Text style={{ fontSize: 11, color: T.blue, fontWeight: '700' }}>👤 Asignar</Text>
-                    </TouchableOpacity>
-                    <View style={{ width: StyleSheet.hairlineWidth, backgroundColor: T.border }} />
                     <TouchableOpacity
-                      onPress={() => changePlanStatus(n.id, isPublished ? 'archived' : 'published')}
-                      style={{ flex: 1, paddingVertical: 10, alignItems: 'center' }}>
-                      <Text style={{ fontSize: 11, color: isPublished ? T.textMuted : T.green, fontWeight: '700' }}>
-                        {isPublished ? '📦 Archivar' : '✅ Publicar'}
-                      </Text>
-                    </TouchableOpacity>
-                    <View style={{ width: StyleSheet.hairlineWidth, backgroundColor: T.border }} />
-                    <TouchableOpacity
-                      onPress={() => Alert.alert('Eliminar', `¿Eliminar "${n.name}"?`, [
-                        { text: 'Cancelar', style: 'cancel' },
-                        { text: 'Eliminar', style: 'destructive', onPress: () => removeNutritionPlan(n.id).catch((e: any) => Alert.alert('Error', e.message)) },
+                      onPress={() => openSheet('Plan nutricional', n.name, [
+                        { icon: '✏️', label: 'Editar', onPress: () => { setEditNutritionTarget(n); setShowNutritionForm(true); } },
+                        { icon: '👤', label: 'Asignar a cliente', onPress: () => setAssignNutritionTarget(n) },
+                        { icon: isPublished ? '📦' : '✅', label: isPublished ? 'Archivar' : 'Publicar',
+                          color: isPublished ? T.textMuted : T.green,
+                          onPress: () => {
+                            changePlanStatus(n.id, isPublished ? 'archived' : 'published')
+                              .then(() => showToast(isPublished ? 'Plan archivado' : 'Plan publicado'))
+                              .catch((e: any) => Alert.alert('Error', e.message));
+                          },
+                        },
+                        { icon: '🗑', label: 'Eliminar', destructive: true, onPress: () =>
+                          Alert.alert('Eliminar', `¿Eliminar "${n.name}"?`, [
+                            { text: 'Cancelar', style: 'cancel' },
+                            { text: 'Eliminar', style: 'destructive', onPress: () =>
+                              removeNutritionPlan(n.id)
+                                .then(() => showToast('Plan eliminado', 'info'))
+                                .catch((e: any) => Alert.alert('Error', e.message))
+                            },
+                          ])
+                        },
                       ])}
-                      style={{ flex: 1, paddingVertical: 10, alignItems: 'center' }}>
-                      <Text style={{ fontSize: 11, color: T.red, fontWeight: '700' }}>🗑 Eliminar</Text>
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      style={[styles.menuBtn, { backgroundColor: T.bg, borderColor: T.border }]}
+                    >
+                      <Text style={{ color: T.textSecondary, fontSize: 16, fontWeight: '700' }}>⋯</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1655,33 +1696,23 @@ export default function AdminContentScreen() {
                     </View>
                   </View>
 
-                  {/* Actions */}
-                  <View style={{ gap: 6, alignItems: 'flex-end' }}>
-                    {v.video_storage_path && (
-                      <TouchableOpacity onPress={() => router.push(`/(admin)/video-player?id=${v.id}` as any)}>
-                        <Text style={{ fontSize: 11, color: T.blue, fontWeight: '700' }}>▶ Ver video</Text>
-                      </TouchableOpacity>
-                    )}
-                    <TouchableOpacity onPress={() => setEditTarget(v)}>
-                      <Text style={{ fontSize: 11, color: T.accent, fontWeight: '700' }}>✏️ Editar</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setAssignTarget(v)}>
-                      <Text style={{ fontSize: 11, color: T.blue, fontWeight: '700' }}>👤 Asignar</Text>
-                    </TouchableOpacity>
-                    {v.status !== 'published' && v.status !== 'uploading' && (
-                      <TouchableOpacity onPress={() => publish(v.id)}>
-                        <Text style={{ fontSize: 11, color: T.green, fontWeight: '700' }}>▶ Publicar</Text>
-                      </TouchableOpacity>
-                    )}
-                    {v.status === 'published' && (
-                      <TouchableOpacity onPress={() => archive(v.id)}>
-                        <Text style={{ fontSize: 11, color: T.textMuted, fontWeight: '700' }}>⏸ Archivar</Text>
-                      </TouchableOpacity>
-                    )}
-                    <TouchableOpacity onPress={() => handleDelete(v)}>
-                      <Text style={{ fontSize: 11, color: T.red, fontWeight: '700' }}>🗑 Eliminar</Text>
-                    </TouchableOpacity>
-                  </View>
+                  {/* ⋯ menu */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      const acts: SheetAction[] = [];
+                      if (v.video_storage_path) acts.push({ icon: '▶', label: 'Ver video', color: T.blue, onPress: () => router.push(`/(admin)/video-player?id=${v.id}` as any) });
+                      acts.push({ icon: '✏️', label: 'Editar', onPress: () => setEditTarget(v) });
+                      acts.push({ icon: '👤', label: 'Asignar a cliente', onPress: () => setAssignTarget(v) });
+                      if (v.status !== 'published' && v.status !== 'uploading') acts.push({ icon: '✅', label: 'Publicar', color: T.green, onPress: () => publish(v.id).then(() => showToast('Video publicado')).catch((e: any) => Alert.alert('Error', e.message)) });
+                      if (v.status === 'published') acts.push({ icon: '📦', label: 'Archivar', color: T.textMuted, onPress: () => archive(v.id).then(() => showToast('Video archivado', 'info')).catch((e: any) => Alert.alert('Error', e.message)) });
+                      acts.push({ icon: '🗑', label: 'Eliminar', destructive: true, onPress: () => handleDelete(v) });
+                      openSheet('Video', v.title, acts);
+                    }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={[styles.menuBtn, { backgroundColor: T.bg, borderColor: T.border }]}
+                  >
+                    <Text style={{ color: T.textSecondary, fontSize: 16, fontWeight: '700' }}>⋯</Text>
+                  </TouchableOpacity>
                 </View>
               );
             })
@@ -1744,6 +1775,18 @@ export default function AdminContentScreen() {
         onClose={() => setAssignNutritionTarget(null)}
         tenantId={user?.tenant_id ?? ''}
       />
+
+      {/* Global ActionSheet */}
+      <ActionSheet
+        visible={sheet.visible}
+        title={sheet.title}
+        subtitle={sheet.subtitle}
+        actions={sheet.actions}
+        onClose={() => setSheet((s) => ({ ...s, visible: false }))}
+      />
+
+      {/* Toast — rendered last so it floats above everything */}
+      <ToastNotification />
     </SafeAreaView>
   );
 }
@@ -1766,6 +1809,10 @@ const styles = StyleSheet.create({
     fontSize: 9, color: '#fff', fontWeight: '600',
   },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
+  menuBtn: {
+    width: 34, height: 34, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'center', alignItems: 'center',
+  },
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '94%' },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#444', alignSelf: 'center', marginBottom: 16 },

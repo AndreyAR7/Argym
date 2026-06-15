@@ -114,12 +114,18 @@ function makeTheme(
 }
 
 export const THEMES: ThemeConfig[] = [
-  makeTheme('dark',     'Oscuro',    '🌑', '#0A0A0F', '#13131A', '#1C1C26', '#1A1A24', '#6C63FF', '#8B85FF', '#F0F0FF', '#9090B0', '#5A5A7A', 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0.14)'),
-  makeTheme('midnight', 'Midnight',  '🌌', '#080B14', '#0F1420', '#161D2E', '#131929', '#3B82F6', '#60A5FA', '#F1F5F9', '#94A3B8', '#475569', 'rgba(255,255,255,0.07)', 'rgba(255,255,255,0.12)'),
-  makeTheme('violet',   'Violeta',   '💜', '#0D0A1A', '#160F2A', '#1E1535', '#130E22', '#8B5CF6', '#A78BFA', '#EDE9FE', '#C4B5FD', '#7C3AED', 'rgba(139,92,246,0.15)',  'rgba(139,92,246,0.25)'),
-  makeTheme('emerald',  'Esmeralda', '💚', '#061210', '#0A1F1C', '#0F2E29', '#0C1A18', '#10B981', '#34D399', '#ECFDF5', '#6EE7B7', '#059669', 'rgba(16,185,129,0.15)',  'rgba(16,185,129,0.25)'),
-  makeTheme('light',    'Claro',     '☀️', '#F8FAFC', '#FFFFFF', '#F1F5F9', '#F8FAFC', '#2563EB', '#3B82F6', '#0F172A', '#64748B', '#94A3B8', '#E2E8F0',                '#CBD5E1'),
-  makeTheme('system',   'Sistema',   '📱', '#0A0A0F', '#13131A', '#1C1C26', '#1A1A24', '#6C63FF', '#8B85FF', '#F0F0FF', '#9090B0', '#5A5A7A', 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0.14)'),
+  // Grafito — dark neutral, refined indigo accent (default)
+  makeTheme('dark',     'Grafito',   '⬛', '#0B0B0D', '#141418', '#1C1C22', '#111115', '#4F6EF7', '#6B84FF', '#EEEEF0', '#8E8E9A', '#55555F', 'rgba(255,255,255,0.07)', 'rgba(255,255,255,0.12)'),
+  // Marino — deep navy, professional blue
+  makeTheme('midnight', 'Marino',    '🔷', '#060D1C', '#0C1428', '#132038', '#0A1120', '#2563EB', '#3B82F6', '#EFF6FF', '#7BA4D4', '#3A5272', 'rgba(59,130,246,0.10)',  'rgba(59,130,246,0.20)'),
+  // Pizarra — charcoal slate, periwinkle accent
+  makeTheme('violet',   'Pizarra',   '🩶', '#0F1015', '#181A22', '#1F2130', '#161820', '#818CF8', '#A5B4FC', '#E8E8F0', '#8888A8', '#4A4A62', 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0.13)'),
+  // Bosque — dark forest, muted emerald (gym/nature)
+  makeTheme('emerald',  'Bosque',    '🌿', '#090F0D', '#101A17', '#172620', '#0D1714', '#059669', '#10B981', '#ECFDF5', '#5FA882', '#2D5A47', 'rgba(5,150,105,0.12)',   'rgba(5,150,105,0.22)'),
+  // Claro — clean corporate light
+  makeTheme('light',    'Claro',     '🤍', '#F2F2F7', '#FFFFFF', '#F2F2F7', '#FFFFFF', '#1C62D4', '#2563EB', '#1C1C1E', '#48484A', '#8E8E93', '#E5E5EA',                '#C7C7CC'),
+  // Sistema — same as Grafito
+  makeTheme('system',   'Sistema',   '📱', '#0B0B0D', '#141418', '#1C1C22', '#111115', '#4F6EF7', '#6B84FF', '#EEEEF0', '#8E8E9A', '#55555F', 'rgba(255,255,255,0.07)', 'rgba(255,255,255,0.12)'),
 ];
 
 export function getThemeConfig(theme: AppTheme): ThemeConfig {
@@ -133,6 +139,7 @@ interface ProfileStore {
   isSavingTheme: boolean;
   uploadError: string | null;
 
+  reset: () => void;
   loadProfile: () => Promise<void>;
   pickAndUploadAvatar: () => Promise<void>;
   removeAvatar: () => Promise<void>;
@@ -155,6 +162,8 @@ export const useProfileStore = create<ProfileStore>()((set) => ({
   isUploadingAvatar: false,
   isSavingTheme: false,
   uploadError: null,
+
+  reset: () => set({ avatarUrl: null, theme: 'dark', isUploadingAvatar: false, isSavingTheme: false, uploadError: null }),
 
   loadProfile: async () => {
     const userId = useAuthStore.getState().user?.id;
