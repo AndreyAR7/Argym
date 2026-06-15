@@ -1444,7 +1444,7 @@ export default function AdminContentScreen() {
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
       <AdminTopBar
         title="Contenido"
-        subtitle="Rutinas · Nutrición · Videos"
+        subtitle="v2 · Rutinas · Nutrición · Videos"
         actionLabel="+ Nuevo"
         onAction={() => {
           if (tab === 'Videos') setShowCreate(true);
