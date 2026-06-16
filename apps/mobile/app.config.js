@@ -34,6 +34,9 @@ module.exports = {
     experiments: {
       typedRoutes: true
     },
+    updates: {
+      enabled: false,
+    },
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.saas.clientmanagement"
