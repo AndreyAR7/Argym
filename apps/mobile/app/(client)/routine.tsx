@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, StatusBar, Alert, ActivityIndicator, Animated,
+  StyleSheet, StatusBar, Alert, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -13,12 +13,27 @@ import { usePlansStore } from '@/store/plans.store';
 import { ROUTINE_LEVEL_LABELS } from '@/types/routines';
 import type { ClientRoutine, Exercise } from '@/types/routines';
 
+// ─── UI string constants ──────────────────────────────────────
+const STRINGS = {
+  screenTitle: 'Rutina',
+  noRoutinesTitle: 'Sin rutinas asignadas',
+  noRoutinesBody: 'Tu coach asignará una rutina personalizada para ti pronto.',
+  noExercises: 'Esta rutina no tiene ejercicios aún.',
+  totalProgressLabel: 'Progreso total de hoy',
+  exercisesUnit: ' ejercicios',
+  completedLabel: 'Completado',
+  completedBanner: '¡Excelente! Rutina completada al 100%',
+  sectionPrefix: 'EJERCICIOS —',
+  sectionSuffix: 'de',
+  sectionCompleted: 'completados',
+  errorTitle: 'Error',
+  errorBody: 'No se pudo actualizar el progreso.',
+} as const;
+
 // ─── Circular progress ────────────────────────────────────────
-function CircularProgress({ pct, size = 52, color }: { pct: number; size?: number; color: string }) {
-  const radius = (size - 6) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const filled = circumference * (pct / 100);
-  // Simple arc using border trick — works without SVG
+const CircularProgress = React.memo(function CircularProgress({
+  pct, size = 52, color,
+}: { pct: number; size?: number; color: string }) {
   return (
     <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
       <View style={{
@@ -27,7 +42,7 @@ function CircularProgress({ pct, size = 52, color }: { pct: number; size?: numbe
         justifyContent: 'center', alignItems: 'center',
         overflow: 'hidden',
       }}>
-        {/* Filled arc approximation using background */}
+        {/* Filled arc approximation using border trick — works without SVG */}
         <View style={{
           position: 'absolute', width: size, height: size, borderRadius: size / 2,
           borderWidth: 4, borderColor: color,
@@ -41,10 +56,10 @@ function CircularProgress({ pct, size = 52, color }: { pct: number; size?: numbe
       </View>
     </View>
   );
-}
+});
 
 // ─── Exercise checklist item ──────────────────────────────────
-function ExerciseCheckItem({ exercise, completed, onToggle, onDemo, T }: {
+const ExerciseCheckItem = React.memo(function ExerciseCheckItem({ exercise, completed, onToggle, onDemo, T }: {
   exercise: Exercise; completed: boolean; onToggle: () => void; onDemo?: () => void; T: any;
 }) {
   return (
@@ -99,18 +114,38 @@ function ExerciseCheckItem({ exercise, completed, onToggle, onDemo, T }: {
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 // ─── Routine accordion card ───────────────────────────────────
-function RoutineAccordion({ routine, expanded, onToggleExpand, onToggleExercise, onDemo, T }: {
+const RoutineAccordion = React.memo(function RoutineAccordion({ routine, expanded, onToggleExpand, onToggleExercise, onDemo, T, optimisticOverrides }: {
   routine: ClientRoutine;
   expanded: boolean;
   onToggleExpand: () => void;
   onToggleExercise: (exerciseId: string, completed: boolean) => void;
   onDemo: (exercise: Exercise) => void;
   T: any;
+  /** Map of exerciseId → optimistic completed state, overrides store value while async is in-flight */
+  optimisticOverrides: Record<string, boolean>;
 }) {
-  const allDone = routine.completedCount === routine.totalCount && routine.totalCount > 0;
+  // Merge optimistic overrides into progress for rendering
+  const mergedProgress = useMemo(() => {
+    if (Object.keys(optimisticOverrides).length === 0) return routine.progress;
+    return routine.progress.map((p) =>
+      p.exercise_id in optimisticOverrides
+        ? { ...p, completed: optimisticOverrides[p.exercise_id] }
+        : p
+    );
+  }, [routine.progress, optimisticOverrides]);
+
+  // Recompute counts from merged progress
+  const completedCount = useMemo(
+    () => mergedProgress.filter((p) => p.completed).length,
+    [mergedProgress],
+  );
+  const totalCount = routine.totalCount;
+  const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const allDone = completedCount === totalCount && totalCount > 0;
+
   const levelColor = { beginner: T.green, intermediate: T.accent, advanced: T.red }[routine.level] ?? T.accent;
   const progressColor = allDone ? T.green : T.accent;
 
@@ -123,7 +158,7 @@ function RoutineAccordion({ routine, expanded, onToggleExpand, onToggleExercise,
       {/* ── Header (always visible) ── */}
       <TouchableOpacity onPress={onToggleExpand} activeOpacity={0.8} style={styles.accordionHeader}>
         {/* Left: progress circle */}
-        <CircularProgress pct={routine.progressPct} size={52} color={progressColor} />
+        <CircularProgress pct={progressPct} size={52} color={progressColor} />
 
         {/* Center: info */}
         <View style={{ flex: 1, marginLeft: 12 }}>
@@ -142,9 +177,13 @@ function RoutineAccordion({ routine, expanded, onToggleExpand, onToggleExercise,
               </Text>
             </View>
             <Text style={{ fontSize: 11, color: T.textMuted }}>
-              {routine.completedCount}/{routine.totalCount} ejercicios
+              {completedCount}/{totalCount} ejercicios
             </Text>
-            {allDone && <Text style={{ fontSize: 11, color: T.green, fontWeight: '700' }}>🎉 Completado</Text>}
+            {allDone && (
+              <Text style={{ fontSize: 11, color: T.green, fontWeight: '700' }}>
+                🎉 {STRINGS.completedLabel}
+              </Text>
+            )}
           </View>
         </View>
 
@@ -158,7 +197,7 @@ function RoutineAccordion({ routine, expanded, onToggleExpand, onToggleExercise,
       <View style={{ paddingHorizontal: 16, paddingBottom: expanded ? 0 : 12 }}>
         <View style={[styles.progressBg, { backgroundColor: T.border }]}>
           <View style={[styles.progressFill, {
-            width: `${routine.progressPct}%` as any,
+            width: `${progressPct}%` as any,
             backgroundColor: progressColor,
           }]} />
         </View>
@@ -169,21 +208,22 @@ function RoutineAccordion({ routine, expanded, onToggleExpand, onToggleExercise,
         <View style={{ paddingHorizontal: 12, paddingBottom: 12, paddingTop: 8 }}>
           <View style={[styles.divider, { backgroundColor: T.border }]} />
           <Text style={[styles.sectionLabel, { color: T.textMuted }]}>
-            EJERCICIOS — {routine.completedCount} de {routine.totalCount} completados
+            {STRINGS.sectionPrefix} {completedCount} {STRINGS.sectionSuffix} {totalCount} {STRINGS.sectionCompleted}
           </Text>
           {(routine.exercises ?? []).length === 0 ? (
             <Text style={{ color: T.textMuted, fontSize: 13, textAlign: 'center', paddingVertical: 16 }}>
-              Esta rutina no tiene ejercicios aún.
+              {STRINGS.noExercises}
             </Text>
           ) : (
             (routine.exercises ?? []).map((ex) => {
-              const prog = routine.progress.find((p) => p.exercise_id === ex.id);
+              const prog = mergedProgress.find((p) => p.exercise_id === ex.id);
+              const isCompleted = prog?.completed ?? false;
               return (
                 <ExerciseCheckItem
                   key={ex.id}
                   exercise={ex}
-                  completed={prog?.completed ?? false}
-                  onToggle={() => onToggleExercise(ex.id, !(prog?.completed ?? false))}
+                  completed={isCompleted}
+                  onToggle={() => onToggleExercise(ex.id, !isCompleted)}
                   onDemo={() => onDemo(ex)}
                   T={T}
                 />
@@ -191,11 +231,11 @@ function RoutineAccordion({ routine, expanded, onToggleExpand, onToggleExercise,
             })
           )}
 
-          {/* Complete all button */}
+          {/* Completed banner */}
           {allDone && (
             <View style={[styles.completedBanner, { backgroundColor: T.green + '18', borderColor: T.green + '44' }]}>
               <Text style={{ color: T.green, fontWeight: '700', fontSize: 14, textAlign: 'center' }}>
-                🎉 ¡Excelente! Rutina completada al 100%
+                🎉 {STRINGS.completedBanner}
               </Text>
             </View>
           )}
@@ -203,7 +243,7 @@ function RoutineAccordion({ routine, expanded, onToggleExpand, onToggleExercise,
       )}
     </View>
   );
-}
+});
 
 // ─── Main screen ──────────────────────────────────────────────
 export default function RoutineScreen() {
@@ -211,17 +251,31 @@ export default function RoutineScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
   const { mySubscription } = usePlansStore();
-  const { clientRoutines, isLoadingClient, error, loadClientRoutines, toggleExerciseDone } = useRoutinesStore();
+  const { clientRoutines, isLoadingClient, loadClientRoutines, toggleExerciseDone } = useRoutinesStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  /**
+   * Optimistic override map: { [routineId]: { [exerciseId]: boolean } }
+   * Holds the intended completed state while the async save is in flight.
+   * Cleared per-entry once the store has confirmed (or reverted on error).
+   */
+  const [optimisticMap, setOptimisticMap] = useState<Record<string, Record<string, boolean>>>({});
 
   const clientPlan = mySubscription?.plan?.plan_tier ?? null;
   const clientLevel = user?.client_level ?? null;
 
+  const loadData = useCallback(async () => {
+    if (!user?.id || !user?.tenant_id) return;
+    // Run subscription and routine loads in parallel where both are available.
+    // loadClientRoutines is the only async load available from this screen;
+    // the plans subscription is hydrated externally, so we run what we have.
+    await loadClientRoutines(user.id, user.tenant_id, clientPlan, clientLevel);
+  }, [user?.id, user?.tenant_id, clientPlan, clientLevel, loadClientRoutines]);
+
   useEffect(() => {
-    if (user?.id && user?.tenant_id) {
-      loadClientRoutines(user.id, user.tenant_id, clientPlan, clientLevel);
-    }
-  }, [user?.id, user?.tenant_id, clientPlan, clientLevel]);
+    loadData();
+  }, [loadData]);
 
   // Auto-expand first routine on load
   useEffect(() => {
@@ -230,7 +284,16 @@ export default function RoutineScreen() {
     }
   }, [clientRoutines.length]);
 
-  const handleDemo = (exercise: Exercise) => {
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await loadData();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [loadData]);
+
+  const handleDemo = useCallback((exercise: Exercise) => {
     if (!exercise.demo_video_storage_path) return;
     router.push({
       pathname: '/(client)/exercise-demo',
@@ -240,26 +303,49 @@ export default function RoutineScreen() {
         muscle: exercise.muscle,
       },
     } as any);
-  };
+  }, [router]);
 
-  const handleToggle = async (routine: ClientRoutine, exerciseId: string, completed: boolean) => {
+  const handleToggle = useCallback(async (routine: ClientRoutine, exerciseId: string, newCompleted: boolean) => {
     if (!user?.id || !user?.tenant_id) return;
-    try {
-      await toggleExerciseDone(routine.id, exerciseId, user.id, user.tenant_id, completed);
-    } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'No se pudo actualizar el progreso.');
-    }
-  };
 
-  // Overall progress across all routines
-  const totalExercises = clientRoutines.reduce((s, r) => s + r.totalCount, 0);
-  const totalCompleted = clientRoutines.reduce((s, r) => s + r.completedCount, 0);
+    // 1. Apply optimistic update immediately
+    setOptimisticMap((prev) => ({
+      ...prev,
+      [routine.id]: { ...(prev[routine.id] ?? {}), [exerciseId]: newCompleted },
+    }));
+
+    try {
+      await toggleExerciseDone(routine.id, exerciseId, user.id, user.tenant_id, newCompleted);
+    } catch (e: any) {
+      // 2. Revert on failure
+      setOptimisticMap((prev) => {
+        const routineOverrides = { ...(prev[routine.id] ?? {}) };
+        delete routineOverrides[exerciseId];
+        return { ...prev, [routine.id]: routineOverrides };
+      });
+      Alert.alert(STRINGS.errorTitle, e.message ?? STRINGS.errorBody);
+    } finally {
+      // 3. Clear the in-flight override once the store has settled
+      setOptimisticMap((prev) => {
+        const routineOverrides = { ...(prev[routine.id] ?? {}) };
+        delete routineOverrides[exerciseId];
+        return { ...prev, [routine.id]: routineOverrides };
+      });
+    }
+  }, [user?.id, user?.tenant_id, toggleExerciseDone]);
+
+  // Overall progress across all routines (uses store values; optimistic is per-accordion)
+  const { totalExercises, totalCompleted } = useMemo(() => {
+    const total = clientRoutines.reduce((s, r) => s + r.totalCount, 0);
+    const done = clientRoutines.reduce((s, r) => s + r.completedCount, 0);
+    return { totalExercises: total, totalCompleted: done };
+  }, [clientRoutines]);
   const overallPct = totalExercises > 0 ? Math.round((totalCompleted / totalExercises) * 100) : 0;
 
-  if (isLoadingClient) {
+  if (isLoadingClient && !isRefreshing) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['left', 'right']}>
-        <ClientTopBar title="Rutina" />
+        <ClientTopBar title={STRINGS.screenTitle} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={T.accent} size="large" />
         </View>
@@ -270,18 +356,28 @@ export default function RoutineScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <ClientTopBar title="Rutina" />
+      <ClientTopBar title={STRINGS.screenTitle} />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={T.accent}
+            colors={[T.accent]}
+          />
+        }
+      >
         {clientRoutines.length === 0 ? (
           <View style={{ paddingVertical: 80, alignItems: 'center' }}>
             <Text style={{ fontSize: 48, marginBottom: 16 }}>💪</Text>
             <Text style={{ fontSize: 18, fontWeight: '700', color: T.text, marginBottom: 8 }}>
-              Sin rutinas asignadas
+              {STRINGS.noRoutinesTitle}
             </Text>
             <Text style={{ fontSize: 14, color: T.textMuted, textAlign: 'center' }}>
-              Tu coach asignará una rutina personalizada para ti pronto.
+              {STRINGS.noRoutinesBody}
             </Text>
           </View>
         ) : (
@@ -291,10 +387,14 @@ export default function RoutineScreen() {
               <View style={[styles.summaryCard, { backgroundColor: T.bgCard, borderColor: T.border }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <View>
-                    <Text style={{ fontSize: 13, color: T.textSecondary, marginBottom: 2 }}>Progreso total de hoy</Text>
+                    <Text style={{ fontSize: 13, color: T.textSecondary, marginBottom: 2 }}>
+                      {STRINGS.totalProgressLabel}
+                    </Text>
                     <Text style={{ fontSize: 22, fontWeight: '800', color: T.text }}>
                       {totalCompleted}/{totalExercises}
-                      <Text style={{ fontSize: 14, color: T.textMuted, fontWeight: '400' }}> ejercicios</Text>
+                      <Text style={{ fontSize: 14, color: T.textMuted, fontWeight: '400' }}>
+                        {STRINGS.exercisesUnit}
+                      </Text>
                     </Text>
                   </View>
                   <CircularProgress pct={overallPct} size={60} color={overallPct === 100 ? T.green : T.accent} />
@@ -318,6 +418,7 @@ export default function RoutineScreen() {
                 onToggleExercise={(exerciseId, completed) => handleToggle(routine, exerciseId, completed)}
                 onDemo={handleDemo}
                 T={T}
+                optimisticOverrides={optimisticMap[routine.id] ?? EMPTY_OVERRIDES}
               />
             ))}
           </>
@@ -328,6 +429,9 @@ export default function RoutineScreen() {
     </SafeAreaView>
   );
 }
+
+// Stable empty object so RoutineAccordion doesn't re-render when there are no overrides
+const EMPTY_OVERRIDES: Record<string, boolean> = {};
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },

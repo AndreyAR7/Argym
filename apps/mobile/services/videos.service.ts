@@ -90,10 +90,19 @@ export async function uploadVideoFile(
   const bucket = 'videos';
 
   const { data: { session } } = await supabase.auth.getSession();
-  const accessToken = session?.access_token ?? supabaseAnonKey;
+  if (!session?.access_token) throw new Error('Sesión expirada. Inicia sesión de nuevo.');
+  const accessToken = session.access_token;
 
   const info = await getInfoAsync(file.uri);
   const fileSize = (info as any).size as number;
+
+  const MAX_VIDEO_SIZE = 2 * 1024 * 1024 * 1024; // 2 GB
+  if (fileSize > MAX_VIDEO_SIZE) throw new Error('El video supera el límite de 2 GB.');
+
+  const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v'];
+  if (!ALLOWED_VIDEO_TYPES.includes(file.mimeType)) {
+    throw new Error('Solo se permiten videos MP4, MOV o WebM.');
+  }
 
   const tusEndpoint = `${supabaseUrl}/storage/v1/upload/resumable`;
 
@@ -118,7 +127,8 @@ export async function uploadVideoFile(
 
   if (!createRes.ok) {
     const body = await createRes.text();
-    throw new Error(`TUS create failed: ${createRes.status} ${body}`);
+    console.error('[Upload] TUS session failed:', createRes.status, body);
+    throw new Error('No se pudo iniciar la subida. Intenta de nuevo.');
   }
 
   const uploadUrl = createRes.headers.get('Location');

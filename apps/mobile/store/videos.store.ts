@@ -19,6 +19,7 @@ interface VideosState {
 }
 
 interface VideosActions {
+  reset: () => void;
   // Admin
   loadAdminVideos: (tenantId: string) => Promise<void>;
   loadCategories: (tenantId: string) => Promise<void>;
@@ -40,6 +41,8 @@ export const useVideosStore = create<VideosState & VideosActions>()((set, get) =
   clientVideos: [],
   isLoadingClient: false,
   error: null,
+
+  reset: () => set({ adminVideos: [], isLoadingAdmin: false, categories: [], clientVideos: [], isLoadingClient: false, error: null }),
 
   loadAdminVideos: async (tenantId) => {
     set({ isLoadingAdmin: true, error: null });

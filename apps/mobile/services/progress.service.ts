@@ -138,6 +138,41 @@ export async function fetchRoutineStreak(
   };
 }
 
+// ─── Week helpers ─────────────────────────────────────────────
+
+export function getCurrentWeekRange(): { start: string; end: string } {
+  const today = new Date();
+  const dow = today.getDay(); // 0=Sun
+  const daysFromMon = dow === 0 ? 6 : dow - 1;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - daysFromMon);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return {
+    start: monday.toISOString().split('T')[0],
+    end: sunday.toISOString().split('T')[0],
+  };
+}
+
+export async function getThisWeekMeasurement(
+  clientId: string,
+  tenantId: string,
+): Promise<BodyMeasurement | null> {
+  const { start, end } = getCurrentWeekRange();
+  const { data } = await supabase
+    .from('body_measurements')
+    .select('*')
+    .eq('client_id', clientId)
+    .eq('tenant_id', tenantId)
+    .gte('measured_at', start)
+    .lte('measured_at', end)
+    .order('measured_at', { ascending: false })
+    .limit(1);
+  return (data?.[0] as BodyMeasurement) ?? null;
+}
+
+// ─── Body composition calculators ────────────────────────────
+
 export function calculateBMI(weightKg: number, heightCm: number): number {
   const h = heightCm / 100;
   return Math.round((weightKg / (h * h)) * 10) / 10;
@@ -145,7 +180,47 @@ export function calculateBMI(weightKg: number, heightCm: number): number {
 
 export function getBMICategory(bmi: number): { label: string; color: string } {
   if (bmi < 18.5) return { label: 'Bajo peso', color: '#3b82f6' };
-  if (bmi < 25) return { label: 'Normal', color: '#22c55e' };
-  if (bmi < 30) return { label: 'Sobrepeso', color: '#f59e0b' };
-  return { label: 'Obesidad', color: '#ef4444' };
+  if (bmi < 25)   return { label: 'Normal',    color: '#22c55e' };
+  if (bmi < 30)   return { label: 'Sobrepeso', color: '#f59e0b' };
+  if (bmi < 35)   return { label: 'Obesidad I',  color: '#ef4444' };
+  return                  { label: 'Obesidad II', color: '#b91c1c' };
+}
+
+export interface BodyComposition {
+  bmi: number | null;
+  bmiCategory: { label: string; color: string } | null;
+  fatMassKg: number | null;
+  leanMassKg: number | null;
+  fatPct: number | null;
+  leanPct: number | null;
+}
+
+export function computeBodyComposition(m: BodyMeasurement): BodyComposition {
+  const bmi = m.weight_kg && m.height_cm
+    ? calculateBMI(m.weight_kg, m.height_cm)
+    : null;
+
+  const fatMassKg =
+    m.weight_kg != null && m.body_fat_pct != null
+      ? Math.round((m.weight_kg * m.body_fat_pct) / 10) / 10  // weight × fat% / 100, keep 1 decimal
+      : null;
+
+  const leanMassKg =
+    m.weight_kg != null && fatMassKg != null
+      ? Math.round((m.weight_kg - fatMassKg) * 10) / 10
+      : null;
+
+  const leanPct =
+    m.body_fat_pct != null
+      ? Math.round((100 - m.body_fat_pct) * 10) / 10
+      : null;
+
+  return {
+    bmi,
+    bmiCategory: bmi ? getBMICategory(bmi) : null,
+    fatMassKg,
+    leanMassKg,
+    fatPct: m.body_fat_pct,
+    leanPct,
+  };
 }

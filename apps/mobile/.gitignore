@@ -4,3 +4,8 @@
 
 expo-env.d.ts
 # @end expo-cli
+
+# Environment variables — never commit real credentials
+.env
+.env.local
+.env.production

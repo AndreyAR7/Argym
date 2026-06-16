@@ -61,7 +61,12 @@ function PersonalInfoModal({ visible, onClose }: { visible: boolean; onClose: ()
         .eq('id', user!.id);
       if (error) throw error;
       useAuthStore.setState((s) => ({
-        user: s.user ? { ...s.user, full_name: fullName.trim() } : s.user,
+        user: s.user ? {
+          ...s.user,
+          full_name: fullName.trim(),
+          phone: phone.trim() || null,
+          date_of_birth: dob.trim() || null,
+        } : s.user,
       }));
       ToastManager.show({ message: 'Perfil actualizado', type: 'success' });
       onClose();

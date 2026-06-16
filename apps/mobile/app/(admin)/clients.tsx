@@ -21,6 +21,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { CLIENT_LEVEL_LABELS } from '@/services/profiles.service';
 import { DatePickerField } from '@/components/shared/DatePickerField';
 import type { UpdateProfileInput, ClientWithPlan } from '@/services/profiles.service';
+import type { ThemeConfig } from '@/store/profile.store';
 
 // ─── Level tab config ─────────────────────────────────────────
 type LevelTab = 'all' | 'beginner' | 'intermediate' | 'advanced' | 'none' | 'pending';
@@ -34,10 +35,16 @@ const LEVEL_TABS: { key: LevelTab; label: string; emoji: string }[] = [
   { key: 'pending',      label: 'Pendientes',   emoji: '⏳' },
 ];
 
-const LEVEL_COLORS: Record<LevelTab, string | null> = {
-  all: null, beginner: '#00D68F', intermediate: '#6C63FF',
-  advanced: '#FF4D6D', none: '#888', pending: '#F59E0B',
-};
+function getLevelColor(key: LevelTab, T: ThemeConfig): string | null {
+  switch (key) {
+    case 'all':          return null;
+    case 'beginner':     return T.green;
+    case 'intermediate': return T.accent;
+    case 'advanced':     return T.red;
+    case 'none':         return T.textMuted;
+    case 'pending':      return T.orange;
+  }
+}
 
 // ─── Frosted glass search bar ─────────────────────────────────
 function GlassSearchBar({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -93,7 +100,7 @@ function LevelTabStrip({
       {LEVEL_TABS.map(({ key, label, emoji }) => {
         const isActive = active === key;
         const count = key === 'pending' ? pendingCount : counts[key];
-        const accentColor = LEVEL_COLORS[key] ?? T.accent;
+        const accentColor = getLevelColor(key, T) ?? T.accent;
         return (
           <TouchableOpacity
             key={key}
@@ -242,13 +249,13 @@ function ClientRow({ client, onEdit, onPlan, onLevelPress }: {
   const levelLabel = hasLevel ? CLIENT_LEVEL_LABELS[client.client_level!] : null;
   const levelColor = client.client_level === 'beginner' ? T.green
     : client.client_level === 'intermediate' ? T.accent
-    : client.client_level === 'advanced' ? T.red : '#F59E0B';
+    : client.client_level === 'advanced' ? T.red : T.orange;
 
   return (
     <View style={[
       rowStyles.wrap,
       { borderBottomColor: T.border },
-      !hasLevel && { borderLeftWidth: 3, borderLeftColor: '#F59E0B66' },
+      !hasLevel && { borderLeftWidth: 3, borderLeftColor: T.orange + '66' },
     ]}>
       <View style={rowStyles.row}>
         <TouchableOpacity onPress={onEdit} activeOpacity={0.7} style={{ flex: 0 }}>
@@ -344,23 +351,23 @@ function PendingRow({ item, adminId, onDone }: { item: PendingUser; adminId: str
 
   return (
     <View style={[rowStyles.row, { borderBottomWidth: StyleSheet.hairlineWidth }]}>
-      <View style={[rowStyles.avatar, { backgroundColor: '#F59E0B22' }]}>
-        <Text style={[rowStyles.avatarText, { color: '#F59E0B' }]}>{initials}</Text>
+      <View style={[rowStyles.avatar, { backgroundColor: T.orange + '22' }]}>
+        <Text style={[rowStyles.avatarText, { color: T.orange }]}>{initials}</Text>
       </View>
       <View style={{ flex: 1 }}>
         <Text style={[rowStyles.name]}>{item.full_name}</Text>
-        <Text style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+        <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>
           {new Date(item.created_at).toLocaleDateString('es-CR', { day: 'numeric', month: 'short', year: 'numeric' })}
         </Text>
       </View>
       <View style={{ gap: 6 }}>
         <TouchableOpacity onPress={approve} disabled={busy}
-          style={{ backgroundColor: '#00D68F', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
-          {busy ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>✓ Aprobar</Text>}
+          style={{ backgroundColor: T.green, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
+          {busy ? <ActivityIndicator color={T.textInverse} size="small" /> : <Text style={{ color: T.textInverse, fontSize: 12, fontWeight: '700' }}>✓ Aprobar</Text>}
         </TouchableOpacity>
         <TouchableOpacity onPress={reject} disabled={busy}
-          style={{ borderWidth: 1, borderColor: '#FF4D6D55', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
-          <Text style={{ color: '#FF4D6D', fontSize: 12, fontWeight: '700' }}>✕ Rechazar</Text>
+          style={{ borderWidth: 1, borderColor: T.red + '55', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
+          <Text style={{ color: T.red, fontSize: 12, fontWeight: '700' }}>✕ Rechazar</Text>
         </TouchableOpacity>
       </View>
     </View>

@@ -2,7 +2,10 @@ import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { AppErrorCode } from '@/lib/types';
 import { registerPushToken, unregisterPushToken } from '@/lib/pushNotifications';
+import { resetAllStores } from '@/lib/resetAllStores';
 import type { Profile, PrimaryRole } from '@/lib/types';
+
+let authSubscription: { unsubscribe: () => void } | null = null;
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
@@ -154,7 +157,8 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
       });
 
       // Keep session in sync with Supabase auth state changes (token refresh, sign-out)
-      supabase.auth.onAuthStateChange((event, updatedSession) => {
+      authSubscription?.unsubscribe();
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, updatedSession) => {
         if (event === 'TOKEN_REFRESHED' && updatedSession) {
           set((state) => ({
             session: state.session
@@ -168,9 +172,11 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
           }));
         }
         if (event === 'SIGNED_OUT') {
+          resetAllStores();
           set({ user: null, session: null, permissions: [], approvalStatus: null, rejectionReason: null });
         }
       });
+      authSubscription = subscription;
     } catch {
       set({ isLoading: false, user: null, session: null, permissions: [], approvalStatus: null });
     }
@@ -183,13 +189,14 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
     if (secondsUntilExpiry < TOKEN_REFRESH_BUFFER_SECONDS) {
       const { data, error } = await supabase.auth.refreshSession();
       if (!error && data.session) {
+        const refreshedSession = data.session;
         set((state) => ({
           session: state.session
             ? {
                 ...state.session,
-                access_token: data.session!.access_token,
-                refresh_token: data.session!.refresh_token,
-                expires_at: data.session!.expires_at ?? 0,
+                access_token: refreshedSession.access_token,
+                refresh_token: refreshedSession.refresh_token,
+                expires_at: refreshedSession.expires_at ?? 0,
               }
             : null,
         }));
@@ -268,8 +275,15 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
 
   signOut: async () => {
     const userId = get().session?.user.id;
-    if (userId) unregisterPushToken(userId).catch(() => {});
+    if (userId) {
+      try {
+        await unregisterPushToken(userId);
+      } catch {
+        // Network failure should not block sign out
+      }
+    }
     await supabase.auth.signOut();
+    resetAllStores();
     set({ user: null, session: null, permissions: [], approvalStatus: null, rejectionReason: null, error: null, isLoading: false });
   },
 

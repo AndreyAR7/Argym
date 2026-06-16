@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, ActivityIndicator, useColorScheme } from 'react-native';
 import { Slot, useSegments, useRouter, useRootNavigationState } from 'expo-router';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nextProvider } from 'react-i18next';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { i18n } from '@/i18n';
@@ -11,18 +11,13 @@ import { useTenantStore } from '@/store/tenant.store';
 import { AppThemeContext } from '@/context/ThemeContext';
 import { OfflineBanner } from '@/components/shared/OfflineBanner';
 import { ToastContainer } from '@/components/shared/Toast';
+import { queryClient } from '@/lib/queryClient';
 import {
   addNotificationListeners,
   removeNotificationListeners,
   type NotificationListener,
   type ResponseListener,
 } from '@/lib/pushNotifications';
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { staleTime: 5 * 60 * 1000, retry: 2 },
-  },
-});
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { session, user, isLoading, initialize, approvalStatus } = useAuthStore();

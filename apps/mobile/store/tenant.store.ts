@@ -8,6 +8,7 @@ interface TenantState {
 }
 
 interface TenantActions {
+  reset: () => void;
   loadTenant: (tenantId: string) => Promise<void>;
   isModuleEnabled: (module: string) => boolean;
   clearTenant: () => void;
@@ -16,6 +17,8 @@ interface TenantActions {
 export const useTenantStore = create<TenantState & TenantActions>()((set, get) => ({
   tenant: null,
   enabledModules: [],
+
+  reset: () => set({ tenant: null, enabledModules: [] }),
 
   loadTenant: async (tenantId) => {
     const [{ data: tenant }, { data: modules }] = await Promise.all([

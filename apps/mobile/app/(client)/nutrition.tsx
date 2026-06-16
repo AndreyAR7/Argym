@@ -1,107 +1,253 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  View, Text, ScrollView, StyleSheet, StatusBar, ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
-import { SectionHeader } from '@/components/client/SectionHeader';
 import { ClientTopBar } from '@/components/client/ClientTopBar';
-import { MOCK_NUTRITION } from '@/data/clientMock';
+import { useAuthStore } from '@/store/auth.store';
+import { fetchClientNutritionPlan } from '@/services/nutrition.service';
+import type { NutritionAssignment, NutritionPlan } from '@/types/nutrition';
 
-function MacroBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
-  const pct = Math.min(100, Math.round((value / max) * 100));
+// ─── Macro progress bar ───────────────────────────────────────
+function MacroBar({
+  label, value, unit = 'g', max, color, T,
+}: {
+  label: string; value: number; unit?: string; max: number; color: string; T: any;
+}) {
+  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-        <Text style={styles.macroLabel}>{label}</Text>
-        <Text style={[styles.macroValue, { color }]}>{value}g</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}>
+        <Text style={[styles.macroLabel, { color: T.textSecondary }]}>{label}</Text>
+        <Text style={[styles.macroValue, { color }]}>
+          {value}{unit}
+        </Text>
       </View>
-      <View style={styles.macroBg}>
+      <View style={[styles.macroBg, { backgroundColor: T.border }]}>
         <View style={[styles.macroFill, { width: `${pct}%` as any, backgroundColor: color }]} />
       </View>
+      <Text style={[styles.macroPct, { color: T.textMuted }]}>{pct}% del objetivo</Text>
     </View>
   );
 }
 
+// ─── Stat chip ────────────────────────────────────────────────
+function StatChip({ label, value, color, bg, T }: {
+  label: string; value: string; color: string; bg: string; T: any;
+}) {
+  return (
+    <View style={[styles.statChip, { backgroundColor: bg }]}>
+      <Text style={[styles.statValue, { color }]}>{value}</Text>
+      <Text style={[styles.statLabel, { color: T.textMuted }]}>{label}</Text>
+    </View>
+  );
+}
+
+// ─── Empty state ──────────────────────────────────────────────
+function EmptyState({ T }: { T: any }) {
+  return (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.emptyIcon}>🥗</Text>
+      <Text style={[styles.emptyTitle, { color: T.text }]}>
+        Sin plan nutricional
+      </Text>
+      <Text style={[styles.emptyMessage, { color: T.textMuted }]}>
+        Tu coach aún no te ha asignado un plan nutricional. Consulta con tu coach.
+      </Text>
+    </View>
+  );
+}
+
+// ─── Main screen ─────────────────────────────────────────────
 export default function NutritionScreen() {
   const T = useTheme();
-  const [meals, setMeals] = useState(MOCK_NUTRITION.meals);
-  const completed = meals.filter((m) => m.completed).length;
-  const totalCals = meals.reduce((s, m) => s + m.calories, 0);
-  const consumedCals = meals.filter((m) => m.completed).reduce((s, m) => s + m.calories, 0);
-  const toggleMeal = (id: string) => setMeals((prev) => prev.map((m) => m.id === id ? { ...m, completed: !m.completed } : m));
+  const { user } = useAuthStore();
+
+  const [assignment, setAssignment] = useState<NutritionAssignment | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.id || !user?.tenant_id) return;
+    setLoading(true);
+    setError(null);
+    fetchClientNutritionPlan(user.tenant_id, user.id)
+      .then((data) => setAssignment(data))
+      .catch(() => setError('No se pudo cargar tu plan nutricional. Intenta de nuevo.'))
+      .finally(() => setLoading(false));
+  }, [user?.id, user?.tenant_id]);
+
+  const plan: NutritionPlan | undefined = assignment?.nutrition_plan;
+
+  // ── Loading ──
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['left', 'right']}>
+        <StatusBar barStyle="light-content" backgroundColor={T.bg} />
+        <ClientTopBar title="Nutrición" />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator color={T.accent} size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Error ──
+  if (error) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['left', 'right']}>
+        <StatusBar barStyle="light-content" backgroundColor={T.bg} />
+        <ClientTopBar title="Nutrición" />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+          <Text style={{ fontSize: 36, marginBottom: 16 }}>⚠️</Text>
+          <Text style={{ fontSize: 15, color: T.textMuted, textAlign: 'center', lineHeight: 22 }}>
+            {error}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Calorie ring values ──
+  const calories = plan?.calories_target ?? 0;
+  const protein = plan?.protein_g ?? 0;
+  const carbs = plan?.carbs_g ?? 0;
+  const fat = plan?.fat_g ?? 0;
+
+  // Macros contribution to calories (for context display)
+  const calsFromProtein = Math.round(protein * 4);
+  const calsFromCarbs = Math.round(carbs * 4);
+  const calsFromFat = Math.round(fat * 9);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
       <ClientTopBar title="Nutrición" />
+
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: T.text }]}>{MOCK_NUTRITION.name}</Text>
-          <Text style={[styles.subtitle, { color: T.textSecondary }]}>{completed}/{meals.length} comidas completadas hoy</Text>
-        </View>
 
-        <View style={[styles.calCard, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
-          <View style={styles.calRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.calLabel, { color: T.textMuted }]}>Calorías consumidas</Text>
-              <View style={styles.calValueRow}>
-                <Text style={[styles.calValue, { color: T.green }]}>{consumedCals}</Text>
-                <Text style={[styles.calMax, { color: T.textMuted }]}>/ {totalCals} kcal</Text>
+        {/* ── Empty state ── */}
+        {!plan ? (
+          <EmptyState T={T} />
+        ) : (
+          <>
+            {/* ── Plan header ── */}
+            <View style={styles.header}>
+              <Text style={[styles.title, { color: T.text }]} numberOfLines={2}>
+                {plan.name}
+              </Text>
+              {plan.goal ? (
+                <View style={[styles.goalBadge, { backgroundColor: T.accent + '20', borderColor: T.accent + '40' }]}>
+                  <Text style={[styles.goalText, { color: T.accent }]}>
+                    Objetivo: {plan.goal}
+                  </Text>
+                </View>
+              ) : null}
+              {plan.description ? (
+                <Text style={[styles.description, { color: T.textSecondary }]}>
+                  {plan.description}
+                </Text>
+              ) : null}
+            </View>
+
+            {/* ── Calorie target card ── */}
+            <View style={[styles.calCard, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
+              <Text style={[styles.cardSectionLabel, { color: T.textMuted }]}>OBJETIVO CALÓRICO DIARIO</Text>
+              <View style={styles.calRow}>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.calValueRow}>
+                    <Text style={[styles.calValue, { color: T.green }]}>{calories}</Text>
+                    <Text style={[styles.calUnit, { color: T.textMuted }]}>kcal</Text>
+                  </View>
+                  <Text style={[styles.calSubtitle, { color: T.textSecondary }]}>
+                    por día
+                  </Text>
+                </View>
+                <View style={[styles.calCircle, { backgroundColor: T.greenSoft }]}>
+                  <Text style={[styles.calCircleIcon, { color: T.green }]}>🔥</Text>
+                </View>
               </View>
-            </View>
-            <View style={[styles.calCircle, { backgroundColor: T.greenSoft }]}>
-              <Text style={[styles.calPct, { color: T.green }]}>{Math.round((consumedCals / totalCals) * 100)}%</Text>
-            </View>
-          </View>
-          <View style={[styles.calBg, { backgroundColor: T.border }]}>
-            <View style={[styles.calFill, { width: `${(consumedCals / totalCals) * 100}%` as any, backgroundColor: T.green }]} />
-          </View>
-        </View>
 
-        <View style={[styles.macrosCard, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
-          <Text style={[styles.macrosTitle, { color: T.textMuted }]}>Macronutrientes objetivo</Text>
-          <View style={styles.macrosRow}>
-            <MacroBar label="Proteína" value={MOCK_NUTRITION.protein_g} max={200} color={T.accent} />
-            <View style={{ width: 12 }} />
-            <MacroBar label="Carbos" value={MOCK_NUTRITION.carbs_g} max={300} color={T.orange} />
-            <View style={{ width: 12 }} />
-            <MacroBar label="Grasas" value={MOCK_NUTRITION.fat_g} max={100} color={T.gold} />
-          </View>
-        </View>
-
-        {MOCK_NUTRITION.coach_note && (
-          <View style={[styles.noteCard, { backgroundColor: T.bgCard, borderColor: T.accent + '33', borderRadius: T.radiusMd }]}>
-            <Text style={styles.noteIcon}>💬</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.noteLabel, { color: T.accent }]}>Nota de tu coach</Text>
-              <Text style={[styles.noteText, { color: T.textSecondary }]}>{MOCK_NUTRITION.coach_note}</Text>
+              {/* Macro calorie breakdown chips */}
+              {(protein > 0 || carbs > 0 || fat > 0) && (
+                <View style={styles.chipRow}>
+                  <StatChip label="Proteína" value={`${calsFromProtein} kcal`} color={T.accent} bg={T.accent + '18'} T={T} />
+                  <StatChip label="Carbos" value={`${calsFromCarbs} kcal`} color={T.orange} bg={T.orange + '18'} T={T} />
+                  <StatChip label="Grasas" value={`${calsFromFat} kcal`} color={T.gold} bg={T.gold + '18'} T={T} />
+                </View>
+              )}
             </View>
-          </View>
+
+            {/* ── Macronutrients card ── */}
+            {(protein > 0 || carbs > 0 || fat > 0) && (
+              <View style={[styles.macrosCard, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
+                <Text style={[styles.cardSectionLabel, { color: T.textMuted }]}>MACRONUTRIENTES OBJETIVO</Text>
+
+                <MacroBar
+                  label="Proteína"
+                  value={protein}
+                  max={250}
+                  color={T.accent}
+                  T={T}
+                />
+                <View style={{ height: 14 }} />
+                <MacroBar
+                  label="Carbohidratos"
+                  value={carbs}
+                  max={400}
+                  color={T.orange}
+                  T={T}
+                />
+                <View style={{ height: 14 }} />
+                <MacroBar
+                  label="Grasas"
+                  value={fat}
+                  max={120}
+                  color={T.gold}
+                  T={T}
+                />
+
+                {/* Total grams summary */}
+                <View style={[styles.totalRow, { borderTopColor: T.border }]}>
+                  <Text style={[styles.totalLabel, { color: T.textMuted }]}>Total macros</Text>
+                  <Text style={[styles.totalValue, { color: T.text }]}>
+                    {protein + carbs + fat}g
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* ── Coach note ── */}
+            {assignment?.note ? (
+              <View style={[styles.noteCard, { backgroundColor: T.bgCard, borderColor: T.accent + '33', borderRadius: T.radiusMd }]}>
+                <Text style={styles.noteIcon}>💬</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.noteLabel, { color: T.accent }]}>Nota de tu coach</Text>
+                  <Text style={[styles.noteText, { color: T.textSecondary }]}>{assignment.note}</Text>
+                </View>
+              </View>
+            ) : null}
+
+            {/* ── Tips card ── */}
+            <View style={[styles.tipsCard, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
+              <Text style={[styles.cardSectionLabel, { color: T.textMuted }]}>CONSEJOS GENERALES</Text>
+              {[
+                'Bebe al menos 2 litros de agua al día.',
+                'Distribuye tus comidas en 4-5 tomas al día.',
+                'Prioriza proteínas en cada comida para mantener tu masa muscular.',
+                'Evita azúcares procesados y alimentos ultraprocesados.',
+              ].map((tip, i) => (
+                <View key={i} style={styles.tipRow}>
+                  <View style={[styles.tipDot, { backgroundColor: T.accent }]} />
+                  <Text style={[styles.tipText, { color: T.textSecondary }]}>{tip}</Text>
+                </View>
+              ))}
+            </View>
+          </>
         )}
 
-        <View style={styles.section}>
-          <SectionHeader title="Comidas del día" />
-          {meals.map((meal) => (
-            <TouchableOpacity key={meal.id} onPress={() => toggleMeal(meal.id)} activeOpacity={0.85}
-              style={[styles.mealCard, { backgroundColor: T.bgCard, borderColor: meal.completed ? T.green + '33' : T.border, borderRadius: T.radiusMd }]}>
-              <View style={styles.mealLeft}>
-                <View style={[styles.mealCheck, { borderColor: meal.completed ? T.green : T.border, backgroundColor: meal.completed ? T.green : 'transparent' }]}>
-                  {meal.completed && <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>✓</Text>}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.mealTitleRow}>
-                    <Text style={[styles.mealName, { color: meal.completed ? T.textMuted : T.text }]}>{meal.name}</Text>
-                    <Text style={[styles.mealTime, { color: T.textMuted }]}>{meal.time}</Text>
-                  </View>
-                  <Text style={[styles.mealFoods, { color: T.textSecondary }]} numberOfLines={2}>{meal.foods.join(' · ')}</Text>
-                </View>
-              </View>
-              <View style={[styles.calBadge, { backgroundColor: meal.completed ? T.greenSoft : T.bgSurface }]}>
-                <Text style={[styles.calBadgeText, { color: meal.completed ? T.green : T.textMuted }]}>{meal.calories} kcal</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <View style={{ height: 24 }} />
+        <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -109,39 +255,58 @@ export default function NutritionScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  content: { padding: 16 },
-  header: { marginBottom: 20 },
-  title: { fontSize: 24, fontWeight: '800' },
-  subtitle: { fontSize: 14, marginTop: 4 },
-  calCard: { borderWidth: 1, padding: 16, marginBottom: 12 },
-  calRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  calLabel: { fontSize: 12, marginBottom: 4 },
+  content: { padding: 16, gap: 12 },
+
+  // Empty state
+  emptyContainer: { paddingVertical: 80, alignItems: 'center', paddingHorizontal: 24 },
+  emptyIcon: { fontSize: 52, marginBottom: 18 },
+  emptyTitle: { fontSize: 20, fontWeight: '800', marginBottom: 10, textAlign: 'center' },
+  emptyMessage: { fontSize: 14, lineHeight: 22, textAlign: 'center' },
+
+  // Header
+  header: { marginBottom: 4 },
+  title: { fontSize: 24, fontWeight: '800', marginBottom: 8 },
+  goalBadge: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 8 },
+  goalText: { fontSize: 12, fontWeight: '700' },
+  description: { fontSize: 14, lineHeight: 20 },
+
+  // Calorie card
+  calCard: { borderWidth: 1, padding: 16 },
+  calRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 12 },
   calValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
-  calValue: { fontSize: 28, fontWeight: '800' },
-  calMax: { fontSize: 14 },
-  calCircle: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center' },
-  calPct: { fontSize: 16, fontWeight: '800' },
-  calBg: { height: 6, borderRadius: 3 },
-  calFill: { height: 6, borderRadius: 3 },
-  macrosCard: { borderWidth: 1, padding: 16, marginBottom: 12 },
-  macrosTitle: { fontSize: 13, fontWeight: '600', marginBottom: 12 },
-  macrosRow: { flexDirection: 'row' },
-  macroLabel: { fontSize: 11, fontWeight: '500' },
-  macroValue: { fontSize: 12, fontWeight: '700' },
-  macroBg: { height: 4, borderRadius: 2 },
-  macroFill: { height: 4, borderRadius: 2 },
-  noteCard: { flexDirection: 'row', borderWidth: 1, padding: 14, gap: 10, marginBottom: 20 },
+  calValue: { fontSize: 40, fontWeight: '800' },
+  calUnit: { fontSize: 16, fontWeight: '600' },
+  calSubtitle: { fontSize: 12, marginTop: 2 },
+  calCircle: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center' },
+  calCircleIcon: { fontSize: 28 },
+  chipRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+
+  // Stat chip
+  statChip: { flex: 1, borderRadius: 8, padding: 8, alignItems: 'center' },
+  statValue: { fontSize: 12, fontWeight: '800', marginBottom: 2 },
+  statLabel: { fontSize: 10, fontWeight: '500' },
+
+  // Macros card
+  macrosCard: { borderWidth: 1, padding: 16 },
+  cardSectionLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, marginBottom: 14 },
+  macroLabel: { fontSize: 13, fontWeight: '600' },
+  macroValue: { fontSize: 13, fontWeight: '800' },
+  macroBg: { height: 5, borderRadius: 3 },
+  macroFill: { height: 5, borderRadius: 3 },
+  macroPct: { fontSize: 10, marginTop: 3 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, paddingTop: 12, borderTopWidth: 1 },
+  totalLabel: { fontSize: 12, fontWeight: '600' },
+  totalValue: { fontSize: 14, fontWeight: '800' },
+
+  // Note card
+  noteCard: { flexDirection: 'row', borderWidth: 1, padding: 14, gap: 10 },
   noteIcon: { fontSize: 20 },
   noteLabel: { fontSize: 11, fontWeight: '700', marginBottom: 4 },
   noteText: { fontSize: 13, lineHeight: 19 },
-  section: { marginBottom: 24 },
-  mealCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, padding: 14, marginBottom: 8, gap: 12 },
-  mealLeft: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  mealCheck: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
-  mealTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 },
-  mealName: { fontSize: 15, fontWeight: '700' },
-  mealTime: { fontSize: 12 },
-  mealFoods: { fontSize: 12, lineHeight: 17 },
-  calBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-  calBadgeText: { fontSize: 11, fontWeight: '700' },
+
+  // Tips card
+  tipsCard: { borderWidth: 1, padding: 16 },
+  tipRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
+  tipDot: { width: 6, height: 6, borderRadius: 3, marginTop: 6, flexShrink: 0 },
+  tipText: { flex: 1, fontSize: 13, lineHeight: 19 },
 });

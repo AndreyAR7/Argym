@@ -209,10 +209,14 @@ export async function uploadExerciseDemoVideo(
   const storagePath = `${tenantId}/${exerciseId}/${Date.now().toString(36)}.${ext}`;
 
   const { data: { session } } = await supabase.auth.getSession();
-  const accessToken = session?.access_token ?? supabaseAnonKey;
+  if (!session?.access_token) throw new Error('Sesión expirada. Inicia sesión de nuevo.');
+  const accessToken = session.access_token;
 
   const info = await getInfoAsync(file.uri);
   const fileSize = (info as any).size as number;
+
+  const MAX_VIDEO_SIZE = 500 * 1024 * 1024; // 500 MB for demo videos
+  if (fileSize > MAX_VIDEO_SIZE) throw new Error('El video demo supera el límite de 500 MB.');
 
   const createRes = await fetch(`${supabaseUrl}/storage/v1/upload/resumable`, {
     method: 'POST',

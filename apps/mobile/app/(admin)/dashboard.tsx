@@ -5,7 +5,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { AdminTheme as AdminT } from '@/constants/adminTheme';
 import { AdminStatCard } from '@/components/admin/AdminStatCard';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import { AdminTopBar } from '@/components/admin/AdminTopBar';
@@ -51,10 +50,10 @@ export default function AdminDashboard() {
 
   const tenantId = user?.tenant_id ?? '';
 
-  const { data: appointments = [], refetch: refetchAppts } = useAppointmentsAdmin(tenantId || undefined);
+  const { data: appointments = [], isLoading: isLoadingAppts, refetch: refetchAppts } = useAppointmentsAdmin(tenantId || undefined);
   const { data: clients = [] } = useClientsWithPlan();
   const { data: notifPages, refetch: refetchNotifs } = useNotifications(user?.id);
-  const { data: stats, refetch: refetchStats } = useAdminStats(tenantId || undefined);
+  const { data: stats, isLoading: isLoadingStats, refetch: refetchStats } = useAdminStats(tenantId || undefined);
 
   const activeClientsCount = clients.filter((c: any) => c.is_active !== false).length;
   const recentActivity: AppNotification[] = (notifPages?.pages?.[0] ?? []).slice(0, 6);
@@ -134,14 +133,14 @@ export default function AdminDashboard() {
             onPress={() => alert.route && router.push(alert.route as any)}
             style={[styles.alertCard, {
               backgroundColor: T.card,
-              borderColor: alert.type === 'warning' ? AdminT.orange + '44' : T.accent + '44',
+              borderColor: alert.type === 'warning' ? T.orange + '44' : T.accent + '44',
             }]}
           >
             <Text style={{ fontSize: 16 }}>{alert.type === 'warning' ? '⚠️' : 'ℹ️'}</Text>
-            <Text style={[styles.alertText, { color: alert.type === 'warning' ? AdminT.orange : T.accent }]}>
+            <Text style={[styles.alertText, { color: alert.type === 'warning' ? T.orange : T.accent }]}>
               {alert.text}
             </Text>
-            <Text style={[styles.alertAction, { color: alert.type === 'warning' ? AdminT.orange : T.accent }]}>
+            <Text style={[styles.alertAction, { color: alert.type === 'warning' ? T.orange : T.accent }]}>
               {alert.action} →
             </Text>
           </TouchableOpacity>
@@ -149,55 +148,72 @@ export default function AdminDashboard() {
 
         {/* KPI Grid */}
         <Text style={[styles.sectionTitle, { color: T.text }]}>Métricas del negocio</Text>
-        <View style={styles.kpiRow}>
-          <AdminStatCard
-            label="Clientes activos"
-            value={activeClientsCount}
-            icon="👥"
-            accent={T.accent}
-            trend={clientTrend !== 0 ? { value: Math.abs(clientTrend), label: clientTrend >= 0 ? 'más este mes' : 'menos este mes' } : undefined}
-            onPress={() => router.push('/(admin)/clients')}
-          />
-          <View style={{ width: 10 }} />
-          <AdminStatCard
-            label="Citas hoy"
-            value={todayAppts.length}
-            sub={`${weekCount} esta semana`}
-            icon="📅"
-            accent={AdminT.green}
-            onPress={() => router.push('/(admin)/admin-appointments')}
-          />
-        </View>
-        <View style={[styles.kpiRow, { marginTop: 10 }]}>
-          <AdminStatCard
-            label="Ingresos mensuales"
-            value={formatRevenue(stats?.monthlyRevenue ?? 0)}
-            icon="💰"
-            accent={AdminT.orange}
-            sub="suscripciones activas"
-            onPress={() => router.push('/(admin)/revenue')}
-          />
-          <View style={{ width: 10 }} />
-          <AdminStatCard
-            label="Planes activos"
-            value={stats?.activePlans ?? 0}
-            sub={`${stats?.activePromotions ?? 0} promos activas`}
-            icon="💳"
-            accent={AdminT.purple}
-            onPress={() => router.push('/(admin)/monetization')}
-          />
-        </View>
+        {isLoadingStats ? (
+          <View>
+            <View style={styles.kpiRow}>
+              <View style={{ flex: 1, height: 80, borderRadius: 12, borderWidth: 1, borderColor: T.border, backgroundColor: T.card }} />
+              <View style={{ width: 10 }} />
+              <View style={{ flex: 1, height: 80, borderRadius: 12, borderWidth: 1, borderColor: T.border, backgroundColor: T.card }} />
+            </View>
+            <View style={[styles.kpiRow, { marginTop: 10 }]}>
+              <View style={{ flex: 1, height: 80, borderRadius: 12, borderWidth: 1, borderColor: T.border, backgroundColor: T.card }} />
+              <View style={{ width: 10 }} />
+              <View style={{ flex: 1, height: 80, borderRadius: 12, borderWidth: 1, borderColor: T.border, backgroundColor: T.card }} />
+            </View>
+          </View>
+        ) : (
+          <View>
+            <View style={styles.kpiRow}>
+              <AdminStatCard
+                label="Clientes activos"
+                value={activeClientsCount}
+                icon="👥"
+                accent={T.accent}
+                trend={clientTrend !== 0 ? { value: Math.abs(clientTrend), label: clientTrend >= 0 ? 'más este mes' : 'menos este mes' } : undefined}
+                onPress={() => router.push('/(admin)/clients')}
+              />
+              <View style={{ width: 10 }} />
+              <AdminStatCard
+                label="Citas hoy"
+                value={todayAppts.length}
+                sub={`${weekCount} esta semana`}
+                icon="📅"
+                accent={T.green}
+                onPress={() => router.push('/(admin)/admin-appointments')}
+              />
+            </View>
+            <View style={[styles.kpiRow, { marginTop: 10 }]}>
+              <AdminStatCard
+                label="Ingresos mensuales"
+                value={formatRevenue(stats?.monthlyRevenue ?? 0)}
+                icon="💰"
+                accent={T.orange}
+                sub="suscripciones activas"
+                onPress={() => router.push('/(admin)/revenue')}
+              />
+              <View style={{ width: 10 }} />
+              <AdminStatCard
+                label="Planes activos"
+                value={stats?.activePlans ?? 0}
+                sub={`${stats?.activePromotions ?? 0} promos activas`}
+                icon="💳"
+                accent={T.purple}
+                onPress={() => router.push('/(admin)/monetization')}
+              />
+            </View>
+          </View>
+        )}
 
         {/* Quick actions */}
         <Text style={[styles.sectionTitle, { color: T.text }]}>Acciones rápidas</Text>
         <View style={styles.quickGrid}>
           {[
             { icon: '👤', label: 'Clientes', route: '/(admin)/clients', color: T.accent },
-            { icon: '🏋️', label: 'Coaches', route: '/(admin)/coaches', color: AdminT.teal },
-            { icon: '📅', label: 'Nueva cita', route: '/(admin)/admin-appointments', color: AdminT.green },
-            { icon: '💳', label: 'Planes', route: '/(admin)/monetization', color: AdminT.purple },
-            { icon: '🏷️', label: 'Promos', route: '/(admin)/monetization', color: AdminT.orange },
-            { icon: '🎬', label: 'Contenido', route: '/(admin)/content', color: AdminT.red },
+            { icon: '🏋️', label: 'Coaches', route: '/(admin)/coaches', color: T.teal },
+            { icon: '📅', label: 'Nueva cita', route: '/(admin)/admin-appointments', color: T.green },
+            { icon: '💳', label: 'Planes', route: '/(admin)/monetization', color: T.purple },
+            { icon: '🏷️', label: 'Promos', route: '/(admin)/monetization', color: T.orange },
+            { icon: '🎬', label: 'Contenido', route: '/(admin)/content', color: T.red },
           ].map((a) => (
             <TouchableOpacity
               key={a.label}
@@ -219,9 +235,18 @@ export default function AdminDashboard() {
             <Text style={[styles.seeAll, { color: T.accent }]}>Ver todas →</Text>
           </TouchableOpacity>
         </View>
-        {todayAppts.length === 0 ? (
-          <View style={[styles.emptyCard, { backgroundColor: T.card, borderColor: T.border }]}>
+        {isLoadingAppts ? (
+          <View style={[styles.emptyCard, { backgroundColor: T.card, borderColor: T.border, height: 80 }]} />
+        ) : todayAppts.length === 0 ? (
+          <View style={[styles.emptyCard, { backgroundColor: T.card, borderColor: T.border, gap: 8 }]}>
+            <Text style={{ fontSize: 24 }}>📅</Text>
             <Text style={[styles.emptyText, { color: T.textSecondary }]}>No hay citas programadas para hoy</Text>
+            <TouchableOpacity
+              onPress={() => router.push('/(admin)/admin-appointments')}
+              style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, backgroundColor: T.accent + '22', borderWidth: 1, borderColor: T.accent + '44' }}
+            >
+              <Text style={{ color: T.accent, fontSize: 13, fontWeight: '600' }}>Agendar cita →</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           todayAppts.map((apt: Appointment) => (
@@ -258,7 +283,7 @@ export default function AdminDashboard() {
             </View>
           ) : (
             recentActivity.map((item, i) => {
-              const color = NOTIF_COLOR[item.type] ?? '#6C63FF';
+              const color = NOTIF_COLOR[item.type] ?? T.accent;
               return (
                 <View
                   key={item.id}
@@ -293,7 +318,7 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 16 },
   alertCard: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    borderRadius: AdminT.radiusMd, borderWidth: 1,
+    borderRadius: 14, borderWidth: 1,
     marginHorizontal: 16, marginBottom: 8, padding: 12, marginTop: 12,
   },
   alertText: { flex: 1, fontSize: 13, fontWeight: '500' },
@@ -303,17 +328,17 @@ const styles = StyleSheet.create({
   seeAll: { fontSize: 13, fontWeight: '600' },
   kpiRow: { flexDirection: 'row', paddingHorizontal: 16 },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, gap: 8 },
-  quickBtn: { width: '30%', borderRadius: AdminT.radiusMd, borderWidth: 1, padding: 12, alignItems: 'center', gap: 6 },
+  quickBtn: { width: '30%', borderRadius: 14, borderWidth: 1, padding: 12, alignItems: 'center', gap: 6 },
   quickIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   quickLabel: { fontSize: 11, fontWeight: '600', textAlign: 'center' },
-  aptCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: AdminT.radiusMd, borderWidth: 1, marginHorizontal: 16, marginBottom: 8, padding: 12 },
+  aptCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, borderWidth: 1, marginHorizontal: 16, marginBottom: 8, padding: 12 },
   aptTime: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, minWidth: 56, alignItems: 'center' },
   aptTimeText: { fontSize: 13, fontWeight: '800' },
   aptTitle: { fontSize: 14, fontWeight: '700' },
   aptClient: { fontSize: 12, marginTop: 1 },
-  emptyCard: { borderRadius: AdminT.radiusMd, borderWidth: 1, marginHorizontal: 16, padding: 20, alignItems: 'center' },
+  emptyCard: { borderRadius: 14, borderWidth: 1, marginHorizontal: 16, padding: 20, alignItems: 'center' },
   emptyText: { fontSize: 14 },
-  activityCard: { borderRadius: AdminT.radiusMd, borderWidth: 1, marginHorizontal: 16, overflow: 'hidden' },
+  activityCard: { borderRadius: 14, borderWidth: 1, marginHorizontal: 16, overflow: 'hidden' },
   activityRow: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10 },
   activityDivider: { borderBottomWidth: 1 },
   activityIcon: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },

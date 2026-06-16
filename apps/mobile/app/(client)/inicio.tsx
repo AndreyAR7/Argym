@@ -1,32 +1,37 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  RefreshControl, StatusBar,
+  RefreshControl, StatusBar, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/auth.store';
 import { useTheme } from '@/hooks/useTheme';
-import { ClientTheme } from '@/constants/clientTheme';
 import { AppointmentCard } from '@/components/client/AppointmentCard';
 import { SectionHeader } from '@/components/client/SectionHeader';
 import { QuickActionButton } from '@/components/client/QuickActionButton';
 import { ClientPromoBanner } from '@/components/client/ClientPromoBanner';
 import { VideoCard } from '@/components/client/VideoCard';
 import { ClientTopBar } from '@/components/client/ClientTopBar';
-import {
-  MOCK_ROUTINE, MOCK_NUTRITION, MOCK_USER,
-} from '@/data/clientMock';
 import { useAppointmentsClient } from '@/hooks/useAppointments';
 import { usePlansStore } from '@/store/plans.store';
+import { useRoutinesStore } from '@/store/routines.store';
 import { useClientVideos } from '@/hooks/useVideos';
+import { useProgressStore } from '@/store/progress.store';
 import type { Appointment } from '@/types/appointments';
+
+// i18n-ready greeting strings — replace values with t() calls when i18n is wired up
+const GREETINGS = {
+  morning: 'Buenos días',
+  afternoon: 'Buenas tardes',
+  evening: 'Buenas noches',
+} as const;
 
 function getGreeting() {
   const h = new Date().getHours();
-  if (h < 12) return 'Buenos días';
-  if (h < 18) return 'Buenas tardes';
-  return 'Buenas noches';
+  if (h < 12) return GREETINGS.morning;
+  if (h < 18) return GREETINGS.afternoon;
+  return GREETINGS.evening;
 }
 
 export default function ClientHome() {
@@ -36,14 +41,33 @@ export default function ClientHome() {
   const [refreshing, setRefreshing] = useState(false);
   const [promoDismissed, setPromoDismissed] = useState(false);
 
-  const { data: appointments = [] } = useAppointmentsClient(user?.id);
-  const { activePromotion, fetchPromotions } = usePlansStore();
+  const { data: appointments = [], isLoading: isLoadingAppts, refetch: refetchAppts } = useAppointmentsClient(user?.id);
+  const { activePromotion, fetchPromotions, mySubscription, fetchMySubscription } = usePlansStore();
   const { featured: featuredVideos, assigned: assignedVideos } = useClientVideos();
+  const { routineStreak, loadAll: loadProgress, isLoading: progressLoading } = useProgressStore();
+  const { clientRoutines, loadClientRoutines, isLoadingClient } = useRoutinesStore();
 
-  // Fetch promotions on mount using tenant from auth store
   React.useEffect(() => {
     if (user?.tenant_id) fetchPromotions(user.tenant_id);
   }, [user?.tenant_id]);
+
+  React.useEffect(() => {
+    if (user?.id && user?.tenant_id) {
+      Promise.all([
+        loadProgress(user.id, user.tenant_id),
+        fetchMySubscription(user.id, user.tenant_id),
+      ]);
+    }
+  }, [user?.id, user?.tenant_id]);
+
+  const clientPlan = mySubscription?.plan?.plan_tier ?? null;
+  const clientLevel = user?.client_level ?? null;
+
+  React.useEffect(() => {
+    if (user?.id && user?.tenant_id) {
+      loadClientRoutines(user.id, user.tenant_id, clientPlan, clientLevel);
+    }
+  }, [user?.id, user?.tenant_id, clientPlan, clientLevel]);
 
   const nextAppointment: Appointment | null = appointments
     .filter((a: Appointment) =>
@@ -54,16 +78,29 @@ export default function ClientHome() {
       new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
     )[0] ?? null;
 
-  const name = user?.full_name ?? MOCK_USER.full_name;
+  const name = user?.full_name ?? 'Cliente';
   const firstName = name.split(' ')[0];
   const initials = name.split(' ').map((n: string) => n[0]).slice(0, 2).join('');
-  const routineProgress = Math.round((MOCK_ROUTINE.completed_exercises / MOCK_ROUTINE.total_exercises) * 100);
-  const mealsCompleted = MOCK_NUTRITION.meals.filter((m) => m.completed).length;
+  const totalCompleted = clientRoutines.reduce((s, r) => s + r.completedCount, 0);
+  const totalExercises = clientRoutines.reduce((s, r) => s + r.totalCount, 0);
+  const routineProgress = totalExercises > 0 ? Math.round((totalCompleted / totalExercises) * 100) : 0;
 
   const onRefresh = async () => {
+    if (!user?.id || !user?.tenant_id) return;
     setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setRefreshing(false);
+    try {
+      await Promise.all([
+        refetchAppts(),
+        loadClientRoutines(user.id, user.tenant_id, clientPlan, clientLevel),
+        loadProgress(user.id, user.tenant_id),
+        fetchPromotions(user.tenant_id),
+        fetchMySubscription(user.id, user.tenant_id),
+      ]);
+    } catch {
+      Alert.alert('Error', 'No se pudo actualizar la información. Intenta de nuevo.');
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   return (
@@ -83,7 +120,7 @@ export default function ClientHome() {
             <Text style={{ fontSize: 26, fontWeight: '800', color: T.text, marginBottom: 4 }}>{firstName} 👋</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text style={{ fontSize: 14 }}>🔥</Text>
-              <Text style={{ fontSize: 13, color: ClientTheme.orange, fontWeight: '600' }}>{MOCK_USER.streak} días seguidos</Text>
+              <Text style={{ fontSize: 13, color: T.orange, fontWeight: '600' }}>{routineStreak?.currentStreak ?? 0} días seguidos</Text>
             </View>
           </View>
           <View style={{
@@ -113,28 +150,37 @@ export default function ClientHome() {
         {/* Daily summary */}
         <View style={{ marginBottom: 24 }}>
           <Text style={{ fontSize: 17, fontWeight: '700', color: T.text, marginBottom: 12 }}>Resumen de hoy</Text>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <SummaryItem
-              icon="💪" label="Rutina"
-              value={`${MOCK_ROUTINE.completed_exercises}/${MOCK_ROUTINE.total_exercises}`}
-              sub="ejercicios" color={T.accent} progress={routineProgress}
-              bg={T.card} border={T.border} textColor={T.text} mutedColor={T.textSecondary}
-              onPress={() => router.push('/(client)/routine')}
-            />
-            <SummaryItem
-              icon="🥗" label="Nutrición"
-              value={`${mealsCompleted}/${MOCK_NUTRITION.meals.length}`}
-              sub="comidas" color={ClientTheme.green} progress={Math.round((mealsCompleted / MOCK_NUTRITION.meals.length) * 100)}
-              bg={T.card} border={T.border} textColor={T.text} mutedColor={T.textSecondary}
-              onPress={() => router.push('/(client)/nutrition')}
-            />
-          </View>
+          {progressLoading || isLoadingClient ? (
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1, height: 110, borderRadius: 14, borderWidth: 1, borderColor: T.border, backgroundColor: T.bgCard }} />
+              <View style={{ flex: 1, height: 110, borderRadius: 14, borderWidth: 1, borderColor: T.border, backgroundColor: T.bgCard }} />
+            </View>
+          ) : (
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <SummaryItem
+                icon="💪" label="Rutina"
+                value={`${totalCompleted}/${totalExercises}`}
+                sub="ejercicios hoy" color={T.accent} progress={routineProgress}
+                bg={T.card} border={T.border} textColor={T.text} mutedColor={T.textSecondary}
+                onPress={() => router.push('/(client)/routine')}
+              />
+              <SummaryItem
+                icon="📊" label="Progreso"
+                value={`${routineStreak?.currentStreak ?? 0}`}
+                sub="días seguidos" color={T.orange} progress={Math.min((routineStreak?.currentStreak ?? 0) * 10, 100)}
+                bg={T.card} border={T.border} textColor={T.text} mutedColor={T.textSecondary}
+                onPress={() => router.push('/(client)/progress')}
+              />
+            </View>
+          )}
         </View>
 
         {/* Next appointment — real data */}
         <View style={{ marginBottom: 24 }}>
           <SectionHeader title="Próxima cita" actionLabel="Ver todas" onAction={() => router.push('/(client)/client-appointments')} />
-          {nextAppointment ? (
+          {isLoadingAppts ? (
+            <View style={{ height: 80, borderRadius: 12, borderWidth: 1, borderColor: T.border, backgroundColor: T.bgCard }} />
+          ) : nextAppointment ? (
             <AppointmentCard
               appointment={{
                 title: nextAppointment.title,
@@ -149,10 +195,17 @@ export default function ClientHome() {
             />
           ) : (
             <View style={{
-              padding: 16, borderRadius: 12, borderWidth: 1,
-              borderColor: T.border, backgroundColor: T.bgCard, alignItems: 'center',
+              padding: 20, borderRadius: 12, borderWidth: 1,
+              borderColor: T.border, backgroundColor: T.bgCard, alignItems: 'center', gap: 8,
             }}>
+              <Text style={{ fontSize: 24 }}>📅</Text>
               <Text style={{ color: T.textMuted, fontSize: 14 }}>Sin citas próximas programadas</Text>
+              <TouchableOpacity
+                onPress={() => router.push('/(client)/client-appointments')}
+                style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, backgroundColor: T.accent + '22', borderWidth: 1, borderColor: T.accent + '44' }}
+              >
+                <Text style={{ color: T.accent, fontSize: 13, fontWeight: '600' }}>Ver agenda →</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -162,21 +215,21 @@ export default function ClientHome() {
           <SectionHeader title="Acciones rápidas" />
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <QuickActionButton icon="💪" label="Rutina" onPress={() => router.push('/(client)/routine')} accent={T.accent} />
-            <QuickActionButton icon="🥗" label="Nutrición" onPress={() => router.push('/(client)/nutrition')} accent={ClientTheme.green} />
-            <QuickActionButton icon="📊" label="Progreso" onPress={() => router.push('/(client)/progress')} accent={ClientTheme.orange} />
-            <QuickActionButton icon="🎬" label="Videos" onPress={() => router.push('/(client)/videos')} accent={ClientTheme.blue} />
+            <QuickActionButton icon="🥗" label="Nutrición" onPress={() => router.push('/(client)/nutrition')} accent={T.green} />
+            <QuickActionButton icon="📊" label="Progreso" onPress={() => router.push('/(client)/progress')} accent={T.orange} />
+            <QuickActionButton icon="🎬" label="Videos" onPress={() => router.push('/(client)/videos')} accent={T.blue} />
           </View>
         </View>
 
         {/* Featured videos — real data */}
-        {(featuredVideos.length > 0 || assignedVideos.length > 0) && (
-          <View style={{ marginBottom: 24 }}>
-            <SectionHeader
-              title="Videos para ti"
-              subtitle="Contenido asignado por tu coach"
-              actionLabel="Ver todos"
-              onAction={() => router.push('/(client)/videos')}
-            />
+        <View style={{ marginBottom: 24 }}>
+          <SectionHeader
+            title="Videos para ti"
+            subtitle="Contenido asignado por tu coach"
+            actionLabel="Ver todos"
+            onAction={() => router.push('/(client)/videos')}
+          />
+          {(featuredVideos.length > 0 || assignedVideos.length > 0) ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
               {(featuredVideos.length > 0 ? featuredVideos : assignedVideos).slice(0, 4).map((v) => (
                 <VideoCard
@@ -186,8 +239,19 @@ export default function ClientHome() {
                 />
               ))}
             </ScrollView>
-          </View>
-        )}
+          ) : (
+            <View style={{ padding: 20, borderRadius: 12, borderWidth: 1, borderColor: T.border, backgroundColor: T.bgCard, alignItems: 'center', gap: 8 }}>
+              <Text style={{ fontSize: 24 }}>🎬</Text>
+              <Text style={{ color: T.textMuted, fontSize: 14, textAlign: 'center' }}>Tu coach aún no ha asignado videos</Text>
+              <TouchableOpacity
+                onPress={() => router.push('/(client)/videos')}
+                style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, backgroundColor: T.blue + '22', borderWidth: 1, borderColor: T.blue + '44' }}
+              >
+                <Text style={{ color: T.blue, fontSize: 13, fontWeight: '600' }}>Explorar biblioteca →</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
 
         <View style={{ height: 24 }} />
       </ScrollView>

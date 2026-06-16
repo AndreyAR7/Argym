@@ -61,6 +61,7 @@ interface PlansState {
 }
 
 interface PlansActions {
+  reset: () => void;
   fetchPlans: (tenantId: string) => Promise<void>;
   fetchPromotions: (tenantId: string) => Promise<void>;
   fetchMySubscription: (userId: string, tenantId: string) => Promise<void>;
@@ -84,6 +85,8 @@ export const usePlansStore = create<PlansState & PlansActions>()((set, get) => (
   isLoadingPlans: false,
   isLoadingPromos: false,
   error: null,
+
+  reset: () => set({ plans: [], promotions: [], activePromotion: null, mySubscription: null, mySubscriptions: [], isLoadingPlans: false, isLoadingPromos: false, error: null }),
 
   fetchPlans: async (tenantId) => {
     set({ isLoadingPlans: true, error: null });

@@ -8,7 +8,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { ClientTopBar } from '@/components/client/ClientTopBar';
 import { useAuthStore } from '@/store/auth.store';
 import { useProgressStore } from '@/store/progress.store';
-import { calculateBMI, getBMICategory } from '@/services/progress.service';
+import { computeBodyComposition, getCurrentWeekRange } from '@/services/progress.service';
 import type { BodyMeasurement } from '@/types/progress';
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -179,12 +179,13 @@ function StreakCalendar({ activeDates, T }: { activeDates: string[]; T: any }) {
   );
 }
 
-// ─── Add Measurement Modal ────────────────────────────────────
-function AddMeasurementModal({ visible, onClose, onSave, lastHeight, T }: {
+// ─── Add / Edit Measurement Modal ────────────────────────────
+function AddMeasurementModal({ visible, onClose, onSave, lastHeight, existing, T }: {
   visible: boolean;
   onClose: () => void;
   onSave: (m: Partial<BodyMeasurement>) => Promise<void>;
   lastHeight: string;
+  existing: BodyMeasurement | null;
   T: any;
 }) {
   const [weight, setWeight] = useState('');
@@ -194,7 +195,15 @@ function AddMeasurementModal({ visible, onClose, onSave, lastHeight, T }: {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { if (visible) setHeight(lastHeight); }, [visible, lastHeight]);
+  useEffect(() => {
+    if (visible) {
+      setWeight(existing?.weight_kg?.toString() ?? '');
+      setHeight(existing?.height_cm?.toString() ?? lastHeight);
+      setBodyFat(existing?.body_fat_pct?.toString() ?? '');
+      setWaist(existing?.waist_cm?.toString() ?? '');
+      setNotes(existing?.notes ?? '');
+    }
+  }, [visible, existing, lastHeight]);
 
   const handleSave = async () => {
     if (!weight) { Alert.alert('Error', 'El peso es requerido'); return; }
@@ -221,7 +230,9 @@ function AddMeasurementModal({ visible, onClose, onSave, lastHeight, T }: {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: '#00000088' }}>
           <View style={{ backgroundColor: T.bgCard, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 }}>
-            <Text style={{ fontSize: 18, fontWeight: '800', color: T.text, marginBottom: 20 }}>📏 Nueva Medición</Text>
+            <Text style={{ fontSize: 18, fontWeight: '800', color: T.text, marginBottom: 20 }}>
+              {existing ? '✏️ Editar medición semanal' : '📏 Nueva medición'}
+            </Text>
 
             <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
               <View style={{ flex: 1 }}>
@@ -345,15 +356,30 @@ function RoutinesTab({ T }: { T: any }) {
   );
 }
 
+// ─── Composition metric row ───────────────────────────────────
+function CompRow({ label, value, unit, color, T }: {
+  label: string; value: string | number | null; unit: string; color: string; T: any;
+}) {
+  if (value == null) return null;
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8,
+      borderBottomWidth: 1, borderColor: T.border + '44' }}>
+      <Text style={{ fontSize: 13, color: T.textSecondary }}>{label}</Text>
+      <Text style={{ fontSize: 13, fontWeight: '700', color }}>
+        {value} <Text style={{ fontWeight: '400', color: T.textMuted }}>{unit}</Text>
+      </Text>
+    </View>
+  );
+}
+
 // ─── Medidas Tab ──────────────────────────────────────────────
 function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
-  const { measurements } = useProgressStore();
+  const { measurements, thisWeekMeasurement } = useProgressStore();
   const latest = measurements[0];
+  const weekRange = getCurrentWeekRange();
+  const hasThisWeek = !!thisWeekMeasurement;
 
-  const bmi = latest?.weight_kg && latest?.height_cm
-    ? calculateBMI(latest.weight_kg, latest.height_cm)
-    : null;
-  const bmiInfo = bmi ? getBMICategory(bmi) : null;
+  const comp = latest ? computeBodyComposition(latest) : null;
 
   const weightHistory = [...measurements]
     .filter((m) => m.weight_kg != null)
@@ -364,49 +390,74 @@ function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
   const firstWeight = weightHistory[0];
   const lastWeight = weightHistory[weightHistory.length - 1];
   const weightChange = weightHistory.length >= 2 && firstWeight != null && lastWeight != null
-    ? lastWeight - firstWeight
-    : null;
+    ? lastWeight - firstWeight : null;
 
   return (
     <View style={{ gap: 12 }}>
+      {/* Weekly limit notice */}
+      {hasThisWeek && (
+        <View style={[styles.card, { backgroundColor: T.orange + '12', borderColor: T.orange + '44' }]}>
+          <Text style={{ fontSize: 13, color: T.orange, fontWeight: '700', marginBottom: 2 }}>
+            📅 Medición de esta semana registrada
+          </Text>
+          <Text style={{ fontSize: 12, color: T.textMuted }}>
+            Semana {weekRange.start} — {weekRange.end}. Puedes editar los datos de esta semana.
+          </Text>
+        </View>
+      )}
+
+      {/* Latest measurement summary */}
       {latest && (
         <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border }]}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Text style={[styles.cardTitle, { color: T.text }]}>Última medición</Text>
-            <Text style={{ fontSize: 12, color: T.textMuted }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <Text style={[styles.cardTitle, { color: T.text }]}>Composición corporal</Text>
+            <Text style={{ fontSize: 11, color: T.textMuted }}>
               {new Date(latest.measured_at + 'T12:00:00').toLocaleDateString('es-CR', { day: 'numeric', month: 'short', year: 'numeric' })}
             </Text>
           </View>
-          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+
+          {/* Primary metrics row */}
+          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
             {latest.weight_kg != null && (
               <View style={[styles.measureBadge, { borderColor: T.orange + '44', backgroundColor: T.orange + '18' }]}>
                 <Text style={{ fontSize: 22, fontWeight: '900', color: T.orange }}>{latest.weight_kg}</Text>
-                <Text style={{ fontSize: 10, color: T.textMuted }}>kg</Text>
+                <Text style={{ fontSize: 10, color: T.textMuted }}>Peso (kg)</Text>
               </View>
             )}
             {latest.height_cm != null && (
               <View style={[styles.measureBadge, { borderColor: T.accent + '44', backgroundColor: T.accent + '18' }]}>
                 <Text style={{ fontSize: 22, fontWeight: '900', color: T.accent }}>{latest.height_cm}</Text>
-                <Text style={{ fontSize: 10, color: T.textMuted }}>cm</Text>
+                <Text style={{ fontSize: 10, color: T.textMuted }}>Estatura (cm)</Text>
               </View>
             )}
-            {bmi != null && (
-              <View style={[styles.measureBadge, { borderColor: (bmiInfo?.color ?? T.green) + '44', backgroundColor: (bmiInfo?.color ?? T.green) + '18' }]}>
-                <Text style={{ fontSize: 22, fontWeight: '900', color: bmiInfo?.color ?? T.green }}>{bmi}</Text>
+            {comp?.bmi != null && comp.bmiCategory && (
+              <View style={[styles.measureBadge, { borderColor: comp.bmiCategory.color + '44', backgroundColor: comp.bmiCategory.color + '18' }]}>
+                <Text style={{ fontSize: 22, fontWeight: '900', color: comp.bmiCategory.color }}>{comp.bmi}</Text>
                 <Text style={{ fontSize: 10, color: T.textMuted }}>IMC</Text>
-                <Text style={{ fontSize: 9, color: bmiInfo?.color ?? T.green, fontWeight: '700' }}>{bmiInfo?.label}</Text>
-              </View>
-            )}
-            {latest.body_fat_pct != null && (
-              <View style={[styles.measureBadge, { borderColor: T.border, backgroundColor: T.bgSurface }]}>
-                <Text style={{ fontSize: 22, fontWeight: '900', color: T.text }}>{latest.body_fat_pct}%</Text>
-                <Text style={{ fontSize: 10, color: T.textMuted }}>grasa</Text>
+                <Text style={{ fontSize: 9, color: comp.bmiCategory.color, fontWeight: '700' }}>{comp.bmiCategory.label}</Text>
               </View>
             )}
           </View>
+
+          {/* Detailed composition */}
+          {(comp?.fatMassKg != null || comp?.leanMassKg != null || latest.waist_cm != null) && (
+            <View>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: T.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>
+                Desglose
+              </Text>
+              <CompRow label="Masa grasa" value={comp?.fatMassKg ?? null} unit="kg" color={T.orange} T={T} />
+              <CompRow label="% Grasa corporal" value={comp?.fatPct ?? null} unit="%" color={T.orange} T={T} />
+              <CompRow label="Masa magra (músculos + huesos)" value={comp?.leanMassKg ?? null} unit="kg" color={T.green} T={T} />
+              <CompRow label="% Masa magra" value={comp?.leanPct ?? null} unit="%" color={T.green} T={T} />
+              <CompRow label="Circunferencia de cintura" value={latest.waist_cm} unit="cm" color={T.accent} T={T} />
+              <CompRow label="Circunferencia de cadera" value={latest.hip_cm} unit="cm" color={T.accent} T={T} />
+              <CompRow label="Circunferencia de brazo" value={latest.arm_cm} unit="cm" color={T.accent} T={T} />
+            </View>
+          )}
         </View>
       )}
 
+      {/* Weight trend sparkline */}
       {weightHistory.length >= 2 && (
         <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -419,53 +470,71 @@ function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
           </View>
           <Sparkline values={weightHistory} color={T.orange} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
-            <Text style={{ fontSize: 11, color: T.textMuted }}>Min: {Math.min(...weightHistory)} kg</Text>
+            <Text style={{ fontSize: 11, color: T.textMuted }}>Mín: {Math.min(...weightHistory)} kg</Text>
             <Text style={{ fontSize: 11, color: T.textMuted }}>Máx: {Math.max(...weightHistory)} kg</Text>
           </View>
         </View>
       )}
 
+      {/* Add / Edit button */}
       <TouchableOpacity
         onPress={onAdd}
         style={{ backgroundColor: T.orange, borderRadius: 12, padding: 14, alignItems: 'center' }}
       >
-        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>+ Agregar medición de hoy</Text>
+        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>
+          {hasThisWeek ? '✏️ Editar medición de esta semana' : '+ Registrar medición de hoy'}
+        </Text>
       </TouchableOpacity>
 
+      {!hasThisWeek && measurements.length > 0 && (
+        <View style={{ paddingHorizontal: 4 }}>
+          <Text style={{ fontSize: 11, color: T.textMuted, textAlign: 'center' }}>
+            Solo se permite 1 medición por semana (lun–dom). Podés editar la de esta semana en cualquier momento.
+          </Text>
+        </View>
+      )}
+
+      {/* History list */}
       {measurements.length > 0 ? (
         <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border }]}>
           <Text style={[styles.cardTitle, { color: T.text, marginBottom: 12 }]}>Historial</Text>
-          {measurements.slice(0, 12).map((m, idx) => (
-            <View key={m.id} style={{
-              flexDirection: 'row', paddingVertical: 10,
-              borderBottomWidth: idx < measurements.slice(0, 12).length - 1 ? 1 : 0,
-              borderColor: T.border + '55',
-            }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: T.text }}>
-                  {new Date(m.measured_at + 'T12:00:00').toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric', month: 'short' })}
-                </Text>
-                {m.notes ? <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{m.notes}</Text> : null}
-              </View>
-              <View style={{ alignItems: 'flex-end', gap: 3 }}>
-                {m.weight_kg != null && (
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: T.orange }}>{m.weight_kg} kg</Text>
-                )}
-                {m.weight_kg && m.height_cm ? (
-                  <Text style={{ fontSize: 11, color: T.textMuted }}>
-                    IMC {calculateBMI(m.weight_kg, m.height_cm)}
+          {measurements.slice(0, 12).map((m, idx) => {
+            const c = computeBodyComposition(m);
+            return (
+              <View key={m.id} style={{
+                flexDirection: 'row', paddingVertical: 10,
+                borderBottomWidth: idx < Math.min(measurements.length, 12) - 1 ? 1 : 0,
+                borderColor: T.border + '55',
+              }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: T.text }}>
+                    {new Date(m.measured_at + 'T12:00:00').toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric', month: 'short' })}
                   </Text>
-                ) : null}
+                  {m.notes ? <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{m.notes}</Text> : null}
+                </View>
+                <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                  {m.weight_kg != null && (
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: T.orange }}>{m.weight_kg} kg</Text>
+                  )}
+                  {c.bmi != null && c.bmiCategory && (
+                    <Text style={{ fontSize: 11, color: c.bmiCategory.color, fontWeight: '600' }}>
+                      IMC {c.bmi} · {c.bmiCategory.label}
+                    </Text>
+                  )}
+                  {c.leanMassKg != null && (
+                    <Text style={{ fontSize: 10, color: T.textMuted }}>Magra: {c.leanMassKg} kg</Text>
+                  )}
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       ) : (
         <View style={{ paddingVertical: 40, alignItems: 'center' }}>
           <Text style={{ fontSize: 40, marginBottom: 12 }}>📏</Text>
           <Text style={{ fontSize: 16, fontWeight: '700', color: T.text, marginBottom: 6 }}>Sin mediciones aún</Text>
           <Text style={{ fontSize: 13, color: T.textMuted, textAlign: 'center', paddingHorizontal: 20 }}>
-            Registra tu peso y medidas para hacer seguimiento de tu progreso.
+            Registrá tu peso y medidas para hacer seguimiento de tu composición corporal.
           </Text>
         </View>
       )}
@@ -533,7 +602,7 @@ function RachaTab({ T }: { T: any }) {
 export default function ProgressScreen() {
   const T = useTheme();
   const { user } = useAuthStore();
-  const { isLoading, error, measurements, loadAll, addMeasurement } = useProgressStore();
+  const { isLoading, error, measurements, thisWeekMeasurement, loadAll, addMeasurement } = useProgressStore();
   const [activeTab, setActiveTab] = useState<TabId>('routines');
   const [showAddMeasure, setShowAddMeasure] = useState(false);
 
@@ -611,6 +680,7 @@ export default function ProgressScreen() {
         onClose={() => setShowAddMeasure(false)}
         onSave={handleAddMeasurement}
         lastHeight={lastHeight}
+        existing={thisWeekMeasurement}
         T={T}
       />
     </SafeAreaView>

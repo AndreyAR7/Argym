@@ -93,10 +93,14 @@ export default function RegisterScreen() {
       });
 
       if (signUpError) {
-        if (signUpError.message.includes('already registered')) {
-          setError('Este correo ya está registrado. Intenta iniciar sesión.');
+        if (signUpError.message.includes('already registered') || signUpError.message.includes('already exists')) {
+          setError('Este correo ya tiene una cuenta. Intenta iniciar sesión.');
+        } else if (signUpError.message.includes('password')) {
+          setError('La contraseña no cumple los requisitos mínimos.');
+        } else if (signUpError.message.includes('email')) {
+          setError('El correo electrónico no es válido.');
         } else {
-          setError(`Error al registrarse: ${signUpError.message}`);
+          setError('No se pudo completar el registro. Intenta de nuevo más tarde.');
         }
         return;
       }

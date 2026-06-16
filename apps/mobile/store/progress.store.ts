@@ -6,10 +6,12 @@ import {
   deleteBodyMeasurement,
   fetchDailyProgress,
   fetchRoutineStreak,
+  getThisWeekMeasurement,
 } from '@/services/progress.service';
 
 interface ProgressState {
   measurements: BodyMeasurement[];
+  thisWeekMeasurement: BodyMeasurement | null;
   dailyProgress: DailyProgress[];
   routineStreak: StreakData | null;
   isLoading: boolean;
@@ -17,6 +19,7 @@ interface ProgressState {
 }
 
 interface ProgressActions {
+  reset: () => void;
   loadAll: (clientId: string, tenantId: string) => Promise<void>;
   addMeasurement: (m: Omit<BodyMeasurement, 'id' | 'created_at'>) => Promise<void>;
   removeMeasurement: (id: string) => Promise<void>;
@@ -24,20 +27,24 @@ interface ProgressActions {
 
 export const useProgressStore = create<ProgressState & ProgressActions>()((set) => ({
   measurements: [],
+  thisWeekMeasurement: null,
   dailyProgress: [],
   routineStreak: null,
   isLoading: false,
   error: null,
 
+  reset: () => set({ measurements: [], thisWeekMeasurement: null, dailyProgress: [], routineStreak: null, isLoading: false, error: null }),
+
   loadAll: async (clientId, tenantId) => {
     set({ isLoading: true, error: null });
     try {
-      const [measurements, dailyProgress, routineStreak] = await Promise.all([
+      const [measurements, dailyProgress, routineStreak, thisWeekMeasurement] = await Promise.all([
         fetchBodyMeasurements(clientId, tenantId),
         fetchDailyProgress(clientId, tenantId, 14),
         fetchRoutineStreak(clientId, tenantId),
+        getThisWeekMeasurement(clientId, tenantId),
       ]);
-      set({ measurements, dailyProgress, routineStreak, isLoading: false });
+      set({ measurements, dailyProgress, routineStreak, thisWeekMeasurement, isLoading: false });
     } catch (e: any) {
       set({ isLoading: false, error: e.message });
     }
@@ -45,10 +52,14 @@ export const useProgressStore = create<ProgressState & ProgressActions>()((set) 
 
   addMeasurement: async (m) => {
     const data = await upsertBodyMeasurement(m);
-    set((s) => ({
-      measurements: [data, ...s.measurements.filter((x) => x.measured_at !== data.measured_at)]
-        .sort((a, b) => b.measured_at.localeCompare(a.measured_at)),
-    }));
+    set((s) => {
+      const updated = [data, ...s.measurements.filter((x) => x.measured_at !== data.measured_at)]
+        .sort((a, b) => b.measured_at.localeCompare(a.measured_at));
+      return {
+        measurements: updated,
+        thisWeekMeasurement: data,
+      };
+    });
   },
 
   removeMeasurement: async (id) => {

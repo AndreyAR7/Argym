@@ -9,6 +9,7 @@ import { AdminTopBar } from '@/components/admin/AdminTopBar';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth.store';
+import { showToast } from '@/components/ui/Toast';
 
 const ROLES = ['client', 'coach', 'admin'] as const;
 type Role = typeof ROLES[number];
@@ -74,10 +75,11 @@ export default function UserApprovalScreen() {
   useEffect(() => { loadUsers(); }, [filter]);
 
   const approveOne = async (pendingUser: PendingUser, role: Role) => {
+    if (!user?.id) { Alert.alert('Error', 'Sesión no válida'); return; }
     const { error } = await supabase.rpc('approve_user', {
       p_user_id: pendingUser.id,
       p_role_name: role,
-      p_admin_id: user!.id,
+      p_admin_id: user.id,
     });
     if (error) throw error;
   };
@@ -95,7 +97,7 @@ export default function UserApprovalScreen() {
             setActionLoading(true);
             try {
               await approveOne(pendingUser, role);
-              Alert.alert('✅ Aprobado', `${pendingUser.full_name} ahora tiene acceso al sistema.`);
+              showToast(`${pendingUser.full_name} ahora tiene acceso al sistema.`);
               loadUsers();
             } catch (err: any) {
               Alert.alert('Error', err.message ?? 'No se pudo aprobar el usuario.');
@@ -109,6 +111,7 @@ export default function UserApprovalScreen() {
   };
 
   const handleApproveAll = () => {
+    if (!user?.id) { Alert.alert('Error', 'Sesión no válida'); return; }
     const pending = users.filter((u) => u.approval_status === 'pending');
     if (pending.length === 0) return;
     Alert.alert(
@@ -132,7 +135,7 @@ export default function UserApprovalScreen() {
             if (errors.length > 0) {
               Alert.alert('Completado con errores', errors.join('\n'));
             } else {
-              Alert.alert('✅ Todos aprobados', `${pending.length} usuario(s) aprobado(s).`);
+              showToast(`${pending.length} usuario(s) aprobado(s).`);
             }
             loadUsers();
           },
@@ -143,18 +146,19 @@ export default function UserApprovalScreen() {
 
   const handleRejectConfirm = async () => {
     if (!rejectTarget) return;
+    if (!user?.id) { Alert.alert('Error', 'Sesión no válida'); return; }
     setActionLoading(true);
     try {
       const { error } = await supabase.rpc('reject_user', {
         p_user_id: rejectTarget.id,
         p_reason: rejectReason.trim() || 'Sin motivo especificado',
-        p_admin_id: user!.id,
+        p_admin_id: user.id,
       });
       if (error) throw error;
       setRejectModal(false);
       setRejectReason('');
       setRejectTarget(null);
-      Alert.alert('Rechazado', `La solicitud de ${rejectTarget.full_name} fue rechazada.`);
+      showToast(`La solicitud de ${rejectTarget.full_name} fue rechazada.`);
       loadUsers();
     } catch (err: any) {
       Alert.alert('Error', err.message ?? 'No se pudo rechazar el usuario.');

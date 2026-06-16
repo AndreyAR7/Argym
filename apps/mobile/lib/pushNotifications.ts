@@ -7,13 +7,15 @@ import { supabase } from '@/lib/supabase';
 // Guard all registration logic so the app works in both Expo Go and dev builds.
 const isExpoGo =
   (Constants as any).executionEnvironment === 'storeClient' ||
-  Constants.appOwnership === 'expo';
+  (Constants as any).appOwnership === 'expo';
 
 // Only set the handler in real builds — crashes Expo Go at SDK 53+
 if (!isExpoGo) {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
       shouldPlaySound: true,
       shouldSetBadge: true,
     }),
@@ -41,7 +43,12 @@ export async function registerPushToken(userId: string): Promise<void> {
       });
     }
 
-    const { data: token } = await Notifications.getExpoPushTokenAsync();
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId ??
+      (Constants as any).manifest2?.extra?.expoClient?.extra?.eas?.projectId;
+    const { data: token } = await Notifications.getExpoPushTokenAsync(
+      projectId ? { projectId } : undefined,
+    );
 
     await supabase
       .from('device_tokens')

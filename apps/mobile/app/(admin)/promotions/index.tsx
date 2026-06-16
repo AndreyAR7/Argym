@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { usePlansStore } from '@/store/plans.store';
 import { useAuthStore } from '@/store/auth.store';
 import type { Promotion } from '@/store/plans.store';
+import type { ThemeConfig } from '@/store/profile.store';
 
 const TYPE_LABELS: Record<string, string> = {
   discount: '🏷️ Descuento',
@@ -24,12 +25,14 @@ const LEVEL_LABELS: Record<string, string> = {
   advanced:     'Avanzado',
 };
 
-const LEVEL_COLORS: Record<string, string> = {
-  all:          '#6C63FF',
-  beginner:     '#10B981',
-  intermediate: '#F59E0B',
-  advanced:     '#EF4444',
-};
+function getLevelColor(level: string, T: ThemeConfig): string {
+  switch (level) {
+    case 'beginner':     return T.green;
+    case 'intermediate': return T.orange;
+    case 'advanced':     return T.red;
+    default:             return T.accent; // 'all' and unknown
+  }
+}
 
 export default function AdminPromotionsScreen() {
   const T = useTheme();
@@ -120,8 +123,8 @@ export default function AdminPromotionsScreen() {
                       <Text style={[styles.typeLabel, { color: T.textSecondary }]}>
                         {TYPE_LABELS[item.type] ?? item.type}
                       </Text>
-                      <View style={[styles.badge, { backgroundColor: (LEVEL_COLORS[item.target_level ?? 'all'] ?? '#6C63FF') + '22' }]}>
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: LEVEL_COLORS[item.target_level ?? 'all'] ?? '#6C63FF' }}>
+                      <View style={[styles.badge, { backgroundColor: getLevelColor(item.target_level ?? 'all', T) + '22' }]}>
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: getLevelColor(item.target_level ?? 'all', T) }}>
                           {LEVEL_LABELS[item.target_level ?? 'all'] ?? 'Todos'}
                         </Text>
                       </View>

@@ -16,6 +16,7 @@ interface RoutinesState {
 }
 
 interface RoutinesActions {
+  reset: () => void;
   // Admin
   loadAdminRoutines: (tenantId: string) => Promise<void>;
   addRoutine: (routine: Omit<Routine, 'id' | 'created_at' | 'updated_at' | 'exercises'>) => Promise<Routine>;
@@ -40,6 +41,8 @@ export const useRoutinesStore = create<RoutinesState & RoutinesActions>()((set, 
   clientRoutines: [],
   isLoadingClient: false,
   error: null,
+
+  reset: () => set({ adminRoutines: [], isLoadingAdmin: false, clientRoutines: [], isLoadingClient: false, error: null }),
 
   loadAdminRoutines: async (tenantId) => {
     set({ isLoadingAdmin: true, error: null });

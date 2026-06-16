@@ -13,6 +13,7 @@ export interface SelectedClient {
 interface ClientSelectionStore {
   selected: SelectedClient[];
   tenantId: string;
+  reset: () => void;
   setTenantId: (id: string) => void;
   setSelected: (clients: SelectedClient[]) => void;
   toggle: (client: SelectedClient) => void;
@@ -22,6 +23,7 @@ interface ClientSelectionStore {
 export const useClientSelectionStore = create<ClientSelectionStore>()((set, get) => ({
   selected: [],
   tenantId: '',
+  reset: () => set({ selected: [], tenantId: '' }),
   setTenantId: (id) => set({ tenantId: id }),
   setSelected: (clients) => set({ selected: clients }),
   toggle: (client) => {
