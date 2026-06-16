@@ -1703,8 +1703,8 @@ export default function AdminContentScreen() {
                       if (v.video_storage_path) acts.push({ icon: '▶', label: 'Ver video', color: T.blue, onPress: () => router.push(`/(admin)/video-player?id=${v.id}` as any) });
                       acts.push({ icon: '✏️', label: 'Editar', onPress: () => setEditTarget(v) });
                       acts.push({ icon: '👤', label: 'Asignar a cliente', onPress: () => setAssignTarget(v) });
-                      if (v.status !== 'published' && v.status !== 'uploading') acts.push({ icon: '✅', label: 'Publicar', color: T.green, onPress: () => publish(v.id).then(() => showToast('Video publicado')).catch((e: any) => Alert.alert('Error', e.message)) });
-                      if (v.status === 'published') acts.push({ icon: '📦', label: 'Archivar', color: T.textMuted, onPress: () => archive(v.id).then(() => showToast('Video archivado', 'info')).catch((e: any) => Alert.alert('Error', e.message)) });
+                      if (v.status !== 'published' && v.status !== 'uploading') acts.push({ icon: '✅', label: 'Publicar', color: T.green, onPress: async () => { try { await publish(v.id); showToast('Video publicado'); } catch (e: any) { Alert.alert('Error', e.message); } } });
+                      if (v.status === 'published') acts.push({ icon: '📦', label: 'Archivar', color: T.textMuted, onPress: async () => { try { await archive(v.id); showToast('Video archivado', 'info'); } catch (e: any) { Alert.alert('Error', e.message); } } });
                       acts.push({ icon: '🗑', label: 'Eliminar', destructive: true, onPress: () => handleDelete(v) });
                       openSheet('Video', v.title, acts);
                     }}
