@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/reset-password', '/pending-approval']
+const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/reset-password', '/pending-approval', '/auth/callback']
 
 // Parse the JWT expiry without a network call
 function getJwtExpiry(token: string): number {

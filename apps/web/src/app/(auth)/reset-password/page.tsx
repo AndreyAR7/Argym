@@ -1,97 +1,24 @@
 'use client'
 
-import { Suspense, useState, useEffect, useTransition, useRef } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { Suspense, useState, useTransition } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Lock, Eye, EyeOff, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
-type Stage = 'exchanging' | 'form' | 'success' | 'error'
+type Stage = 'form' | 'success' | 'error'
 
 function ResetPasswordContent() {
   const searchParams = useSearchParams()
-  const router = useRouter()
+  const errorParam = searchParams.get('error')
 
-  // Always start in 'exchanging' — we check ALL token sources in useEffect
-  const [stage, setStage] = useState<Stage>('exchanging')
-  const [errorMsg, setErrorMsg] = useState('')
+  const [stage, setStage] = useState<Stage>(errorParam ? 'error' : 'form')
   const [newPw, setNewPw] = useState('')
   const [confirmPw, setConfirmPw] = useState('')
   const [showNew, setShowNew] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [formError, setFormError] = useState('')
   const [isPending, startTransition] = useTransition()
-
-  // Guard against React Strict Mode double-invocation in development
-  const exchangedRef = useRef(false)
-
-  useEffect(() => {
-    if (exchangedRef.current) return
-    exchangedRef.current = true
-
-    const supabase = createClient()
-
-    // ── 1. Token-hash flow (newer Supabase email templates) ──
-    // URL: /reset-password?token_hash=XXX&type=recovery
-    const tokenHash = searchParams.get('token_hash')
-    const tokenType = searchParams.get('type')
-    if (tokenHash && tokenType === 'recovery') {
-      supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' }).then(({ error }) => {
-        if (error) {
-          console.error('[reset] verifyOtp:', error.message)
-          setErrorMsg('El enlace de recuperación ha expirado o ya fue utilizado. Solicita uno nuevo.')
-          setStage('error')
-        } else {
-          setStage('form')
-        }
-      })
-      return
-    }
-
-    // ── 2. PKCE flow (default @supabase/ssr) ──
-    // URL: /reset-password?code=XXX
-    const code = searchParams.get('code')
-    if (code) {
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-        if (error) {
-          console.error('[reset] exchangeCodeForSession:', error.message)
-          setErrorMsg('El enlace de recuperación ha expirado o ya fue utilizado. Solicita uno nuevo.')
-          setStage('error')
-        } else {
-          setStage('form')
-        }
-      })
-      return
-    }
-
-    // ── 3. Implicit flow (older Supabase projects) ──
-    // URL: /reset-password#access_token=XXX&refresh_token=XXX&type=recovery
-    // Hash fragments are not server-visible; read them from window only.
-    const hash = typeof window !== 'undefined' ? window.location.hash : ''
-    if (hash.includes('access_token')) {
-      const params = new URLSearchParams(hash.slice(1)) // drop leading '#'
-      const accessToken = params.get('access_token')
-      const refreshToken = params.get('refresh_token')
-      const hashType = params.get('type')
-
-      if (hashType === 'recovery' && accessToken && refreshToken) {
-        supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error }) => {
-          if (error) {
-            console.error('[reset] setSession:', error.message)
-            setErrorMsg('El enlace de recuperación ha expirado o ya fue utilizado. Solicita uno nuevo.')
-            setStage('error')
-          } else {
-            setStage('form')
-          }
-        })
-        return
-      }
-    }
-
-    // No valid token found in any location
-    setErrorMsg('No se encontró un enlace de recuperación válido. Solicita uno nuevo.')
-    setStage('error')
-  }, [searchParams])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -120,15 +47,6 @@ function ResetPasswordContent() {
 
   const inputCls = 'w-full rounded-lg border border-[var(--color-input)] bg-[var(--color-card)] px-3.5 py-2.5 pl-9 pr-10 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] outline-none transition-all focus:border-[var(--color-ring)] focus:ring-2 focus:ring-[var(--color-ring)]/20 disabled:opacity-50'
 
-  if (stage === 'exchanging') {
-    return (
-      <div className="flex flex-col items-center gap-4 py-8">
-        <Loader2 size={32} className="animate-spin text-[var(--color-muted-foreground)]" />
-        <p className="text-sm text-[var(--color-muted-foreground)]">Verificando enlace…</p>
-      </div>
-    )
-  }
-
   if (stage === 'error') {
     return (
       <div>
@@ -140,7 +58,7 @@ function ResetPasswordContent() {
             Enlace inválido
           </h1>
           <p className="mt-2 text-sm text-[var(--color-muted-foreground)] max-w-xs leading-relaxed">
-            {errorMsg || 'Este enlace de recuperación no es válido.'}
+            El enlace de recuperación ha expirado o ya fue utilizado. Solicita uno nuevo.
           </p>
         </div>
         <Link

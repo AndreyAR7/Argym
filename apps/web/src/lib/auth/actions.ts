@@ -41,7 +41,7 @@ export async function forgotPasswordAction(
   const hdrs = await headers()
   const host = hdrs.get('host') ?? 'localhost:3000'
   const protocol = host.startsWith('localhost') ? 'http' : 'https'
-  const redirectTo = `${protocol}://${host}/reset-password`
+  const redirectTo = `${protocol}://${host}/auth/callback?next=/reset-password`
 
   const supabase = await createClient()
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
