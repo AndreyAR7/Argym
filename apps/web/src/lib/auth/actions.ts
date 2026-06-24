@@ -45,8 +45,14 @@ export async function forgotPasswordAction(
 
   const supabase = await createClient()
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
-  if (error) console.error('[forgotPassword]', error.message)
-  // Always return success to avoid leaking which emails are registered
+  if (error) {
+    console.error('[forgotPassword]', error.message)
+    // Rate-limit is safe to reveal (doesn't leak whether the email is registered)
+    if (error.status === 429) {
+      return { error: 'Demasiados intentos. Espera unos minutos antes de intentar de nuevo.' }
+    }
+  }
+  // For all other outcomes return success to avoid leaking which emails exist
   return { success: true }
 }
 
