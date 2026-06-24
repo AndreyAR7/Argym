@@ -44,7 +44,7 @@ export default async function VideosPage({
 
   let query = supabase
     .from('videos')
-    .select('id, title, description, level, status, is_featured, is_free, duration_seconds, views_count, thumbnail_storage_path, thumbnail_color, created_at', { count: 'exact' })
+    .select('id, title, description, level, status, is_featured, is_free, duration_seconds, views_count, thumbnail_storage_path, thumbnail_color, storage_path, created_at', { count: 'exact' })
     .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false })
 
@@ -167,7 +167,7 @@ export default async function VideosPage({
                       <Badge value={video.status} />
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <VideoRowActions video={video} />
+                      <VideoRowActions video={{ ...video, storage_path: video.storage_path ?? null }} />
                     </td>
                   </tr>
                 )

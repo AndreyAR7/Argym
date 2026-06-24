@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { Plus, Pencil, Trash2, Dumbbell } from 'lucide-react'
 import { ExerciseForm } from '@/components/admin/exercise-form'
 import { deleteExerciseAction } from '@/lib/admin/exercise-actions'
@@ -27,6 +27,11 @@ export function RoutineDetailClient({ routineId, exercises }: Props) {
   const [isPending, startTransition] = useTransition()
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [localExercises, setLocalExercises] = useState(exercises)
+
+  // Sync when server component re-renders after router.refresh()
+  useEffect(() => {
+    setLocalExercises(exercises)
+  }, [exercises])
 
   function openAdd() {
     setEditingExercise(null)
@@ -93,7 +98,7 @@ export function RoutineDetailClient({ routineId, exercises }: Props) {
             </button>
           </div>
         ) : (
-          <div className="rounded-xl border border-[var(--color-border)] overflow-hidden">
+          <div className="rounded-xl border border-[var(--color-border)] overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--color-border)] bg-[var(--color-muted)]">

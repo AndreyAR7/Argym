@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { ClientSidebar } from '@/components/client/sidebar'
+import { ClientShell } from '@/components/client/client-shell'
 
 export default async function ClientLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -27,15 +27,12 @@ export default async function ClientLayout({ children }: { children: React.React
   if (role !== 'client') redirect('/')
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--color-background)]">
-      <ClientSidebar
-        userName={profile?.full_name ?? user.email ?? ''}
-        userEmail={user.email ?? ''}
-        avatarUrl={profile?.avatar_url ?? null}
-      />
-      <main className="flex-1 overflow-y-auto min-w-0">
-        {children}
-      </main>
-    </div>
+    <ClientShell
+      userName={profile?.full_name ?? user.email ?? ''}
+      userEmail={user.email ?? ''}
+      avatarUrl={profile?.avatar_url ?? null}
+    >
+      {children}
+    </ClientShell>
   )
 }

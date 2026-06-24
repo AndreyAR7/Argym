@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { createVideoRecordAction } from '@/lib/admin/video-actions'
+import { CameraRecorderModal } from '@/components/admin/camera-recorder-modal'
 
 interface VideoUploadModalProps {
   tenantId: string
@@ -42,9 +43,9 @@ type UploadState = 'idle' | 'uploading' | 'saving' | 'done' | 'error'
 
 export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const cameraInputRef = useRef<HTMLInputElement>(null)
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [showCamera, setShowCamera] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [level, setLevel] = useState<Level>('beginner')
@@ -62,6 +63,13 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
     if (!title) {
       const base = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ')
       setTitle(base)
+    }
+  }
+
+  function handleCameraRecorded(file: File) {
+    setSelectedFile(file)
+    if (!title) {
+      setTitle('Grabación ' + new Date().toLocaleDateString('es-CR'))
     }
   }
 
@@ -203,19 +211,11 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
                 </p>
               </div>
               <div className="flex gap-3">
-                {/* Hidden file inputs */}
+                {/* Hidden file input */}
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="video/*"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="video/*"
-                  capture="environment"
                   className="hidden"
                   onChange={handleFileChange}
                 />
@@ -229,7 +229,7 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => cameraInputRef.current?.click()}
+                  onClick={() => setShowCamera(true)}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--color-border)] text-sm font-medium text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors"
                 >
                   <Camera size={14} />
@@ -260,7 +260,6 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
                     setUploadState('idle')
                     setErrorMsg(null)
                     if (fileInputRef.current) fileInputRef.current.value = ''
-                    if (cameraInputRef.current) cameraInputRef.current.value = ''
                   }}
                   className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-card)] transition-colors"
                 >
@@ -408,6 +407,13 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
           </div>
         </div>
       </div>
+
+      {showCamera && (
+        <CameraRecorderModal
+          onRecorded={handleCameraRecorded}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { addExerciseAction, updateExerciseAction } from '@/lib/admin/exercise-actions'
 
@@ -26,6 +27,7 @@ interface ExerciseFormProps {
 }
 
 export function ExerciseForm({ routineId, exercise, nextSortOrder = 999, onClose }: ExerciseFormProps) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -57,7 +59,8 @@ export function ExerciseForm({ routineId, exercise, nextSortOrder = 999, onClose
         return
       }
       setSuccess(true)
-      setTimeout(onClose, 600)
+      router.refresh()
+      setTimeout(onClose, 500)
     })
   }
 

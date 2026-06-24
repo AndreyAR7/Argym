@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTransition } from 'react'
-import { Home, Dumbbell, Video, CalendarDays, Apple, TrendingUp, CreditCard, User, LogOut } from 'lucide-react'
+import { Home, Dumbbell, Video, CalendarDays, Apple, TrendingUp, CreditCard, User, LogOut, X } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logoutAction } from '@/lib/auth/actions'
 
@@ -11,6 +11,7 @@ interface SidebarProps {
   userName: string
   userEmail: string
   avatarUrl: string | null
+  onClose?: () => void
 }
 
 const NAV = [
@@ -45,7 +46,7 @@ const NAV = [
   },
 ]
 
-export function ClientSidebar({ userName, userEmail, avatarUrl }: SidebarProps) {
+export function ClientSidebar({ userName, userEmail, avatarUrl, onClose }: SidebarProps) {
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
 
@@ -58,9 +59,18 @@ export function ClientSidebar({ userName, userEmail, avatarUrl }: SidebarProps) 
         >
           <span className="text-white font-bold text-xs">A</span>
         </div>
-        <span className="font-semibold text-[15px] tracking-tight text-[var(--color-sidebar-foreground)]">
+        <span className="font-semibold text-[15px] tracking-tight text-[var(--color-sidebar-foreground)] flex-1">
           ARGYM
         </span>
+        {onClose && (
+          <button
+            onClick={onClose}
+            aria-label="Cerrar menú"
+            className="md:hidden w-7 h-7 flex items-center justify-center rounded-md text-[var(--color-sidebar-muted)] hover:bg-[var(--color-muted)] transition-colors"
+          >
+            <X size={15} />
+          </button>
+        )}
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
@@ -77,8 +87,9 @@ export function ClientSidebar({ userName, userEmail, avatarUrl }: SidebarProps) 
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      onClick={onClose}
                       className={cn(
-                        'flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-all',
+                        'flex items-center gap-2.5 px-2 py-2.5 md:py-1.5 rounded-md text-sm transition-all',
                         isActive
                           ? 'bg-[var(--color-client-light)] text-[var(--color-client)] font-medium'
                           : 'text-[var(--color-sidebar-foreground)] hover:bg-[var(--color-muted)]',

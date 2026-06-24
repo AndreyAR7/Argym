@@ -46,7 +46,7 @@ export default async function ClientHomePage() {
   const planName = (activeSub as any)?.plans?.name
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <PageHeader
         title={`Bienvenido, ${profile?.full_name?.split(' ')[0] ?? ''}`}
         subtitle={planName ? `Plan activo: ${planName}` : 'Sin plan activo'}

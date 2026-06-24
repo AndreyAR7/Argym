@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Eye, Archive, RotateCcw, Pencil, Trash2 } from 'lucide-react'
+import { Eye, Archive, RotateCcw, Pencil, Trash2, Play } from 'lucide-react'
 import { updateVideoStatusAction } from '@/lib/admin/content-actions'
 import { deleteVideoAction } from '@/lib/admin/video-actions'
 import { VideoEditModal } from '@/components/admin/video-edit-modal'
+import { VideoPlayerModal } from '@/components/admin/video-player-modal'
 
 interface VideoRowActionsProps {
   video: {
@@ -15,6 +16,7 @@ interface VideoRowActionsProps {
     is_featured: boolean
     is_free: boolean
     status: string
+    storage_path: string | null
   }
 }
 
@@ -22,6 +24,7 @@ export function VideoRowActions({ video }: VideoRowActionsProps) {
   const [isPending, startTransition] = useTransition()
   const [editOpen, setEditOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [playerOpen, setPlayerOpen] = useState(false)
   const [currentStatus, setCurrentStatus] = useState(video.status)
 
   function handleDelete() {
@@ -92,6 +95,18 @@ export function VideoRowActions({ video }: VideoRowActionsProps) {
   return (
     <>
       <div className="flex items-center justify-end gap-2">
+        {video.storage_path && (
+          <button
+            onClick={() => setPlayerOpen(true)}
+            disabled={isPending}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-admin)]/30 bg-[var(--color-admin-light)] text-xs font-medium text-[var(--color-admin)] hover:opacity-80 transition-opacity disabled:opacity-40"
+            title="Ver video"
+          >
+            <Play size={12} />
+            Ver
+          </button>
+        )}
+
         <button
           onClick={() => setEditOpen(true)}
           disabled={isPending}
@@ -117,6 +132,14 @@ export function VideoRowActions({ video }: VideoRowActionsProps) {
         <VideoEditModal
           video={video}
           onClose={() => setEditOpen(false)}
+        />
+      )}
+
+      {playerOpen && video.storage_path && (
+        <VideoPlayerModal
+          title={video.title}
+          storagePath={video.storage_path}
+          onClose={() => setPlayerOpen(false)}
         />
       )}
 
