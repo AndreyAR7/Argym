@@ -18,6 +18,7 @@ export interface Plan {
   plan_tier: 'basic' | 'medium' | 'premium';
   is_active: boolean;
   sort_order: number;
+  expiry_date: string | null;
   created_at: string;
 }
 

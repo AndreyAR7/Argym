@@ -59,6 +59,16 @@ export default function AdminPlansScreen() {
                   <Text style={[styles.featureCount, { color: colors.textSecondary }]}>
                     {item.features.length} características
                   </Text>
+                  {item.expiry_date ? (() => {
+                    const exp = new Date(item.expiry_date);
+                    const expired = exp < new Date();
+                    return (
+                      <Text style={{ fontSize: 11, marginTop: 4, color: expired ? colors.red ?? '#dc2626' : colors.textMuted }}>
+                        {expired ? '⚠ Expiró ' : '⏳ Expira '}
+                        {exp.toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </Text>
+                    );
+                  })() : null}
                 </View>
                 <View style={styles.cardActions}>
                   <Switch

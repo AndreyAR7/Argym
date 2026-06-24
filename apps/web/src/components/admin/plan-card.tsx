@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Pencil, Check, Users, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
+import { Pencil, Check, Users, ToggleLeft, ToggleRight, Trash2, CalendarClock } from 'lucide-react'
 import { togglePlanActiveAction, deletePlanAction } from '@/lib/admin/actions'
 import { PlanFormModal } from './plan-form-modal'
 
@@ -15,6 +15,7 @@ interface Plan {
   features: { name: string; value: string }[]
   is_active: boolean
   subscriber_count: number
+  expiry_date?: string | null
 }
 
 interface PlanCardProps {
@@ -58,6 +59,17 @@ export function PlanCard({ plan }: PlanCardProps) {
   }
 
   const currencySymbol = plan.currency === 'USD' ? '$' : '₡'
+
+  const expiryInfo = (() => {
+    if (!plan.expiry_date) return null
+    const exp = new Date(plan.expiry_date)
+    const now = new Date()
+    const diffDays = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    const label = exp.toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })
+    if (diffDays < 0) return { label: `Expiró ${label}`, color: 'text-red-600 bg-red-50 border-red-200' }
+    if (diffDays <= 7) return { label: `Expira en ${diffDays}d`, color: 'text-amber-700 bg-amber-50 border-amber-200' }
+    return { label: `Expira ${label}`, color: 'text-[var(--color-muted-foreground)] bg-[var(--color-muted)] border-[var(--color-border)]' }
+  })()
 
   return (
     <>
@@ -114,6 +126,14 @@ export function PlanCard({ plan }: PlanCardProps) {
                 </li>
               ))}
             </ul>
+          )}
+
+          {/* Expiry badge */}
+          {expiryInfo && (
+            <div className={`mb-4 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border w-fit ${expiryInfo.color}`}>
+              <CalendarClock size={12} />
+              {expiryInfo.label}
+            </div>
           )}
 
           {/* Footer */}

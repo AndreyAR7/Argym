@@ -34,6 +34,7 @@ export default function CreatePlanScreen() {
   const [price, setPrice] = useState('');
   const [currency, setCurrency] = useState('CRC');
   const [cycle, setCycle] = useState<'monthly' | 'yearly' | 'one_time'>('monthly');
+  const [expiryDate, setExpiryDate] = useState('');
   const [features, setFeatures] = useState<PlanFeature[]>([{ name: '', value: 'true' }]);
   const [videoIds, setVideoIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -61,6 +62,7 @@ export default function CreatePlanScreen() {
         features: features.filter((f) => f.name.trim()),
         is_active: true,
         sort_order: 0,
+        expiry_date: expiryDate || null,
         updated_at: new Date().toISOString(),
       } as any);
       if (videoIds.length > 0) await setPlanVideos(newPlan.id, videoIds);
@@ -128,6 +130,19 @@ export default function CreatePlanScreen() {
           ))}
         </View>
         <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 16 }}>{CYCLE_DURATION[cycle]}</Text>
+
+        <Text style={{ fontSize: 13, fontWeight: '500', color: T.textSecondary, marginBottom: 6 }}>Fecha de caducidad del plan</Text>
+        <TextInput
+          style={input}
+          value={expiryDate}
+          onChangeText={setExpiryDate}
+          placeholder="AAAA-MM-DD (opcional)"
+          placeholderTextColor={T.textMuted}
+          keyboardType="numbers-and-punctuation"
+        />
+        <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 16, marginTop: 4 }}>
+          Dejar vacío si el plan no tiene fecha de vencimiento.
+        </Text>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <Text style={{ fontSize: 13, fontWeight: '500', color: T.textSecondary }}>Características</Text>

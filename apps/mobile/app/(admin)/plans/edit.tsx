@@ -37,6 +37,7 @@ export default function EditPlanScreen() {
   const [cycle, setCycle] = useState<'monthly' | 'yearly' | 'one_time'>('monthly');
   const [features, setFeatures] = useState<PlanFeature[]>([]);
   const [isActive, setIsActive] = useState(true);
+  const [expiryDate, setExpiryDate] = useState('');
   const [videoIds, setVideoIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(!plan);
@@ -64,6 +65,7 @@ export default function EditPlanScreen() {
     setCycle(p.billing_cycle);
     setFeatures(p.features?.length ? p.features : [{ name: '', value: 'true' }]);
     setIsActive(p.is_active);
+    setExpiryDate(p.expiry_date ? p.expiry_date.slice(0, 10) : '');
     setLoading(false);
   }
 
@@ -89,7 +91,8 @@ export default function EditPlanScreen() {
           billing_cycle: cycle,
           features: features.filter((f) => f.name.trim()),
           is_active: isActive,
-        }),
+          expiry_date: expiryDate || null,
+        } as any),
         setPlanVideos(id, videoIds),
       ]);
       Alert.alert('✅ Guardado', 'El plan fue actualizado.', [
@@ -200,6 +203,19 @@ export default function EditPlanScreen() {
         </View>
         <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 16 }}>
           Vencimiento por ciclo: {CYCLE_DURATION[cycle]} · Cambiar el ciclo solo afecta nuevas suscripciones
+        </Text>
+
+        <Text style={{ fontSize: 13, fontWeight: '500', color: T.textSecondary, marginBottom: 6 }}>Fecha de caducidad del plan</Text>
+        <TextInput
+          style={input}
+          value={expiryDate}
+          onChangeText={setExpiryDate}
+          placeholder="AAAA-MM-DD (opcional)"
+          placeholderTextColor={T.textMuted}
+          keyboardType="numbers-and-punctuation"
+        />
+        <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 16, marginTop: 4 }}>
+          Dejar vacío si el plan no tiene fecha de vencimiento.
         </Text>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>

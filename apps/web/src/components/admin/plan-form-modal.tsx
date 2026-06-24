@@ -13,6 +13,7 @@ interface Plan {
   billing_cycle: string
   features: { name: string; value: string }[]
   is_active: boolean
+  expiry_date?: string | null
 }
 
 interface PlanFormModalProps {
@@ -36,6 +37,9 @@ export function PlanFormModal({ plan, onClose }: PlanFormModalProps) {
   )
   const [features, setFeatures] = useState<string[]>(
     plan?.features?.map((f) => f.name) ?? ['']
+  )
+  const [expiryDate, setExpiryDate] = useState(
+    plan?.expiry_date ? plan.expiry_date.slice(0, 10) : ''
   )
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -66,6 +70,7 @@ export function PlanFormModal({ plan, onClose }: PlanFormModalProps) {
         currency,
         billing_cycle: billingCycle,
         features: features.filter((f) => f.trim()),
+        expiry_date: expiryDate || null,
       }
 
       const result = plan
@@ -187,6 +192,23 @@ export function PlanFormModal({ plan, onClose }: PlanFormModalProps) {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Expiry date */}
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-foreground)] mb-1.5">
+              Fecha de caducidad
+              <span className="text-[var(--color-muted-foreground)] font-normal ml-1">(opcional)</span>
+            </label>
+            <input
+              type="date"
+              value={expiryDate}
+              onChange={(e) => setExpiryDate(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-[var(--color-input)] bg-[var(--color-muted)] text-[var(--color-foreground)] outline-none focus:border-[var(--color-admin)] focus:ring-2 focus:ring-[var(--color-admin)]/15 transition-all"
+            />
+            <p className="text-[10px] text-[var(--color-muted-foreground)] mt-1">
+              Después de esta fecha el plan no estará disponible para nuevas suscripciones.
+            </p>
           </div>
 
           {/* Features */}

@@ -111,6 +111,7 @@ export async function createPlanAction(data: {
   currency: string
   billing_cycle: 'monthly' | 'yearly' | 'one_time'
   features: string[]
+  expiry_date?: string | null
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -136,6 +137,7 @@ export async function createPlanAction(data: {
       currency: data.currency,
       billing_cycle: data.billing_cycle,
       features,
+      expiry_date: data.expiry_date || null,
     })
 
   if (error) return { error: error.message }
@@ -150,6 +152,7 @@ export async function updatePlanAction(planId: string, data: {
   currency: string
   billing_cycle: 'monthly' | 'yearly' | 'one_time'
   features: string[]
+  expiry_date?: string | null
 }) {
   const supabase = await createClient()
 
@@ -166,6 +169,7 @@ export async function updatePlanAction(planId: string, data: {
       currency: data.currency,
       billing_cycle: data.billing_cycle,
       features,
+      expiry_date: data.expiry_date || null,
     })
     .eq('id', planId)
 
