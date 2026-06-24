@@ -59,11 +59,12 @@ export async function updateExerciseAction(
   },
 ) {
   try {
-    const { supabase } = await getContext()
+    const { supabase, tenantId } = await getContext()
     const { error } = await supabase
       .from('exercises')
       .update(data)
       .eq('id', exerciseId)
+      .eq('tenant_id', tenantId)
     if (error) throw error
     revalidatePath(`/admin/routines/${routineId}`)
     return { success: true }
@@ -81,6 +82,7 @@ export async function deleteExerciseAction(exerciseId: string, routineId: string
       .eq('id', exerciseId)
       .eq('tenant_id', tenantId)
     if (error) throw error
+    revalidatePath(`/admin/routines/${routineId}`)
     return { success: true }
   } catch (e: any) {
     return { success: false, error: e.message }

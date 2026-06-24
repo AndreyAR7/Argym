@@ -16,7 +16,10 @@ export function RoutineDeleteButton({ routineId, routineName }: Props) {
     if (!window.confirm(`Eliminar la rutina "${routineName}"? Esta accion no se puede deshacer.`)) return
 
     startTransition(async () => {
-      await deleteRoutineAction(routineId)
+      const result = await deleteRoutineAction(routineId)
+      if (result?.error) {
+        window.alert(`No se pudo eliminar la rutina: ${result.error}`)
+      }
     })
   }
 

@@ -36,6 +36,7 @@ const CYCLE_BADGE: Record<string, string> = {
 export function PlanCard({ plan }: PlanCardProps) {
   const [showEdit, setShowEdit] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   function handleToggle() {
@@ -45,9 +46,14 @@ export function PlanCard({ plan }: PlanCardProps) {
   }
 
   function handleDelete() {
+    setDeleteError(null)
     startTransition(async () => {
-      await deletePlanAction(plan.id)
-      setConfirmDelete(false)
+      const result = await deletePlanAction(plan.id)
+      if (result?.error) {
+        setDeleteError(result.error)
+      } else {
+        setConfirmDelete(false)
+      }
     })
   }
 
@@ -169,9 +175,14 @@ export function PlanCard({ plan }: PlanCardProps) {
             <p className="text-sm text-[var(--color-foreground)]">
               ¿Estás seguro de que deseas eliminar <span className="font-semibold">{plan.name}</span>?
             </p>
+            {deleteError && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {deleteError}
+              </p>
+            )}
             <div className="flex gap-2 justify-end pt-1">
               <button
-                onClick={() => setConfirmDelete(false)}
+                onClick={() => { setConfirmDelete(false); setDeleteError(null) }}
                 disabled={isPending}
                 className="px-4 py-2 rounded-lg border border-[var(--color-border)] text-sm font-medium text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors disabled:opacity-50"
               >

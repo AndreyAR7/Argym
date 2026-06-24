@@ -24,13 +24,19 @@ export function VideoRowActions({ video }: VideoRowActionsProps) {
   const [isPending, startTransition] = useTransition()
   const [editOpen, setEditOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [playerOpen, setPlayerOpen] = useState(false)
   const [currentStatus, setCurrentStatus] = useState(video.status)
 
   function handleDelete() {
+    setDeleteError(null)
     startTransition(async () => {
-      await deleteVideoAction(video.id)
-      setConfirmDelete(false)
+      const result = await deleteVideoAction(video.id)
+      if (result?.error) {
+        setDeleteError(result.error)
+      } else {
+        setConfirmDelete(false)
+      }
     })
   }
 
@@ -158,9 +164,14 @@ export function VideoRowActions({ video }: VideoRowActionsProps) {
             <p className="text-sm text-[var(--color-foreground)]">
               ¿Estás seguro de que deseas eliminar <span className="font-semibold">{video.title}</span>?
             </p>
+            {deleteError && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {deleteError}
+              </p>
+            )}
             <div className="flex gap-2 justify-end pt-1">
               <button
-                onClick={() => setConfirmDelete(false)}
+                onClick={() => { setConfirmDelete(false); setDeleteError(null) }}
                 disabled={isPending}
                 className="px-4 py-2 rounded-lg border border-[var(--color-border)] text-sm font-medium text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors disabled:opacity-50"
               >

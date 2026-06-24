@@ -74,6 +74,7 @@ export async function deleteNutritionPlanAction(planId: string) {
     .eq('tenant_id', profile.tenant_id)
 
   if (error) return { error: error.message }
+  revalidatePath('/admin/nutrition-plans')
   return { success: true }
 }
 
