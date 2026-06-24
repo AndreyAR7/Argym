@@ -30,7 +30,6 @@ export function VideoPlayerModal({ title, storagePath, bucket = 'videos', onClos
   const containerRef = useRef<HTMLDivElement>(null)
   const progressRef  = useRef<HTMLDivElement>(null)
   const hideTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Use ref for scrubbing so callbacks don't capture stale state
   const scrubbingRef = useRef(false)
 
   const [videoUrl,     setVideoUrl]     = useState<string | null>(null)
@@ -46,15 +45,14 @@ export function VideoPlayerModal({ title, storagePath, bucket = 'videos', onClos
   const [fullscreen,   setFullscreen]   = useState(false)
   const [showControls, setShowControls] = useState(true)
 
-  // ── Load signed URL ──────────────────────────────────────────────────────────
+  // ── Signed URL ──────────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false
-    async function loadUrl() {
+    ;(async () => {
       try {
         const supabase = createClient()
         const { data, error } = await supabase.storage
-          .from(bucket)
-          .createSignedUrl(storagePath, 3600)
+          .from(bucket).createSignedUrl(storagePath, 3600)
         if (error) throw error
         if (!cancelled) setVideoUrl(data.signedUrl)
       } catch (e: any) {
@@ -62,52 +60,48 @@ export function VideoPlayerModal({ title, storagePath, bucket = 'videos', onClos
       } finally {
         if (!cancelled) setLoading(false)
       }
-    }
-    loadUrl()
+    })()
     return () => { cancelled = true }
   }, [storagePath, bucket])
 
-  // ── Auto-play after URL loads (avoids autoPlay AbortError) ──────────────────
+  // ── Auto-play after URL loads (avoids autoPlay AbortError) ─────────────────
   useEffect(() => {
     if (!videoUrl) return
     const v = videoRef.current
     if (!v) return
     const p = v.play()
-    // swallow AbortError caused by React strict-mode double-invoke
     if (p) p.catch(() => {})
   }, [videoUrl])
 
-  // ── Keyboard shortcuts ───────────────────────────────────────────────────────
+  // ── Keyboard shortcuts ──────────────────────────────────────────────────────
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      const v = videoRef.current
       if (e.key === 'Escape') { onClose(); return }
+      const v = videoRef.current
       if (!v) return
       if (e.key === ' ' || e.key === 'k') { e.preventDefault(); safeTogglePlay() }
       if (e.key === 'ArrowRight') { e.preventDefault(); v.currentTime = Math.min(v.duration || 0, v.currentTime + 10) }
       if (e.key === 'ArrowLeft')  { e.preventDefault(); v.currentTime = Math.max(0, v.currentTime - 10) }
-      if (e.key === 'm') toggleMute()
-      if (e.key === 'f') toggleFullscreen()
+      if (e.key === 'm') { e.preventDefault(); toggleMute() }
+      if (e.key === 'f') { e.preventDefault(); toggleFullscreen() }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ── Fullscreen change listener ───────────────────────────────────────────────
+  // ── Fullscreen listener ─────────────────────────────────────────────────────
   useEffect(() => {
-    const onFSChange = () => setFullscreen(!!document.fullscreenElement)
-    document.addEventListener('fullscreenchange', onFSChange)
-    return () => document.removeEventListener('fullscreenchange', onFSChange)
+    const fn = () => setFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', fn)
+    return () => document.removeEventListener('fullscreenchange', fn)
   }, [])
 
-  // ── Cleanup hide timer on unmount ────────────────────────────────────────────
-  useEffect(() => () => {
-    if (hideTimer.current) clearTimeout(hideTimer.current)
-  }, [])
+  // ── Cleanup hide timer ──────────────────────────────────────────────────────
+  useEffect(() => () => { if (hideTimer.current) clearTimeout(hideTimer.current) }, [])
 
-  // ── Auto-hide controls after 3 s of inactivity ──────────────────────────────
-  function showAndResetTimer() {
+  // ── Auto-hide controls ──────────────────────────────────────────────────────
+  function wakeControls() {
     setShowControls(true)
     if (hideTimer.current) clearTimeout(hideTimer.current)
     hideTimer.current = setTimeout(() => {
@@ -115,7 +109,7 @@ export function VideoPlayerModal({ title, storagePath, bucket = 'videos', onClos
     }, 3000)
   }
 
-  // ── Playback helpers ─────────────────────────────────────────────────────────
+  // ── Playback helpers ────────────────────────────────────────────────────────
   function safeTogglePlay() {
     const v = videoRef.current
     if (!v) return
@@ -128,10 +122,10 @@ export function VideoPlayerModal({ title, storagePath, bucket = 'videos', onClos
     }
   }
 
-  function skip(seconds: number) {
+  function skip(s: number) {
     const v = videoRef.current
     if (!v) return
-    v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + seconds))
+    v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + s))
   }
 
   function toggleMute() {
@@ -155,63 +149,73 @@ export function VideoPlayerModal({ title, storagePath, bucket = 'videos', onClos
     setMuted(val === 0)
   }
 
-  // ── Progress bar scrubbing ───────────────────────────────────────────────────
-  function getSeekRatio(clientX: number) {
+  // ── Progress scrubbing ──────────────────────────────────────────────────────
+  function getRatio(clientX: number) {
     const bar = progressRef.current
     if (!bar) return 0
-    const rect = bar.getBoundingClientRect()
-    return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    const r = bar.getBoundingClientRect()
+    return Math.max(0, Math.min(1, (clientX - r.left) / r.width))
   }
 
-  function onProgressMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+  function onProgressPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     e.stopPropagation()
     const v = videoRef.current
     if (!v || !isFinite(v.duration)) return
-
     scrubbingRef.current = true
-    v.currentTime = getSeekRatio(e.clientX) * v.duration
+    ;(e.target as HTMLDivElement).setPointerCapture(e.pointerId)
+    v.currentTime = getRatio(e.clientX) * v.duration
+  }
 
-    function onMove(ev: MouseEvent) {
-      if (!v || !isFinite(v.duration)) return
-      v.currentTime = getSeekRatio(ev.clientX) * v.duration
-    }
-    function onUp() {
-      scrubbingRef.current = false
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
-    }
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
+  function onProgressPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!scrubbingRef.current) return
+    const v = videoRef.current
+    if (!v || !isFinite(v.duration)) return
+    v.currentTime = getRatio(e.clientX) * v.duration
+  }
+
+  function onProgressPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (!scrubbingRef.current) return
+    scrubbingRef.current = false
+    ;(e.target as HTMLDivElement).releasePointerCapture(e.pointerId)
   }
 
   const progress = duration > 0 ? currentTime / duration : 0
   const buffPct  = duration > 0 ? buffered    / duration : 0
+  const ctrlVisible = showControls || !playing
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
-      <div className="w-full max-w-4xl rounded-xl overflow-hidden shadow-2xl border border-white/10 flex flex-col bg-black">
-
+    /* ── Backdrop ── */
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+      style={{ padding: '1rem' }}
+    >
+      {/* ── Modal card — max height = viewport minus padding ── */}
+      <div
+        className="w-full max-w-4xl flex flex-col rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-black"
+        style={{ maxHeight: 'calc(100vh - 2rem)' }}
+      >
         {/* ── Title bar ── */}
-        <div className="flex items-center justify-between px-4 py-3 bg-[#111]">
-          <p className="text-sm font-medium text-white/90 truncate">{title}</p>
+        <div className="flex-shrink-0 flex items-center justify-between px-4 py-2.5 bg-[#111] border-b border-white/10">
+          <p className="text-sm font-medium text-white/90 truncate pr-3">{title}</p>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0 ml-3"
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors"
           >
             <X size={16} />
           </button>
         </div>
 
-        {/* ── Video + controls container ── */}
+        {/* ── Video area — fills remaining space, never overflows ── */}
         <div
           ref={containerRef}
-          className="relative aspect-video bg-black select-none overflow-hidden"
-          onMouseMove={showAndResetTimer}
-          onMouseEnter={showAndResetTimer}
+          className="relative flex-1 min-h-0 bg-black select-none"
+          style={{ aspectRatio: '16/9', maxHeight: 'calc(100vh - 6rem)' }}
+          onMouseMove={wakeControls}
+          onMouseEnter={wakeControls}
           onMouseLeave={() => { if (!scrubbingRef.current && playing) setShowControls(false) }}
           onClick={safeTogglePlay}
         >
-          {/* Loading spinner */}
+          {/* Loading */}
           {loading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/50 z-10">
               <Loader2 size={40} className="animate-spin" />
@@ -219,20 +223,20 @@ export function VideoPlayerModal({ title, storagePath, bucket = 'videos', onClos
             </div>
           )}
 
-          {/* Error state */}
+          {/* Error */}
           {error && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/50 z-10">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/60 z-10 px-8 text-center">
               <AlertCircle size={40} />
-              <span className="text-sm text-center px-8 max-w-sm">{error}</span>
+              <span className="text-sm">{error}</span>
             </div>
           )}
 
-          {/* Video element — NO autoPlay to avoid AbortError */}
+          {/* Video element */}
           {videoUrl && (
             <video
               ref={videoRef}
               src={videoUrl}
-              className="w-full h-full"
+              className="absolute inset-0 w-full h-full"
               onClick={e => e.stopPropagation()}
               onPlay={()  => { setPlaying(true);  setEnded(false) }}
               onPause={()  => setPlaying(false)}
@@ -252,19 +256,19 @@ export function VideoPlayerModal({ title, storagePath, bucket = 'videos', onClos
             />
           )}
 
-          {/* ── Overlay: big centre play icon when paused ── */}
+          {/* Centre play icon (paused, not ended) */}
           {videoUrl && !loading && !error && !playing && !ended && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-20 h-20 rounded-full bg-black/50 border-2 border-white/30 flex items-center justify-center backdrop-blur-sm">
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+              <div className="w-20 h-20 rounded-full bg-black/60 border-2 border-white/30 flex items-center justify-center backdrop-blur-sm">
                 <Play size={36} className="text-white ml-1.5" />
               </div>
             </div>
           )}
 
-          {/* ── Overlay: replay when ended ── */}
+          {/* Replay overlay (ended) */}
           {ended && (
             <div
-              className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60 cursor-pointer z-10"
+              className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/70 cursor-pointer z-10"
               onClick={e => { e.stopPropagation(); safeTogglePlay() }}
             >
               <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
@@ -277,58 +281,70 @@ export function VideoPlayerModal({ title, storagePath, bucket = 'videos', onClos
           {/* ── Controls bar ── */}
           {videoUrl && !loading && !error && (
             <div
-              className={`absolute inset-x-0 bottom-0 z-20 transition-opacity duration-300 ${
-                showControls || !playing ? 'opacity-100' : 'opacity-0 pointer-events-none'
-              }`}
+              className="absolute inset-x-0 bottom-0 z-20 transition-opacity duration-300"
+              style={{ opacity: ctrlVisible ? 1 : 0, pointerEvents: ctrlVisible ? 'auto' : 'none' }}
               onClick={e => e.stopPropagation()}
             >
               {/* Gradient scrim */}
-              <div className="h-28 bg-gradient-to-t from-black via-black/60 to-transparent pointer-events-none" />
+              <div
+                className="absolute inset-x-0 bottom-0 pointer-events-none"
+                style={{
+                  height: '130px',
+                  background: 'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.5) 50%, transparent 100%)',
+                }}
+              />
 
-              <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1 px-4 pb-3">
+              {/* Controls content — sits on top of scrim */}
+              <div className="relative z-10 flex flex-col gap-2 px-4 pb-3 pt-8">
 
-                {/* ── Progress bar ── */}
+                {/* ── Progress row ── */}
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-white/70 tabular-nums w-10 text-right flex-shrink-0">
+                  <span className="text-xs text-white/70 tabular-nums w-9 text-right flex-shrink-0">
                     {formatTime(currentTime)}
                   </span>
 
+                  {/* Scrubber — pointer events for touch+mouse */}
                   <div
                     ref={progressRef}
-                    className="relative flex-1 h-1 rounded-full bg-white/25 cursor-pointer group"
-                    onMouseDown={onProgressMouseDown}
+                    className="relative flex-1 cursor-pointer group"
+                    style={{ height: '18px', display: 'flex', alignItems: 'center' }}
+                    onPointerDown={onProgressPointerDown}
+                    onPointerMove={onProgressPointerMove}
+                    onPointerUp={onProgressPointerUp}
                   >
-                    {/* Buffer */}
+                    {/* Track */}
+                    <div className="absolute inset-x-0 rounded-full bg-white/25 group-hover:bg-white/30 transition-colors" style={{ height: '4px' }}>
+                      {/* Buffer */}
+                      <div
+                        className="absolute inset-y-0 left-0 rounded-full bg-white/40"
+                        style={{ width: `${buffPct * 100}%` }}
+                      />
+                      {/* Played */}
+                      <div
+                        className="absolute inset-y-0 left-0 rounded-full bg-red-500"
+                        style={{ width: `${progress * 100}%` }}
+                      />
+                    </div>
+                    {/* Thumb */}
                     <div
-                      className="absolute inset-y-0 left-0 rounded-full bg-white/35 pointer-events-none"
-                      style={{ width: `${buffPct * 100}%` }}
-                    />
-                    {/* Played */}
-                    <div
-                      className="absolute inset-y-0 left-0 rounded-full bg-red-500 pointer-events-none"
-                      style={{ width: `${progress * 100}%` }}
-                    />
-                    {/* Thumb — visible on hover / scrubbing */}
-                    <div
-                      className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-red-500 shadow-lg
-                                 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                      className="absolute w-3.5 h-3.5 rounded-full bg-red-500 shadow-md opacity-0 group-hover:opacity-100 transition-opacity -translate-y-px pointer-events-none"
                       style={{ left: `calc(${progress * 100}% - 7px)` }}
                     />
                   </div>
 
-                  <span className="text-xs text-white/50 tabular-nums w-10 flex-shrink-0">
+                  <span className="text-xs text-white/50 tabular-nums w-9 flex-shrink-0">
                     {formatTime(duration)}
                   </span>
                 </div>
 
                 {/* ── Buttons row ── */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-0.5">
 
                   {/* Rewind 10 s */}
                   <button
                     onClick={() => skip(-10)}
-                    title="Retroceder 10 s (←)"
-                    className="w-9 h-9 flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                    title="Retroceder 10 s  (←)"
+                    className="w-9 h-9 flex items-center justify-center rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
                   >
                     <SkipBack size={18} />
                   </button>
@@ -336,38 +352,41 @@ export function VideoPlayerModal({ title, storagePath, bucket = 'videos', onClos
                   {/* Play / Pause */}
                   <button
                     onClick={safeTogglePlay}
-                    title={playing ? 'Pausar (k)' : 'Reproducir (k)'}
-                    className="w-9 h-9 flex items-center justify-center text-white hover:text-red-400 hover:bg-white/10 rounded-lg transition-colors"
+                    title={playing ? 'Pausar  (Space)' : 'Reproducir  (Space)'}
+                    className="w-10 h-10 flex items-center justify-center rounded-lg text-white hover:bg-white/10 transition-colors"
                   >
-                    {playing ? <Pause size={20} /> : <Play size={20} />}
+                    {playing ? <Pause size={22} /> : <Play size={22} />}
                   </button>
 
                   {/* Forward 10 s */}
                   <button
                     onClick={() => skip(10)}
-                    title="Adelantar 10 s (→)"
-                    className="w-9 h-9 flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                    title="Adelantar 10 s  (→)"
+                    className="w-9 h-9 flex items-center justify-center rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
                   >
                     <SkipForward size={18} />
                   </button>
 
-                  {/* Volume */}
-                  <div className="flex items-center gap-1 group/vol">
+                  {/* Volume group */}
+                  <div className="flex items-center group/vol ml-1">
                     <button
                       onClick={toggleMute}
-                      title="Silenciar (m)"
-                      className="w-9 h-9 flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                      title="Silenciar  (m)"
+                      className="w-9 h-9 flex items-center justify-center rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
                     >
                       {muted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
                     </button>
-                    <input
-                      type="range"
-                      min={0} max={1} step={0.02}
-                      value={muted ? 0 : volume}
-                      onChange={e => changeVolume(parseFloat(e.target.value))}
-                      onClick={e => e.stopPropagation()}
-                      className="w-0 group-hover/vol:w-20 transition-[width] duration-200 accent-red-500 cursor-pointer overflow-hidden"
-                    />
+                    {/* Slider expands on hover */}
+                    <div className="overflow-hidden transition-all duration-200 w-0 group-hover/vol:w-24">
+                      <input
+                        type="range"
+                        min={0} max={1} step={0.02}
+                        value={muted ? 0 : volume}
+                        onChange={e => changeVolume(parseFloat(e.target.value))}
+                        onClick={e => e.stopPropagation()}
+                        className="w-24 accent-red-500 cursor-pointer"
+                      />
+                    </div>
                   </div>
 
                   {/* Spacer */}
@@ -376,8 +395,8 @@ export function VideoPlayerModal({ title, storagePath, bucket = 'videos', onClos
                   {/* Fullscreen */}
                   <button
                     onClick={toggleFullscreen}
-                    title="Pantalla completa (f)"
-                    className="w-9 h-9 flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                    title="Pantalla completa  (f)"
+                    className="w-9 h-9 flex items-center justify-center rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
                   >
                     {fullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
                   </button>
