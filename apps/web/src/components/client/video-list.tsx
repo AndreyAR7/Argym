@@ -34,8 +34,22 @@ function formatDuration(secs: number | null) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+const LEVELS = [
+  { id: 'all', label: 'Todos' },
+  { id: 'beginner', label: 'Principiante' },
+  { id: 'intermediate', label: 'Intermedio' },
+  { id: 'advanced', label: 'Avanzado' },
+] as const
+
 export function ClientVideoList({ videos, supabaseUrl }: Props) {
   const [playing, setPlaying] = useState<VideoItem | null>(null)
+  const [levelFilter, setLevelFilter] = useState<string>('all')
+
+  const filtered = levelFilter === 'all' ? videos : videos.filter((v) => v.level === levelFilter)
+  const counts = LEVELS.reduce((acc, l) => {
+    acc[l.id] = l.id === 'all' ? videos.length : videos.filter((v) => v.level === l.id).length
+    return acc
+  }, {} as Record<string, number>)
 
   if (videos.length === 0) {
     return (
@@ -53,8 +67,33 @@ export function ClientVideoList({ videos, supabaseUrl }: Props) {
 
   return (
     <>
+      {/* Level filter tabs */}
+      <div className="flex gap-2 flex-wrap mb-5">
+        {LEVELS.filter((l) => counts[l.id] > 0 || l.id === 'all').map((l) => (
+          <button
+            key={l.id}
+            onClick={() => setLevelFilter(l.id)}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-all"
+            style={
+              levelFilter === l.id
+                ? { backgroundColor: 'var(--color-client)', borderColor: 'var(--color-client)', color: '#fff' }
+                : { backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', color: 'var(--color-muted-foreground)' }
+            }
+          >
+            {l.label}
+            <span className="ml-1.5 opacity-70">{counts[l.id]}</span>
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="rounded-xl border border-dashed border-[var(--color-border)] p-10 text-center">
+          <p className="text-sm text-[var(--color-muted-foreground)]">Sin videos de nivel {LEVELS.find((l) => l.id === levelFilter)?.label}.</p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {videos.map((video) => {
+        {filtered.map((video) => {
           const thumbUrl = video.thumbnail_video_storage_path
             ? `${supabaseUrl}/storage/v1/object/public/video-thumbnails/${video.thumbnail_video_storage_path}`
             : null
