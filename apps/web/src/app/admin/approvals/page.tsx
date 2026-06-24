@@ -1,10 +1,7 @@
 import { getSessionData } from '@/lib/auth/session'
 import { PageHeader } from '@/components/shared/page-header'
-import { Badge } from '@/components/ui/badge'
-import { Avatar } from '@/components/ui/avatar'
 import { ApprovalRow } from '@/components/admin/approval-row'
 import { ApprovalsTabs } from '@/components/admin/approvals-tabs'
-import { formatDate } from '@/lib/utils'
 import { ShieldCheck } from 'lucide-react'
 
 export const metadata = { title: 'Aprobaciones' }
@@ -18,43 +15,20 @@ export default async function ApprovalsPage({
   const statusFilter = (params.status ?? 'pending') as 'pending' | 'approved' | 'rejected'
 
   const session = await getSessionData()
-  const { supabase, user, tenantId } = session!
+  const { supabase, user } = session!
 
-  // ── Counts for each tab ──
-  const [{ count: pendingCount }, { count: approvedCount }, { count: rejectedCount }] =
-    await Promise.all([
-      supabase
-        .from('profiles')
-        .select('id', { count: 'exact', head: true })
-        .eq('tenant_id', tenantId)
-        .eq('approval_status', 'pending'),
-      supabase
-        .from('profiles')
-        .select('id', { count: 'exact', head: true })
-        .eq('tenant_id', tenantId)
-        .eq('approval_status', 'approved'),
-      supabase
-        .from('profiles')
-        .select('id', { count: 'exact', head: true })
-        .eq('tenant_id', tenantId)
-        .eq('approval_status', 'rejected'),
-    ])
+  // Use SECURITY DEFINER RPCs — they bypass RLS and are tenant-isolated inside the function.
+  // Direct SELECT on profiles is subject to RLS edge cases (see migration 000011 comment).
+  const [{ data: users }, { data: countRows }] = await Promise.all([
+    supabase.rpc('get_users_by_approval_status', { p_status: statusFilter }),
+    supabase.rpc('get_approval_status_counts'),
+  ])
 
-  // ── Users for current tab ──
-  const { data: users } = await supabase
-    .from('profiles')
-    .select(`
-      id, full_name, avatar_url, approval_status,
-      rejection_reason, created_at, updated_at
-    `)
-    .eq('tenant_id', tenantId)
-    .eq('approval_status', statusFilter)
-    .order('created_at', { ascending: statusFilter === 'pending' })
-    .limit(50)
-
-  // ── Get emails from auth (via supabase admin) — approximate via profiles ──
-  // Note: profiles don't store email directly; we'd need supabase admin API for that
-  // For now we show available info
+  const counts = { pending: 0, approved: 0, rejected: 0 }
+  for (const row of countRows ?? []) {
+    const s = row.status as 'pending' | 'approved' | 'rejected'
+    if (s in counts) counts[s] = Number(row.cnt)
+  }
 
   return (
     <div className="p-4 md:p-8 max-w-4xl">
@@ -67,7 +41,7 @@ export default async function ApprovalsPage({
       <div className="mt-6">
         <ApprovalsTabs
           current={statusFilter}
-          counts={{ pending: pendingCount ?? 0, approved: approvedCount ?? 0, rejected: rejectedCount ?? 0 }}
+          counts={counts}
         />
       </div>
 
@@ -75,7 +49,7 @@ export default async function ApprovalsPage({
       <div className="mt-4">
         {users && users.length > 0 ? (
           <div className="rounded-xl border border-[var(--color-border)] overflow-hidden divide-y divide-[var(--color-border)]">
-            {users.map((u) => (
+            {users.map((u: any) => (
               <ApprovalRow
                 key={u.id}
                 userId={u.id}
