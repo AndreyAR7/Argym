@@ -44,11 +44,29 @@ export async function registerAction(_prevState: { error: string } | null, formD
   }
 
   const supabase = await createClient()
+
+  // Discover the active tenant so the DB trigger can create the profile row.
+  // Requires the "tenants_public_read_active" RLS policy (migration 000043).
+  const { data: tenant } = await supabase
+    .from('tenants')
+    .select('id')
+    .eq('is_active', true)
+    .limit(1)
+    .single()
+
+  if (!tenant) {
+    return { error: 'No se encontró un gimnasio activo. Contacta al administrador.' }
+  }
+
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      data: { full_name: fullName },
+      data: {
+        full_name: fullName,
+        tenant_id: tenant.id,
+        requested_role: 'client',
+      },
     },
   })
 
