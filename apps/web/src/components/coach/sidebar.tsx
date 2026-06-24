@@ -100,7 +100,7 @@ export function CoachSidebar({ userName, userEmail, avatarUrl }: SidebarProps) {
           </div>
         </div>
         <button
-          onClick={() => startTransition(() => logoutAction())}
+          onClick={() => startTransition(async () => { await logoutAction() })}
           disabled={isPending}
           className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm text-[var(--color-sidebar-muted)] hover:text-[var(--color-destructive)] hover:bg-[var(--color-destructive)]/5 transition-all disabled:opacity-50"
         >

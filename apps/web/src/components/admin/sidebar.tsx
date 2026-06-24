@@ -91,7 +91,9 @@ export function AdminSidebar({ userName, userEmail, avatarUrl, onClose }: Sideba
   const [isPending, startTransition] = useTransition()
 
   function handleLogout() {
-    startTransition(() => logoutAction())
+    startTransition(async () => {
+      await logoutAction()
+    })
   }
 
   return (
