@@ -1,0 +1,87 @@
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen flex">
+      {/* ── Brand panel ── */}
+      <div
+        className="hidden lg:flex lg:w-[480px] xl:w-[560px] flex-col justify-between p-12 relative overflow-hidden flex-shrink-0"
+        style={{ background: 'oklch(11% 0.01 286)' }}
+      >
+        {/* Subtle grid pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.04]"
+          style={{
+            backgroundImage:
+              'linear-gradient(oklch(99% 0 0) 1px, transparent 1px), linear-gradient(90deg, oklch(99% 0 0) 1px, transparent 1px)',
+            backgroundSize: '48px 48px',
+          }}
+        />
+
+        {/* Glow orb */}
+        <div
+          className="absolute top-[-120px] left-[-80px] w-[400px] h-[400px] rounded-full opacity-[0.06] blur-3xl"
+          style={{ background: 'var(--color-admin)' }}
+        />
+
+        <div className="relative z-10">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: 'var(--color-admin)' }}
+            >
+              <span className="text-white font-bold text-sm">A</span>
+            </div>
+            <span className="text-white font-semibold text-lg tracking-tight">ARGYM</span>
+          </div>
+        </div>
+
+        <div className="relative z-10 space-y-8">
+          <div>
+            <h2 className="text-3xl font-bold leading-snug" style={{ color: 'oklch(97% 0 0)' }}>
+              Gestión profesional<br />para tu gimnasio
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed" style={{ color: 'oklch(60% 0 0)' }}>
+              Administra clientes, coaches, rutinas y pagos desde una sola plataforma.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {[
+              { icon: '⚡', text: 'Multi-tenant con roles granulares' },
+              { icon: '📊', text: 'Dashboards de revenue en tiempo real' },
+              { icon: '🏋️', text: 'Biblioteca de rutinas y videos' },
+            ].map(({ icon, text }) => (
+              <div key={text} className="flex items-center gap-3">
+                <span className="text-base">{icon}</span>
+                <span className="text-sm" style={{ color: 'oklch(65% 0 0)' }}>{text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="relative z-10">
+          <p className="text-xs" style={{ color: 'oklch(40% 0 0)' }}>
+            © {new Date().getFullYear()} ARGYM Platform
+          </p>
+        </div>
+      </div>
+
+      {/* ── Form panel ── */}
+      <div className="flex-1 flex items-center justify-center p-6 bg-[var(--color-background)]">
+        <div className="w-full max-w-[400px]">
+          {/* Logo visible solo en mobile */}
+          <div className="flex items-center gap-2 mb-8 lg:hidden">
+            <div
+              className="w-7 h-7 rounded-lg flex items-center justify-center"
+              style={{ background: 'var(--color-admin)' }}
+            >
+              <span className="text-white font-bold text-xs">A</span>
+            </div>
+            <span className="font-semibold text-base tracking-tight">ARGYM</span>
+          </div>
+
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}

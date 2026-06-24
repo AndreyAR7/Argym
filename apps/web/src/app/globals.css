@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, 'Courier New', monospace;
+
+  /* ── Neutral palette (zinc base) ── */
+  --color-background:        oklch(99%   0      0);
+  --color-foreground:        oklch(14%   0.005  286);
+  --color-card:              oklch(100%  0      0);
+  --color-card-foreground:   oklch(14%   0.005  286);
+  --color-muted:             oklch(96.5% 0.001  286);
+  --color-muted-foreground:  oklch(55%   0.014  286);
+  --color-border:            oklch(91%   0.004  286);
+  --color-input:             oklch(91%   0.004  286);
+  --color-ring:              oklch(70%   0.02   261);
+
+  /* ── Interactive ── */
+  --color-primary:            oklch(14%   0.005  286);
+  --color-primary-foreground: oklch(99%   0      0);
+  --color-secondary:          oklch(96.5% 0.001  286);
+  --color-secondary-foreground: oklch(20% 0.006  286);
+  --color-accent:             oklch(96.5% 0.001  286);
+  --color-accent-foreground:  oklch(20%   0.006  286);
+  --color-destructive:        oklch(57%   0.245  27);
+  --color-destructive-foreground: oklch(99% 0    0);
+
+  /* ── Sidebar ── */
+  --color-sidebar:            oklch(98.5% 0      0);
+  --color-sidebar-border:     oklch(91%   0.004  286);
+  --color-sidebar-foreground: oklch(14%   0.005  286);
+  --color-sidebar-muted:      oklch(55%   0.014  286);
+
+  /* ── Role accent colors ── */
+  --color-admin:        oklch(54%  0.245  275);
+  --color-admin-light:  oklch(95%  0.04   275);
+  --color-coach:        oklch(54%  0.149  163);
+  --color-coach-light:  oklch(95%  0.03   163);
+  --color-client:       oklch(54%  0.215  254);
+  --color-client-light: oklch(95%  0.04   254);
+
+  /* ── Radius ── */
+  --radius-sm: 0.25rem;
+  --radius:    0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+/* ── Base resets ── */
+*, *::before, *::after {
+  border-color: var(--color-border);
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar (Webkit) ── */
+::-webkit-scrollbar        { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: var(--color-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-muted-foreground); }
