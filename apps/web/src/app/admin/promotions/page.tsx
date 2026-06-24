@@ -37,14 +37,22 @@ export default async function PromotionsPage() {
   const session = await getSessionData()
   const { supabase, tenantId } = session!
 
-  const { data: promotions } = await supabase
-    .from('promotions')
-    .select('id, title, description, type, discount_percentage, discount_amount, start_date, end_date, is_active, created_at')
-    .eq('tenant_id', tenantId)
-    .order('is_active', { ascending: false })
-    .order('created_at', { ascending: false })
+  const [{ data: promotions }, { data: plans }] = await Promise.all([
+    supabase
+      .from('promotions')
+      .select('id, title, description, type, discount_percentage, discount_amount, start_date, end_date, is_active, applies_to_plan_id, created_at')
+      .eq('tenant_id', tenantId)
+      .order('is_active', { ascending: false })
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('plans')
+      .select('id, name, expiry_date')
+      .eq('tenant_id', tenantId)
+      .order('name', { ascending: true }),
+  ])
 
   const all = promotions ?? []
+  const plansList = plans ?? []
   const activeCount = all.filter((p) => p.is_active).length
 
   return (
@@ -53,7 +61,7 @@ export default async function PromotionsPage() {
         title="Promociones"
         subtitle={`${activeCount} activa${activeCount !== 1 ? 's' : ''} · ${all.length} en total`}
       >
-        <NewPromotionButton />
+        <NewPromotionButton plans={plansList} />
       </PageHeader>
 
       {all.length === 0 ? (
@@ -63,7 +71,7 @@ export default async function PromotionsPage() {
           </div>
           <p className="text-sm font-medium text-[var(--color-foreground)]">No hay promociones</p>
           <p className="text-xs text-[var(--color-muted-foreground)]">Crea tu primera promoción para tus clientes.</p>
-          <NewPromotionButton />
+          <NewPromotionButton plans={plansList} />
         </div>
       ) : (
         <div className="mt-8 space-y-10">
@@ -89,7 +97,7 @@ export default async function PromotionsPage() {
                 <div className="space-y-2.5">
                   {items.map((p) => (
                     <div key={p.id} className={p.is_active ? '' : 'opacity-55'}>
-                      <PromotionCard promotion={p} />
+                      <PromotionCard promotion={p} plans={plansList} />
                     </div>
                   ))}
                 </div>

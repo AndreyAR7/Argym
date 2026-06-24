@@ -4,6 +4,12 @@ import { useState, useTransition } from 'react'
 import { X } from 'lucide-react'
 import { createPromotionAction, updatePromotionAction } from '@/lib/admin/content-actions'
 
+export interface PromotionPlan {
+  id: string
+  name: string
+  expiry_date: string | null
+}
+
 interface Promotion {
   id: string
   title: string
@@ -13,10 +19,12 @@ interface Promotion {
   discount_amount: number | null
   start_date: string
   end_date: string | null
+  applies_to_plan_id?: string | null
 }
 
 interface PromotionFormModalProps {
   promotion?: Promotion | null
+  plans?: PromotionPlan[]
   onClose: () => void
 }
 
@@ -26,7 +34,7 @@ const TYPE_LABELS: Record<string, string> = {
   bundle:       'Paquete',
 }
 
-export function PromotionFormModal({ promotion, onClose }: PromotionFormModalProps) {
+export function PromotionFormModal({ promotion, plans = [], onClose }: PromotionFormModalProps) {
   const [title, setTitle] = useState(promotion?.title ?? '')
   const [description, setDescription] = useState(promotion?.description ?? '')
   const [type, setType] = useState<'discount' | 'announcement' | 'bundle'>(
@@ -40,11 +48,24 @@ export function PromotionFormModal({ promotion, onClose }: PromotionFormModalPro
   const [endDate, setEndDate] = useState(
     promotion?.end_date ? promotion.end_date.slice(0, 10) : ''
   )
+  const [appliesTo, setAppliesTo] = useState(promotion?.applies_to_plan_id ?? '')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
+  const selectedPlan = plans.find((p) => p.id === appliesTo) ?? null
+
   function handleSubmit() {
     if (!title.trim()) { setError('El título es obligatorio'); return }
+
+    // Validate: promo end_date must not be before plan expiry_date
+    if (appliesTo && endDate && selectedPlan?.expiry_date) {
+      const planExpiry = selectedPlan.expiry_date.slice(0, 10)
+      if (endDate < planExpiry) {
+        setError(`La fecha de fin de la promoción no puede ser anterior a la caducidad del plan asociado (${planExpiry}).`)
+        return
+      }
+    }
+
     setError(null)
 
     startTransition(async () => {
@@ -56,6 +77,7 @@ export function PromotionFormModal({ promotion, onClose }: PromotionFormModalPro
         discount_amount: discountAmt ? parseFloat(discountAmt) : null,
         start_date: startDate,
         end_date: endDate || null,
+        applies_to_plan_id: appliesTo || null,
       }
 
       const result = promotion
@@ -164,6 +186,32 @@ export function PromotionFormModal({ promotion, onClose }: PromotionFormModalPro
             </div>
           )}
 
+          {/* Plan association */}
+          {plans.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-foreground)] mb-1.5">
+                Aplica al plan
+              </label>
+              <select
+                value={appliesTo}
+                onChange={(e) => setAppliesTo(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-[var(--color-input)] bg-[var(--color-muted)] text-[var(--color-foreground)] outline-none focus:border-[var(--color-admin)] focus:ring-2 focus:ring-[var(--color-admin)]/15 transition-all"
+              >
+                <option value="">— Ninguno —</option>
+                {plans.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}{p.expiry_date ? ` (vence ${p.expiry_date.slice(0, 10)})` : ''}
+                  </option>
+                ))}
+              </select>
+              {selectedPlan?.expiry_date && (
+                <p className="mt-1 text-[10px] text-amber-600">
+                  Este plan vence el {selectedPlan.expiry_date.slice(0, 10)}. La fecha de fin de la promoción no debe ser anterior a esa fecha.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -186,7 +234,11 @@ export function PromotionFormModal({ promotion, onClose }: PromotionFormModalPro
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 min={startDate}
-                className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-[var(--color-input)] bg-[var(--color-muted)] text-[var(--color-foreground)] outline-none focus:border-[var(--color-admin)] focus:ring-2 focus:ring-[var(--color-admin)]/15 transition-all"
+                className={`w-full px-3.5 py-2.5 text-sm rounded-lg border bg-[var(--color-muted)] text-[var(--color-foreground)] outline-none focus:ring-2 transition-all ${
+                  endDate && selectedPlan?.expiry_date && endDate < selectedPlan.expiry_date.slice(0, 10)
+                    ? 'border-amber-400 focus:border-amber-500 focus:ring-amber-400/15'
+                    : 'border-[var(--color-input)] focus:border-[var(--color-admin)] focus:ring-[var(--color-admin)]/15'
+                }`}
               />
             </div>
           </div>

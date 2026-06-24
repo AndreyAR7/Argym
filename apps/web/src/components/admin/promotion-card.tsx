@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Pencil, ToggleLeft, ToggleRight, Percent, Megaphone, Package, Trash2 } from 'lucide-react'
 import { togglePromotionActiveAction, deletePromotionAction } from '@/lib/admin/content-actions'
-import { PromotionFormModal } from './promotion-form-modal'
+import { PromotionFormModal, type PromotionPlan } from './promotion-form-modal'
 import { formatDate } from '@/lib/utils'
 
 interface Promotion {
@@ -16,6 +16,7 @@ interface Promotion {
   start_date: string
   end_date: string | null
   is_active: boolean
+  applies_to_plan_id?: string | null
 }
 
 const TYPE_CONFIG = {
@@ -24,7 +25,7 @@ const TYPE_CONFIG = {
   bundle:       { icon: Package,    label: 'Paquete',    color: 'text-violet-700 bg-violet-50 border-violet-200' },
 }
 
-export function PromotionCard({ promotion }: { promotion: Promotion }) {
+export function PromotionCard({ promotion, plans = [] }: { promotion: Promotion; plans?: PromotionPlan[] }) {
   const [showEdit, setShowEdit] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -114,7 +115,7 @@ export function PromotionCard({ promotion }: { promotion: Promotion }) {
       </div>
 
       {showEdit && (
-        <PromotionFormModal promotion={promotion} onClose={() => setShowEdit(false)} />
+        <PromotionFormModal promotion={promotion} plans={plans} onClose={() => setShowEdit(false)} />
       )}
 
       {confirmDelete && (

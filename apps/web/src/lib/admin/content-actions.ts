@@ -87,6 +87,25 @@ export async function createNutritionPlanAction(data: {
 
 // ── Promotions ─────────────────────────────────────────────────
 
+async function validatePromoEndDate(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  planId: string | null | undefined,
+  endDate: string | null | undefined,
+): Promise<string | null> {
+  if (!planId || !endDate) return null
+  const { data: plan } = await supabase
+    .from('plans')
+    .select('name, expiry_date')
+    .eq('id', planId)
+    .single()
+  if (!plan?.expiry_date) return null
+  const planExpiry = plan.expiry_date.slice(0, 10)
+  if (endDate < planExpiry) {
+    return `La fecha de fin de la promoción (${endDate}) no puede ser anterior a la caducidad del plan "${plan.name}" (${planExpiry}).`
+  }
+  return null
+}
+
 export async function createPromotionAction(data: {
   title: string
   description: string | null
@@ -95,10 +114,14 @@ export async function createPromotionAction(data: {
   discount_amount: number | null
   start_date: string
   end_date: string | null
+  applies_to_plan_id?: string | null
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
+
+  const validationError = await validatePromoEndDate(supabase, data.applies_to_plan_id, data.end_date)
+  if (validationError) return { error: validationError }
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -114,6 +137,7 @@ export async function createPromotionAction(data: {
     type: data.type,
     discount_percentage: data.discount_percentage,
     discount_amount: data.discount_amount,
+    applies_to_plan_id: data.applies_to_plan_id || null,
     start_date: data.start_date,
     end_date: data.end_date || null,
     is_active: true,
@@ -133,9 +157,14 @@ export async function updatePromotionAction(
     discount_amount: number | null
     start_date: string
     end_date: string | null
+    applies_to_plan_id?: string | null
   },
 ) {
   const supabase = await createClient()
+
+  const validationError = await validatePromoEndDate(supabase, data.applies_to_plan_id, data.end_date)
+  if (validationError) return { error: validationError }
+
   const { error } = await supabase
     .from('promotions')
     .update({
@@ -143,6 +172,7 @@ export async function updatePromotionAction(
       description: data.description,
       discount_percentage: data.discount_percentage,
       discount_amount: data.discount_amount,
+      applies_to_plan_id: data.applies_to_plan_id ?? null,
       start_date: data.start_date,
       end_date: data.end_date || null,
     })
