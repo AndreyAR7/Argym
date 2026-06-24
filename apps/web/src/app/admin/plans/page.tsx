@@ -13,7 +13,7 @@ export default async function PlansPage() {
   // Fetch all plans (active + inactive) with subscriber counts
   const { data: plans } = await supabase
     .from('plans')
-    .select('id, name, description, price, currency, billing_cycle, features, is_active, sort_order, expiry_date')
+    .select('id, name, description, price, currency, billing_cycle, features, is_active, sort_order')
     .eq('tenant_id', tenantId)
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true })
