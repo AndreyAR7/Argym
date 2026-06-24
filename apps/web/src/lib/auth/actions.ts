@@ -1,6 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 
 export async function loginAction(_prevState: { error: string } | null, formData: FormData) {
@@ -28,6 +29,45 @@ export async function logoutAction() {
   const supabase = await createClient()
   await supabase.auth.signOut()
   redirect('/login')
+}
+
+export async function forgotPasswordAction(
+  _prevState: { error?: string; success?: boolean } | null,
+  formData: FormData,
+) {
+  const email = (formData.get('email') as string)?.trim()
+  if (!email) return { error: 'El correo es requerido' }
+
+  const hdrs = await headers()
+  const host = hdrs.get('host') ?? 'localhost:3000'
+  const protocol = host.startsWith('localhost') ? 'http' : 'https'
+  const redirectTo = `${protocol}://${host}/reset-password`
+
+  const supabase = await createClient()
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+  if (error) console.error('[forgotPassword]', error.message)
+  // Always return success to avoid leaking which emails are registered
+  return { success: true }
+}
+
+export async function changePasswordAction(
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user?.email) return { error: 'No autenticado' }
+
+  // Verify current password
+  const { error: verifyError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  })
+  if (verifyError) return { error: 'La contraseña actual es incorrecta' }
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) return { error: error.message }
+  return { success: true }
 }
 
 export async function registerAction(_prevState: { error: string } | null, formData: FormData) {
