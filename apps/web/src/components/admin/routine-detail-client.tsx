@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useTransition, useEffect } from 'react'
-import { Plus, Pencil, Trash2, Dumbbell } from 'lucide-react'
+import { Plus, Pencil, Trash2, Dumbbell, Play } from 'lucide-react'
 import { ExerciseForm } from '@/components/admin/exercise-form'
+import { VideoPlayerModal } from '@/components/admin/video-player-modal'
 import { deleteExerciseAction } from '@/lib/admin/exercise-actions'
 
 interface Exercise {
@@ -14,21 +15,31 @@ interface Exercise {
   rest_seconds: number
   notes: string | null
   sort_order: number
+  demo_video_storage_path: string | null
+  demo_video_bucket: string | null
+}
+
+export interface AvailableVideo {
+  id: string
+  title: string
+  video_storage_path: string | null
+  video_bucket: string | null
 }
 
 interface Props {
   routineId: string
   exercises: Exercise[]
+  availableVideos: AvailableVideo[]
 }
 
-export function RoutineDetailClient({ routineId, exercises }: Props) {
+export function RoutineDetailClient({ routineId, exercises, availableVideos }: Props) {
   const [formOpen, setFormOpen] = useState(false)
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null)
   const [isPending, startTransition] = useTransition()
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [localExercises, setLocalExercises] = useState(exercises)
+  const [playingVideo, setPlayingVideo] = useState<{ path: string; bucket: string; title: string } | null>(null)
 
-  // Sync when server component re-renders after router.refresh()
   useEffect(() => {
     setLocalExercises(exercises)
   }, [exercises])
@@ -123,6 +134,15 @@ export function RoutineDetailClient({ routineId, exercises }: Props) {
                           {ex.notes}
                         </p>
                       )}
+                      {ex.demo_video_storage_path && (
+                        <button
+                          onClick={() => setPlayingVideo({ path: ex.demo_video_storage_path!, bucket: ex.demo_video_bucket ?? 'videos', title: ex.name })}
+                          className="mt-1 flex items-center gap-1 text-[10px] font-medium text-[var(--color-admin)] hover:opacity-70 transition-opacity"
+                        >
+                          <Play size={9} />
+                          Ver demo
+                        </button>
+                      )}
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-[var(--color-muted)] text-[var(--color-muted-foreground)]">
@@ -165,13 +185,22 @@ export function RoutineDetailClient({ routineId, exercises }: Props) {
         )}
       </div>
 
-      {/* Exercise form panel */}
       {formOpen && (
         <ExerciseForm
           routineId={routineId}
           exercise={editingExercise}
           nextSortOrder={nextSortOrder}
+          availableVideos={availableVideos}
           onClose={closeForm}
+        />
+      )}
+
+      {playingVideo && (
+        <VideoPlayerModal
+          title={`Demo: ${playingVideo.title}`}
+          storagePath={playingVideo.path}
+          bucket={playingVideo.bucket}
+          onClose={() => setPlayingVideo(null)}
         />
       )}
     </>

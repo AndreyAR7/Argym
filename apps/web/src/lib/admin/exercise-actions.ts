@@ -25,6 +25,8 @@ export async function addExerciseAction(
     rest_seconds: number
     notes: string | null
     sort_order: number
+    demo_video_storage_path?: string | null
+    demo_video_bucket?: string | null
   },
 ) {
   try {
@@ -52,6 +54,8 @@ export async function updateExerciseAction(
     reps: number
     rest_seconds: number
     notes: string | null
+    demo_video_storage_path?: string | null
+    demo_video_bucket?: string | null
   },
 ) {
   try {

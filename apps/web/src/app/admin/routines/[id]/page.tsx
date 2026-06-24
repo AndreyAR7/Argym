@@ -24,7 +24,7 @@ export default async function RoutineDetailPage({
   const session = await getSessionData()
   const { supabase, tenantId } = session!
 
-  const [routineResult, exercisesResult] = await Promise.all([
+  const [routineResult, exercisesResult, videosResult] = await Promise.all([
     supabase
       .from('routines')
       .select('id, name, description, level, allowed_plans, allowed_levels, is_active, is_template, created_at')
@@ -33,15 +33,22 @@ export default async function RoutineDetailPage({
       .single(),
     supabase
       .from('exercises')
-      .select('id, name, muscle, sets, reps, rest_seconds, notes, sort_order')
+      .select('id, name, muscle, sets, reps, rest_seconds, notes, sort_order, demo_video_storage_path, demo_video_bucket')
       .eq('routine_id', routineId)
       .order('sort_order', { ascending: true }),
+    supabase
+      .from('videos')
+      .select('id, title, video_storage_path, video_bucket, thumbnail_storage_path, thumbnail_color')
+      .eq('tenant_id', tenantId)
+      .eq('status', 'published')
+      .order('title', { ascending: true }),
   ])
 
   const routine = routineResult.data
   if (!routine) redirect('/admin/routines')
 
   const exercises = exercisesResult.data ?? []
+  const availableVideos = videosResult.data ?? []
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
@@ -135,7 +142,7 @@ export default async function RoutineDetailPage({
       )}
 
       {/* Exercise CRUD — client component */}
-      <RoutineDetailClient routineId={routineId} exercises={exercises} />
+      <RoutineDetailClient routineId={routineId} exercises={exercises} availableVideos={availableVideos} />
     </div>
   )
 }

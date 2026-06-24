@@ -33,14 +33,9 @@ export default async function ClientsPage({
   const session = await getSessionData()
   const { supabase, tenantId } = session!
 
-  // ── Get client user IDs in this tenant ──
-  const { data: clientRoleIds } = await supabase
-    .from('user_roles')
-    .select('user_id, roles!inner(name)')
-    .eq('tenant_id', tenantId)
-    .eq('roles.name', 'client')
-
-  const clientIds = (clientRoleIds ?? []).map((r: any) => r.user_id)
+  // ── Get client IDs via SECURITY DEFINER RPC (bypasses user_roles RLS) ──
+  const { data: clientProfiles } = await supabase.rpc('get_profiles_by_role', { role_name: 'client' })
+  const clientIds = (clientProfiles ?? []).map((p: any) => p.id as string)
 
   // ── Build client query ──
   let clientQuery = supabase

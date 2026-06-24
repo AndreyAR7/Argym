@@ -14,7 +14,7 @@ export default async function ClientVideosPage() {
     .from('video_assignments')
     .select(`
       id, note,
-      videos (id, title, description, level, duration_seconds, storage_path, thumbnail_storage_path, thumbnail_color)
+      videos (id, title, description, level, duration_seconds, video_storage_path, thumbnail_storage_path, thumbnail_color)
     `)
     .eq('client_id', user.id)
     .order('assigned_at', { ascending: false })

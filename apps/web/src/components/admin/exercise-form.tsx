@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { X } from 'lucide-react'
+import { X, Video } from 'lucide-react'
 import { addExerciseAction, updateExerciseAction } from '@/lib/admin/exercise-actions'
+import type { AvailableVideo } from '@/components/admin/routine-detail-client'
 
 const MUSCLES = [
   'Pecho', 'Espalda', 'Hombros', 'Bíceps', 'Tríceps',
@@ -21,22 +22,32 @@ interface ExerciseFormProps {
     rest_seconds: number
     notes: string | null
     sort_order: number
+    demo_video_storage_path?: string | null
+    demo_video_bucket?: string | null
   } | null
   nextSortOrder?: number
+  availableVideos?: AvailableVideo[]
   onClose: () => void
 }
 
-export function ExerciseForm({ routineId, exercise, nextSortOrder = 999, onClose }: ExerciseFormProps) {
+export function ExerciseForm({ routineId, exercise, nextSortOrder = 999, availableVideos = [], onClose }: ExerciseFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [selectedVideoId, setSelectedVideoId] = useState<string>(
+    exercise?.demo_video_storage_path
+      ? (availableVideos.find(v => v.video_storage_path === exercise.demo_video_storage_path)?.id ?? '')
+      : ''
+  )
 
   const isEdit = !!exercise
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
+
+    const selectedVideo = availableVideos.find(v => v.id === selectedVideoId) ?? null
 
     const data = {
       name:        (fd.get('name') as string).trim(),
@@ -46,6 +57,8 @@ export function ExerciseForm({ routineId, exercise, nextSortOrder = 999, onClose
       rest_seconds: parseInt(fd.get('rest_seconds') as string) || 60,
       notes:       (fd.get('notes') as string).trim() || null,
       sort_order:  exercise?.sort_order ?? nextSortOrder,
+      demo_video_storage_path: selectedVideo?.video_storage_path ?? null,
+      demo_video_bucket:       selectedVideo?.video_bucket ?? null,
     }
 
     setError(null)
@@ -160,6 +173,28 @@ export function ExerciseForm({ routineId, exercise, nextSortOrder = 999, onClose
               />
             </div>
           </div>
+
+          {/* Demo video */}
+          {availableVideos.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-foreground)] mb-1.5">
+                <span className="flex items-center gap-1.5">
+                  <Video size={13} />
+                  Video demo <span className="text-[var(--color-muted-foreground)] font-normal">(opcional)</span>
+                </span>
+              </label>
+              <select
+                value={selectedVideoId}
+                onChange={e => setSelectedVideoId(e.target.value)}
+                className="w-full px-3.5 py-2 text-sm rounded-lg border border-[var(--color-input)] bg-[var(--color-background)] text-[var(--color-foreground)] outline-none focus:border-[var(--color-ring)] focus:ring-2 focus:ring-[var(--color-ring)]/20 cursor-pointer"
+              >
+                <option value="">— Sin video demo —</option>
+                {availableVideos.map(v => (
+                  <option key={v.id} value={v.id}>{v.title}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Notes */}
           <div>

@@ -10,8 +10,8 @@ interface VideoItem {
   description: string | null
   level: string
   duration_seconds: number | null
-  storage_path: string | null
-  thumbnail_storage_path: string | null
+  video_storage_path: string | null
+  thumbnail_video_storage_path: string | null
   thumbnail_color: string | null
   note: string | null
 }
@@ -55,16 +55,16 @@ export function ClientVideoList({ videos, supabaseUrl }: Props) {
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {videos.map((video) => {
-          const thumbUrl = video.thumbnail_storage_path
-            ? `${supabaseUrl}/storage/v1/object/public/video-thumbnails/${video.thumbnail_storage_path}`
+          const thumbUrl = video.thumbnail_video_storage_path
+            ? `${supabaseUrl}/storage/v1/object/public/video-thumbnails/${video.thumbnail_video_storage_path}`
             : null
           const duration = formatDuration(video.duration_seconds)
 
           return (
             <button
               key={video.id}
-              onClick={() => video.storage_path && setPlaying(video)}
-              disabled={!video.storage_path}
+              onClick={() => video.video_storage_path && setPlaying(video)}
+              disabled={!video.video_storage_path}
               className="text-left rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden hover:border-[var(--color-client)]/40 hover:shadow-md transition-all group disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {/* Thumbnail */}
@@ -77,7 +77,7 @@ export function ClientVideoList({ videos, supabaseUrl }: Props) {
                 ) : (
                   <Video size={32} className="text-white/50" />
                 )}
-                {video.storage_path && (
+                {video.video_storage_path && (
                   <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
                       <Play size={20} className="text-white ml-0.5" />
@@ -104,10 +104,10 @@ export function ClientVideoList({ videos, supabaseUrl }: Props) {
         })}
       </div>
 
-      {playing && playing.storage_path && (
+      {playing && playing.video_storage_path && (
         <VideoPlayerModal
           title={playing.title}
-          storagePath={playing.storage_path}
+          storagePath={playing.video_storage_path}
           onClose={() => setPlaying(null)}
         />
       )}
