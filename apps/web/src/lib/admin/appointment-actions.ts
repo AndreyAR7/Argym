@@ -32,14 +32,16 @@ export async function createAppointmentAction(data: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('tenant_id')
     .eq('id', user.id)
     .single()
 
+  if (profileError || !profile) return { error: 'No se pudo obtener el tenant del usuario' }
+
   const { error } = await supabase.from('appointments').insert({
-    tenant_id: profile!.tenant_id,
+    tenant_id: profile.tenant_id,
     client_id: data.client_id,
     coach_id: data.coach_id || null,
     title: data.title,

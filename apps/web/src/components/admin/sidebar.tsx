@@ -18,6 +18,7 @@ import {
   LogOut,
   Apple,
   X,
+  Building2,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logoutAction } from '@/lib/auth/actions'
@@ -50,6 +51,7 @@ const NAV: NavSection[] = [
   {
     title: 'Gestión',
     items: [
+      { label: 'Sucursales', href: '/admin/branches', icon: Building2 },
       { label: 'Clientes', href: '/admin/clients', icon: Users },
       { label: 'Coaches', href: '/admin/coaches', icon: Users },
       { label: 'Aprobaciones', href: '/admin/approvals', icon: UserCheck },

@@ -80,6 +80,7 @@ export async function registerAction(_prevState: { error: string } | null, formD
   const email = formData.get('email') as string
   const password = formData.get('password') as string
   const fullName = formData.get('full_name') as string
+  const branchId = (formData.get('branch_id') as string) || null
 
   if (!email || !password || !fullName) {
     return { error: 'Todos los campos son requeridos.' }
@@ -91,17 +92,37 @@ export async function registerAction(_prevState: { error: string } | null, formD
 
   const supabase = await createClient()
 
-  // Discover the active tenant so the DB trigger can create the profile row.
-  // Requires the "tenants_public_read_active" RLS policy (migration 000043).
-  const { data: tenant } = await supabase
-    .from('tenants')
-    .select('id')
-    .eq('is_active', true)
-    .limit(1)
-    .single()
+  let tenantId: string
+  let resolvedBranchId: string | null = null
 
-  if (!tenant) {
-    return { error: 'No se encontró un gimnasio activo. Contacta al administrador.' }
+  if (branchId) {
+    // User selected a specific branch — derive the tenant from it.
+    const { data: branch, error: branchError } = await supabase
+      .from('branches')
+      .select('id, tenant_id')
+      .eq('id', branchId)
+      .eq('is_active', true)
+      .single()
+
+    if (branchError || !branch) {
+      return { error: 'La sede seleccionada no está disponible. Contacta al administrador.' }
+    }
+    tenantId = branch.tenant_id
+    resolvedBranchId = branch.id
+  } else {
+    // Fallback: no branches configured yet — find the single active tenant.
+    // Requires the "tenants_public_read_active" RLS policy (migration 000043).
+    const { data: tenant } = await supabase
+      .from('tenants')
+      .select('id')
+      .eq('is_active', true)
+      .limit(1)
+      .single()
+
+    if (!tenant) {
+      return { error: 'No se encontró un gimnasio activo. Contacta al administrador.' }
+    }
+    tenantId = tenant.id
   }
 
   const { error } = await supabase.auth.signUp({
@@ -110,7 +131,8 @@ export async function registerAction(_prevState: { error: string } | null, formD
     options: {
       data: {
         full_name: fullName,
-        tenant_id: tenant.id,
+        tenant_id: tenantId,
+        ...(resolvedBranchId ? { branch_id: resolvedBranchId } : {}),
         requested_role: 'client',
       },
     },
