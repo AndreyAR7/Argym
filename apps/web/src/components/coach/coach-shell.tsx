@@ -28,9 +28,11 @@ export function CoachShell({ children, userName, userEmail, avatarUrl }: CoachSh
       <Topbar
         onMenuOpen={() => setOpen(true)}
         userName={userName}
+        userEmail={userEmail}
         avatarUrl={avatarUrl}
         accentColor="var(--color-coach)"
         brandLabel="ARGYM Coach"
+        profileHref="/coach/profile"
       />
 
       <div className="flex flex-1 overflow-hidden">

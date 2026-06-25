@@ -10,19 +10,32 @@ export default async function ClientVideosPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: assignments } = await supabase
-    .from('video_assignments')
-    .select(`
-      id, note,
-      videos (id, title, description, level, duration_seconds, video_storage_path, thumbnail_storage_path, thumbnail_color)
-    `)
-    .eq('client_id', user.id)
-    .order('assigned_at', { ascending: false })
+  const [assignedResult, freeResult] = await Promise.all([
+    supabase
+      .from('video_assignments')
+      .select(`
+        id, note,
+        videos (id, title, description, level, duration_seconds, video_storage_path, thumbnail_storage_path, thumbnail_color)
+      `)
+      .eq('client_id', user.id)
+      .order('assigned_at', { ascending: false }),
+    supabase
+      .from('videos')
+      .select('id, title, description, level, duration_seconds, video_storage_path, thumbnail_storage_path, thumbnail_color')
+      .eq('is_free', true),
+  ])
 
-  const videos = (assignments ?? [])
+  const assignedVideos = (assignedResult.data ?? [])
     .map((a: any) => ({ ...a.videos, note: a.note }))
     .filter(Boolean)
 
+  const assignedIds = new Set(assignedVideos.map((v: any) => v.id))
+
+  const freeVideos = (freeResult.data ?? [])
+    .filter((v: any) => v && !assignedIds.has(v.id))
+    .map((v: any) => ({ ...v, note: null }))
+
+  const videos = [...assignedVideos, ...freeVideos]
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 
   return (

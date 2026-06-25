@@ -100,32 +100,20 @@ export function AdminSidebar({ userName, userEmail, avatarUrl, onClose }: Sideba
 
   return (
     <aside className="w-[240px] flex-shrink-0 flex flex-col h-full bg-[var(--color-sidebar)] border-r border-[var(--color-sidebar-border)]">
-      {/* ── Logo + close button (mobile) ── */}
-      <div className="flex items-center justify-between px-5 h-14 border-b border-[var(--color-sidebar-border)] flex-shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div
-            className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0"
-            style={{ background: 'var(--color-admin)' }}
-          >
-            <span className="text-white font-bold text-xs">A</span>
-          </div>
-          <span className="font-semibold text-[15px] tracking-tight text-[var(--color-sidebar-foreground)]">
-            ARGYM
-          </span>
-        </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            aria-label="Cerrar menú"
-            className="md:hidden w-8 h-8 flex items-center justify-center rounded-md text-[var(--color-sidebar-muted)] hover:text-[var(--color-sidebar-foreground)] hover:bg-[var(--color-muted)] transition-colors"
-          >
-            <X size={16} />
-          </button>
-        )}
-      </div>
-
       {/* ── Navigation ── */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
+      <nav className="flex-1 overflow-y-auto px-3 space-y-5" style={{ paddingTop: onClose ? '0' : '1rem', paddingBottom: '1rem' }}>
+        {/* Mobile close button */}
+        {onClose && (
+          <div className="flex items-center justify-end pt-3 pb-1 md:hidden">
+            <button
+              onClick={onClose}
+              aria-label="Cerrar menú"
+              className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--color-sidebar-muted)] hover:bg-[var(--color-muted)] transition-colors"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        )}
         {NAV.map((section) => (
           <div key={section.title}>
             <p className="px-2 mb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-sidebar-muted)]">

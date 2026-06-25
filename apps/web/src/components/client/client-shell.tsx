@@ -29,9 +29,11 @@ export function ClientShell({ children, userName, userEmail, avatarUrl }: Client
       <Topbar
         onMenuOpen={() => setOpen(true)}
         userName={userName}
+        userEmail={userEmail}
         avatarUrl={avatarUrl}
         accentColor="var(--color-client)"
         brandLabel="ARGYM"
+        profileHref="/client/profile"
       />
 
       {/* ── Body: sidebar + main ── */}

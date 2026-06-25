@@ -29,9 +29,11 @@ export function AdminShell({ children, userName, userEmail, avatarUrl }: AdminSh
       <Topbar
         onMenuOpen={() => setOpen(true)}
         userName={userName}
+        userEmail={userEmail}
         avatarUrl={avatarUrl}
         accentColor="var(--color-admin)"
         brandLabel="ARGYM Admin"
+        profileHref="/admin/profile"
       />
 
       {/* ── Body: sidebar + main ── */}

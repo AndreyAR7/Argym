@@ -41,18 +41,6 @@ export function CoachSidebar({ userName, userEmail, avatarUrl }: SidebarProps) {
 
   return (
     <aside className="w-[240px] flex-shrink-0 flex flex-col h-full bg-[var(--color-sidebar)] border-r border-[var(--color-sidebar-border)]">
-      <div className="flex items-center gap-2.5 px-5 h-14 border-b border-[var(--color-sidebar-border)] flex-shrink-0">
-        <div
-          className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0"
-          style={{ background: 'var(--color-coach)' }}
-        >
-          <span className="text-white font-bold text-xs">A</span>
-        </div>
-        <span className="font-semibold text-[15px] tracking-tight text-[var(--color-sidebar-foreground)]">
-          ARGYM
-        </span>
-      </div>
-
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
         {NAV.map((section) => (
           <div key={section.title}>
