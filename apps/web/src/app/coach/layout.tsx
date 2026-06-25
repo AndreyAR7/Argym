@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { CoachSidebar } from '@/components/coach/sidebar'
+import { CoachShell } from '@/components/coach/coach-shell'
 
 export default async function CoachLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -27,15 +27,12 @@ export default async function CoachLayout({ children }: { children: React.ReactN
   if (role !== 'coach') redirect('/')
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--color-background)]">
-      <CoachSidebar
-        userName={profile?.full_name ?? user.email ?? ''}
-        userEmail={user.email ?? ''}
-        avatarUrl={profile?.avatar_url ?? null}
-      />
-      <main className="flex-1 overflow-y-auto min-w-0">
-        {children}
-      </main>
-    </div>
+    <CoachShell
+      userName={profile?.full_name ?? user.email ?? ''}
+      userEmail={user.email ?? ''}
+      avatarUrl={profile?.avatar_url ?? null}
+    >
+      {children}
+    </CoachShell>
   )
 }

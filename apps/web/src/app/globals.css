@@ -60,6 +60,38 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── Dark mode overrides ── */
+.dark {
+  --color-background:        oklch(13%  0.005  286);
+  --color-foreground:        oklch(95%  0.002  286);
+  --color-card:              oklch(17%  0.005  286);
+  --color-card-foreground:   oklch(95%  0.002  286);
+  --color-muted:             oklch(21%  0.006  286);
+  --color-muted-foreground:  oklch(62%  0.012  286);
+  --color-border:            oklch(27%  0.006  286);
+  --color-input:             oklch(21%  0.006  286);
+  --color-ring:              oklch(60%  0.02   261);
+
+  --color-primary:            oklch(95%  0.002  286);
+  --color-primary-foreground: oklch(13%  0.005  286);
+  --color-secondary:          oklch(21%  0.006  286);
+  --color-secondary-foreground: oklch(90% 0.002 286);
+  --color-accent:             oklch(21%  0.006  286);
+  --color-accent-foreground:  oklch(90%  0.002  286);
+
+  --color-sidebar:            oklch(11%  0.004  286);
+  --color-sidebar-border:     oklch(22%  0.006  286);
+  --color-sidebar-foreground: oklch(90%  0.002  286);
+  --color-sidebar-muted:      oklch(58%  0.012  286);
+
+  --color-admin:        oklch(65%  0.245  275);
+  --color-admin-light:  oklch(22%  0.055  275);
+  --color-coach:        oklch(65%  0.149  163);
+  --color-coach-light:  oklch(22%  0.04   163);
+  --color-client:       oklch(65%  0.215  254);
+  --color-client-light: oklch(22%  0.05   254);
+}
+
 /* ── Scrollbar (Webkit) ── */
 ::-webkit-scrollbar        { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track  { background: transparent; }
