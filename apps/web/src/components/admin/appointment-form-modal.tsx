@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { createAppointmentAction } from '@/lib/admin/appointment-actions'
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function AppointmentFormModal({ coaches, clients, onClose }: Props) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [appointmentType, setAppointmentType] = useState<'in_person' | 'virtual'>('in_person')
@@ -21,7 +23,7 @@ export default function AppointmentFormModal({ coaches, clients, onClose }: Prop
     const form = e.currentTarget
     const data = new FormData(form)
 
-    const title = data.get('title') as string
+    const title = (data.get('title') as string).trim()
     const client_id = data.get('client_id') as string
     const coach_id = (data.get('coach_id') as string) || null
     const date = data.get('date') as string
@@ -31,26 +33,41 @@ export default function AppointmentFormModal({ coaches, clients, onClose }: Prop
     const location = appointmentType === 'in_person' ? ((data.get('location') as string) || null) : null
     const meeting_url = appointmentType === 'virtual' ? ((data.get('meeting_url') as string) || null) : null
 
-    const start_time = new Date(`${date}T${startTime}`).toISOString()
-    const end_time = new Date(`${date}T${endTime}`).toISOString()
+    if (!date || !startTime || !endTime) {
+      setError('Completa la fecha y hora de la cita.')
+      return
+    }
+
+    const startDate = new Date(`${date}T${startTime}`)
+    const endDate = new Date(`${date}T${endTime}`)
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      setError('Fecha u hora inválida.')
+      return
+    }
 
     startTransition(async () => {
-      const result = await createAppointmentAction({
-        title,
-        client_id,
-        coach_id,
-        start_time,
-        end_time,
-        appointment_type: appointmentType,
-        location,
-        meeting_url,
-        description: notes,
-      })
+      try {
+        const result = await createAppointmentAction({
+          title,
+          client_id,
+          coach_id,
+          start_time: startDate.toISOString(),
+          end_time: endDate.toISOString(),
+          appointment_type: appointmentType,
+          location,
+          meeting_url,
+          description: notes,
+        })
 
-      if (result?.error) {
-        setError(result.error)
-      } else {
-        onClose()
+        if (result?.error) {
+          setError(result.error)
+        } else {
+          router.refresh()
+          onClose()
+        }
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Error inesperado. Inténtalo de nuevo.')
       }
     })
   }

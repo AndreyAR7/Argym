@@ -40,19 +40,18 @@ export async function createAppointmentAction(data: {
 
   if (profileError || !profile) return { error: 'No se pudo obtener el tenant del usuario' }
 
-  const { error } = await supabase.from('appointments').insert({
-    tenant_id: profile.tenant_id,
-    client_id: data.client_id,
-    coach_id: data.coach_id || null,
-    title: data.title,
-    description: data.description,
-    start_time: data.start_time,
-    end_time: data.end_time,
-    status: 'scheduled',
-    appointment_type: data.appointment_type,
-    location: data.location,
-    meeting_url: data.meeting_url,
-    group_mode: 'individual',
+  const { error } = await supabase.rpc('create_appointment', {
+    p_title:            data.title,
+    p_client_id:        data.client_id,
+    p_coach_id:         data.coach_id || null,
+    p_start_time:       data.start_time,
+    p_end_time:         data.end_time,
+    p_status:           'scheduled',
+    p_appointment_type: data.appointment_type,
+    p_location:         data.location,
+    p_meeting_url:      data.meeting_url,
+    p_description:      data.description,
+    p_group_mode:       'individual',
   })
 
   if (error) return { error: error.message }
