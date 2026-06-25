@@ -80,7 +80,6 @@ export default async function AppointmentsPage({
       client:profiles!client_id(full_name, avatar_url),
       coach:profiles!coach_id(full_name)
     `, { count: 'exact' })
-    .eq('tenant_id', tenantId)
     .order('start_time', { ascending: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
   if (statusFilter !== 'all') listQuery = listQuery.eq('status', statusFilter)
@@ -92,7 +91,6 @@ export default async function AppointmentsPage({
       client:profiles!client_id(full_name, avatar_url),
       coach:profiles!coach_id(full_name)
     `)
-    .eq('tenant_id', tenantId)
     .gte('start_time', weekStart.toISOString())
     .lt('start_time', weekEnd.toISOString())
     .order('start_time', { ascending: true })
@@ -102,6 +100,8 @@ export default async function AppointmentsPage({
     supabase.rpc('get_profiles_by_role', { role_name: 'client' }),
     view === 'calendar' ? calendarQuery : listQuery,
   ])
+
+  console.log('[APPTS PAGE] tenantId:', tenantId, '| view:', view, '| rows:', appointmentsResult.data?.length ?? 0, '| error:', appointmentsResult.error?.message ?? 'none')
 
   const coachList = coachResult.data ?? []
   const clientList = clientResult.data ?? []
