@@ -214,6 +214,7 @@ export default function AppointmentFormModal({ coaches, clients, onClose }: Prop
               type="date"
               name="date"
               required
+              defaultValue={new Date().toLocaleDateString('en-CA')}
               className="rounded-lg px-3 py-2 text-sm outline-none transition-colors"
               style={{
                 backgroundColor: 'var(--color-input)',

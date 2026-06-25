@@ -120,6 +120,8 @@ export function AppointmentsCalendar({ appointments, coaches, clients, weekStart
   }
 
   const monthLabel = new Intl.DateTimeFormat('es-CR', { month: 'long', year: 'numeric' }).format(baseDate)
+  const weekEndDate = new Date(baseDate); weekEndDate.setDate(baseDate.getDate() + 6)
+  const weekRangeLabel = `${baseDate.getDate()} – ${weekEndDate.getDate()} ${new Intl.DateTimeFormat('es-CR', { month: 'long' }).format(weekEndDate)}`
 
   function handleColumnClick(e: React.MouseEvent<HTMLDivElement>, dateStr: string) {
     if ((e.target as HTMLElement).closest('[data-apt]')) return
@@ -134,7 +136,15 @@ export function AppointmentsCalendar({ appointments, coaches, clients, weekStart
     <div className="mt-4 rounded-xl border border-[var(--color-border)] overflow-hidden bg-[var(--color-card)]">
       {/* Week header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-muted)]">
-        <span className="text-sm font-semibold text-[var(--color-foreground)] capitalize">{monthLabel}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-[var(--color-foreground)] capitalize">{monthLabel}</span>
+          <span className="text-xs text-[var(--color-muted-foreground)]">({weekRangeLabel})</span>
+          {appointments.length > 0 && (
+            <span className="text-xs font-medium px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--color-admin)', color: 'white' }}>
+              {appointments.length}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1">
           <button onClick={prevWeek} className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--color-muted-foreground)] hover:bg-[var(--color-card)] transition-colors">
             <ChevronLeft size={16} />
@@ -164,6 +174,14 @@ export function AppointmentsCalendar({ appointments, coaches, clients, weekStart
           )
         })}
       </div>
+
+      {/* Empty state */}
+      {appointments.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 gap-2 text-center border-b border-[var(--color-border)]">
+          <p className="text-sm font-medium text-[var(--color-foreground)]">Sin citas esta semana</p>
+          <p className="text-xs text-[var(--color-muted-foreground)]">Haz clic en cualquier celda del calendario para crear una cita.</p>
+        </div>
+      )}
 
       {/* Scrollable grid */}
       <div className="overflow-y-auto" style={{ maxHeight: '560px' }}>
