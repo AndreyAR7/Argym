@@ -15,6 +15,7 @@ interface VideoPlayerModalProps {
   title: string
   storagePath: string
   bucket?: string
+  videoId?: string
   onClose: () => void
 }
 
@@ -25,12 +26,13 @@ function formatTime(secs: number) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-export function VideoPlayerModal({ title, storagePath, bucket = 'videos', onClose }: VideoPlayerModalProps) {
+export function VideoPlayerModal({ title, storagePath, bucket = 'videos', videoId, onClose }: VideoPlayerModalProps) {
   const videoRef     = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const progressRef  = useRef<HTMLDivElement>(null)
   const hideTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
   const scrubbingRef = useRef(false)
+  const viewRecorded = useRef(false)
 
   const [videoUrl,     setVideoUrl]     = useState<string | null>(null)
   const [error,        setError]        = useState<string | null>(null)
@@ -247,6 +249,11 @@ export function VideoPlayerModal({ title, storagePath, bucket = 'videos', onClos
                 setCurrentTime(v.currentTime)
                 if (v.buffered.length > 0)
                   setBuffered(v.buffered.end(v.buffered.length - 1))
+                // Record view once the user has watched at least 5 seconds
+                if (videoId && !viewRecorded.current && v.currentTime >= 5) {
+                  viewRecorded.current = true
+                  createClient().rpc('increment_video_views', { p_video_id: videoId }).then(() => {})
+                }
               }}
               onLoadedMetadata={() => {
                 const v = videoRef.current

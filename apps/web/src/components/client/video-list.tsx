@@ -147,6 +147,7 @@ export function ClientVideoList({ videos, supabaseUrl }: Props) {
         <VideoPlayerModal
           title={playing.title}
           storagePath={playing.video_storage_path}
+          videoId={playing.id}
           onClose={() => setPlaying(null)}
         />
       )}

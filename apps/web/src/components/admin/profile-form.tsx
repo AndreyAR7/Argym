@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { User, Mail, Phone, Calendar, CheckCircle2, AlertCircle, Loader2, Lock, Eye, EyeOff, ShieldCheck } from 'lucide-react'
-import { updateMyProfileAction } from '@/lib/admin/profile-actions'
+import { useState, useTransition, useRef } from 'react'
+import { User, Mail, Phone, Calendar, CheckCircle2, AlertCircle, Loader2, Lock, Eye, EyeOff, ShieldCheck, Camera } from 'lucide-react'
+import { updateMyProfileAction, updateMyAvatarAction } from '@/lib/admin/profile-actions'
 import { changePasswordAction } from '@/lib/auth/actions'
 import { getInitials } from '@/lib/utils'
 import { formatDate } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
 
 interface ProfileFormProps {
   userId: string
@@ -23,6 +24,12 @@ export function ProfileForm({ userId, email, fullName, phone, avatarUrl, created
   const [name, setName] = useState(fullName)
   const [phoneVal, setPhoneVal] = useState(phone ?? '')
 
+  // Avatar upload state
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(avatarUrl)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const [avatarError, setAvatarError] = useState<string | null>(null)
+
   // Password change state
   const [pwPending, startPwTransition] = useTransition()
   const [currentPw, setCurrentPw] = useState('')
@@ -32,6 +39,40 @@ export function ProfileForm({ userId, email, fullName, phone, avatarUrl, created
   const [showNewPw, setShowNewPw] = useState(false)
   const [pwError, setPwError] = useState<string | null>(null)
   const [pwSuccess, setPwSuccess] = useState(false)
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) { setAvatarError('Solo se permiten imágenes'); return }
+    if (file.size > 5 * 1024 * 1024) { setAvatarError('La imagen no puede superar 5 MB'); return }
+
+    setAvatarError(null)
+    setAvatarUploading(true)
+
+    try {
+      const supabase = createClient()
+      const ext = file.name.split('.').pop() ?? 'jpg'
+      const path = `${userId}/avatar.${ext}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true, contentType: file.type })
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+
+      const result = await updateMyAvatarAction(publicUrl)
+      if (result.error) throw new Error(result.error)
+
+      setAvatarPreview(publicUrl)
+    } catch (err: any) {
+      setAvatarError(err.message ?? 'No se pudo subir la imagen')
+    } finally {
+      setAvatarUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -81,15 +122,39 @@ export function ProfileForm({ userId, email, fullName, phone, avatarUrl, created
     <div className="space-y-8">
       {/* Avatar + identity */}
       <div className="flex items-center gap-5 p-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)]">
-        <div className="w-16 h-16 rounded-full bg-[var(--color-admin-light)] flex items-center justify-center flex-shrink-0 overflow-hidden">
-          {avatarUrl ? (
-            <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-xl font-semibold text-[var(--color-admin)]">
-              {getInitials(name || email)}
-            </span>
+        {/* Clickable avatar with camera overlay */}
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={avatarUploading}
+          className="relative w-16 h-16 rounded-full flex-shrink-0 group focus:outline-none focus:ring-2 focus:ring-[var(--color-admin)] focus:ring-offset-2"
+          title="Cambiar foto"
+        >
+          <div className="w-full h-full rounded-full bg-[var(--color-admin-light)] flex items-center justify-center overflow-hidden">
+            {avatarUploading ? (
+              <Loader2 size={20} className="animate-spin text-[var(--color-admin)]" />
+            ) : avatarPreview ? (
+              <img src={avatarPreview} alt={name} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xl font-semibold text-[var(--color-admin)]">
+                {getInitials(name || email)}
+              </span>
+            )}
+          </div>
+          {!avatarUploading && (
+            <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <Camera size={16} className="text-white" />
+            </div>
           )}
-        </div>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleAvatarChange}
+        />
+
         <div className="min-w-0">
           <p className="font-semibold text-[var(--color-foreground)] truncate">{name || '—'}</p>
           <p className="text-sm text-[var(--color-muted-foreground)] truncate mt-0.5">{email}</p>
@@ -98,6 +163,18 @@ export function ProfileForm({ userId, email, fullName, phone, avatarUrl, created
               <Calendar size={11} />
               Miembro desde {formatDate(createdAt)}
             </p>
+          )}
+          {avatarError && (
+            <p className="text-xs text-red-500 mt-1">{avatarError}</p>
+          )}
+          {!avatarUploading && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="text-xs text-[var(--color-admin)] hover:underline mt-1"
+            >
+              Cambiar foto
+            </button>
           )}
         </div>
       </div>
