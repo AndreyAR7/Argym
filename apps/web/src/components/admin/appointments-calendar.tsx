@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight, MapPin, Video, Phone, X, Clock, Users } from 'lucide-react'
-import { AppointmentQuickForm } from '@/components/admin/appointment-quick-form'
+import AppointmentFormModal from '@/components/admin/appointment-form-modal'
 
 interface Participant { id: string; full_name: string; avatar_url: string | null }
 
@@ -394,13 +394,13 @@ export function AppointmentsCalendar({ appointments, coaches, clients, weekStart
         </>
       )}
 
-      {/* Quick form (calendar click) */}
+      {/* Same modal as the "Nueva cita" button, pre-filled with clicked date/time */}
       {slotClick && (
-        <AppointmentQuickForm
-          date={slotClick.date}
-          startTime={slotClick.time}
+        <AppointmentFormModal
           coaches={coaches}
           clients={clients}
+          initialDate={slotClick.date}
+          initialTime={slotClick.time}
           onClose={() => setSlotClick(null)}
         />
       )}

@@ -19,6 +19,7 @@ import {
   Apple,
   X,
   Building2,
+  Mail,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logoutAction } from '@/lib/auth/actions'
@@ -77,6 +78,12 @@ const NAV: NavSection[] = [
       { label: 'Planes', href: '/admin/plans', icon: CreditCard },
       { label: 'Promociones', href: '/admin/promotions', icon: Tag },
       { label: 'Facturación', href: '/admin/billing', icon: BarChart3 },
+    ],
+  },
+  {
+    title: 'Comunicación',
+    items: [
+      { label: 'Correspondencia', href: '/admin/correspondencia', icon: Mail },
     ],
   },
   {
