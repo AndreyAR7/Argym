@@ -40,7 +40,7 @@ export async function createAppointmentAction(data: {
 
   if (profileError || !profile) return { error: 'No se pudo obtener el tenant del usuario' }
 
-  const { error } = await supabase.rpc('create_appointment', {
+  const { data: newId, error } = await supabase.rpc('create_appointment', {
     p_title:            data.title,
     p_client_id:        data.client_id,
     p_coach_id:         data.coach_id || null,
@@ -54,7 +54,12 @@ export async function createAppointmentAction(data: {
     p_group_mode:       'individual',
   })
 
-  if (error) return { error: error.message }
+  if (error) {
+    console.error('[createAppointmentAction] RPC error:', error)
+    return { error: error.message }
+  }
+
+  console.log('[createAppointmentAction] Created appointment:', newId)
   revalidatePath('/admin/appointments')
   return { success: true }
 }

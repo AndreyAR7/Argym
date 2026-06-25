@@ -74,23 +74,27 @@ export function AppointmentQuickForm({ date, startTime, coaches, clients, onClos
     const end_time = new Date(`${date}T${endTime}`).toISOString()
 
     startTransition(async () => {
-      const result = await createAppointmentAction({
-        title,
-        client_id,
-        coach_id,
-        start_time,
-        end_time,
-        appointment_type: appointmentType,
-        location,
-        meeting_url,
-        description: notes,
-      })
+      try {
+        const result = await createAppointmentAction({
+          title,
+          client_id,
+          coach_id,
+          start_time,
+          end_time,
+          appointment_type: appointmentType,
+          location,
+          meeting_url,
+          description: notes,
+        })
 
-      if (result?.error) {
-        setError(result.error)
-      } else {
-        router.refresh()
-        onClose()
+        if (result?.error) {
+          setError(result.error)
+        } else {
+          router.refresh()
+          onClose()
+        }
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Error inesperado al crear la cita.')
       }
     })
   }
