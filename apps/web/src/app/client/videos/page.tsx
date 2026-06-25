@@ -5,37 +5,54 @@ import { ClientVideoList } from '@/components/client/video-list'
 
 export const metadata = { title: 'Mis Videos' }
 
+const VIDEO_FIELDS = 'id, title, description, level, duration_seconds, video_storage_path, thumbnail_storage_path, thumbnail_color'
+
 export default async function ClientVideosPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [assignedResult, freeResult] = await Promise.all([
+  // Get client level for level-based video access
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('client_level')
+    .eq('id', user.id)
+    .single()
+
+  const clientLevel = profile?.client_level ?? null
+
+  const [assignedResult, accessibleResult] = await Promise.all([
+    // Explicitly assigned videos (include coach note)
     supabase
       .from('video_assignments')
-      .select(`
-        id, note,
-        videos (id, title, description, level, duration_seconds, video_storage_path, thumbnail_storage_path, thumbnail_color)
-      `)
+      .select(`id, note, videos (${VIDEO_FIELDS})`)
       .eq('client_id', user.id)
       .order('assigned_at', { ascending: false }),
+
+    // Videos accessible without explicit assignment:
+    // is_free = true  OR  allowed_levels contains client's level
     supabase
       .from('videos')
-      .select('id, title, description, level, duration_seconds, video_storage_path, thumbnail_storage_path, thumbnail_color')
-      .eq('is_free', true),
+      .select(VIDEO_FIELDS)
+      .eq('status', 'published')
+      .or(
+        clientLevel
+          ? `is_free.eq.true,allowed_levels.cs.{${clientLevel}}`
+          : 'is_free.eq.true'
+      ),
   ])
 
-  const assignedVideos = (assignedResult.data ?? [])
+  const assignedVideos: any[] = (assignedResult.data ?? [])
     .map((a: any) => ({ ...a.videos, note: a.note }))
     .filter(Boolean)
 
   const assignedIds = new Set(assignedVideos.map((v: any) => v.id))
 
-  const freeVideos = (freeResult.data ?? [])
+  const autoVideos: any[] = (accessibleResult.data ?? [])
     .filter((v: any) => v && !assignedIds.has(v.id))
     .map((v: any) => ({ ...v, note: null }))
 
-  const videos = [...assignedVideos, ...freeVideos]
+  const videos = [...assignedVideos, ...autoVideos]
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 
   return (
