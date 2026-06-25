@@ -142,7 +142,7 @@ export default async function AppointmentsPage({
             <CalendarDays size={13} />Calendario
           </Link>
         </div>
-        <NewAppointmentButton coaches={coachList} clients={clientList} />
+        <NewAppointmentButton coaches={coachList} clients={clientList} currentUserId={session.user.id} />
       </PageHeader>
 
       {view === 'calendar' ? (

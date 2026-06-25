@@ -34,6 +34,8 @@ export function ClientShell({ children, userName, userEmail, avatarUrl }: Client
         accentColor="var(--color-client)"
         brandLabel="ARGYM"
         profileHref="/client/profile"
+        helpHref="/client/help"
+        contactHref="/client/contact"
       />
 
       {/* ── Body: sidebar + main ── */}

@@ -7,9 +7,10 @@ import AppointmentFormModal from '@/components/admin/appointment-form-modal'
 interface Props {
   coaches: Array<{ id: string; full_name: string }>
   clients: Array<{ id: string; full_name: string }>
+  currentUserId?: string
 }
 
-export function NewAppointmentButton({ coaches, clients }: Props) {
+export function NewAppointmentButton({ coaches, clients, currentUserId }: Props) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -31,6 +32,7 @@ export function NewAppointmentButton({ coaches, clients }: Props) {
         <AppointmentFormModal
           coaches={coaches}
           clients={clients}
+          currentUserId={currentUserId}
           onClose={() => setOpen(false)}
         />
       )}

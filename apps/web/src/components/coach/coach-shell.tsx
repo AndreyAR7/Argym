@@ -33,6 +33,8 @@ export function CoachShell({ children, userName, userEmail, avatarUrl }: CoachSh
         accentColor="var(--color-coach)"
         brandLabel="ARGYM Coach"
         profileHref="/coach/profile"
+        helpHref="/coach/help"
+        contactHref="/coach/contact"
       />
 
       <div className="flex flex-1 overflow-hidden">

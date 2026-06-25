@@ -34,6 +34,8 @@ export function AdminShell({ children, userName, userEmail, avatarUrl }: AdminSh
         accentColor="var(--color-admin)"
         brandLabel="ARGYM Admin"
         profileHref="/admin/profile"
+        helpHref="/admin/help"
+        contactHref="/admin/contact"
       />
 
       {/* ── Body: sidebar + main ── */}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef } from 'react'
 import { MoreHorizontal, UserX, UserCheck, Tag, Pencil } from 'lucide-react'
 import { toggleProfileActiveAction, assignPlanAction } from '@/lib/admin/actions'
 
@@ -33,6 +33,19 @@ export function ClientRowActions({
   const [showAssign, setShowAssign] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [pos, setPos] = useState({ top: 0, right: 0 })
+  const btnRef = useRef<HTMLButtonElement>(null)
+
+  function handleOpen() {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect()
+      setPos({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right,
+      })
+    }
+    setOpen(v => !v)
+  }
 
   function handleToggleActive() {
     startTransition(async () => {
@@ -54,7 +67,8 @@ export function ClientRowActions({
     <>
       <div className="relative inline-block">
         <button
-          onClick={() => setOpen(!open)}
+          ref={btnRef}
+          onClick={handleOpen}
           className="w-8 h-8 inline-flex items-center justify-center rounded-md text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors"
           aria-label="Acciones"
         >
@@ -64,7 +78,11 @@ export function ClientRowActions({
         {open && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-            <div className="absolute right-0 top-9 z-50 w-44 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] shadow-lg py-1 text-sm">
+            {/* Fixed position — never clipped by table overflow */}
+            <div
+              className="fixed z-50 w-44 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] shadow-lg py-1 text-sm"
+              style={{ top: pos.top, right: pos.right }}
+            >
               <button
                 onClick={() => { setOpen(false); setShowAssign(true) }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors"
@@ -87,9 +105,7 @@ export function ClientRowActions({
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors disabled:opacity-50 hover:bg-[var(--color-muted)]"
                 style={{ color: isActive ? 'var(--color-destructive)' : 'var(--color-coach)' }}
               >
-                {isActive
-                  ? <UserX size={13} />
-                  : <UserCheck size={13} />}
+                {isActive ? <UserX size={13} /> : <UserCheck size={13} />}
                 {isPending ? 'Actualizando…' : isActive ? 'Desactivar' : 'Activar'}
               </button>
             </div>
@@ -97,17 +113,14 @@ export function ClientRowActions({
         )}
       </div>
 
-      {/* ── Assign plan modal ── */}
+      {/* Assign plan modal */}
       {showAssign && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-xl">
-            <h2 className="text-base font-semibold text-[var(--color-foreground)] mb-1">
-              Asignar plan
-            </h2>
+            <h2 className="text-base font-semibold text-[var(--color-foreground)] mb-1">Asignar plan</h2>
             <p className="text-sm text-[var(--color-muted-foreground)] mb-5">
               Selecciona el plan para <strong>{clientName}</strong>
             </p>
-
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {plans.length > 0 ? plans.map((plan) => (
                 <button
@@ -130,12 +143,9 @@ export function ClientRowActions({
                   </span>
                 </button>
               )) : (
-                <p className="text-sm text-[var(--color-muted-foreground)] text-center py-4">
-                  No hay planes disponibles
-                </p>
+                <p className="text-sm text-[var(--color-muted-foreground)] text-center py-4">No hay planes disponibles</p>
               )}
             </div>
-
             <div className="flex gap-2.5 mt-5">
               <button
                 onClick={() => { setShowAssign(false); setSelectedPlan(null) }}

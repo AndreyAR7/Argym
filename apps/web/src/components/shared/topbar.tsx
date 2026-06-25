@@ -24,6 +24,8 @@ interface TopbarProps {
   accentColor?: string
   brandLabel?: string
   profileHref?: string
+  helpHref?: string
+  contactHref?: string
 }
 
 export function Topbar({
@@ -34,6 +36,8 @@ export function Topbar({
   accentColor = 'var(--color-admin)',
   brandLabel = 'ARGYM',
   profileHref = '#',
+  helpHref = '#',
+  contactHref = '#',
 }: TopbarProps) {
   const { theme, setTheme } = useTheme()
   const [open, setOpen] = useState(false)
@@ -159,22 +163,24 @@ export function Topbar({
 
             {/* Help & Contact */}
             <div className="py-1 border-b" style={{ borderColor: 'var(--color-border)' }}>
-              <button
+              <Link
+                href={helpHref}
                 onClick={() => setOpen(false)}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm transition-colors hover:bg-[var(--color-muted)]"
+                className="flex items-center gap-2.5 px-3.5 py-2 text-sm transition-colors hover:bg-[var(--color-muted)]"
                 style={{ color: 'var(--color-foreground)' }}
               >
                 <HelpCircle size={14} style={{ color: 'var(--color-muted-foreground)' }} />
                 Ayuda
-              </button>
-              <button
+              </Link>
+              <Link
+                href={contactHref}
                 onClick={() => setOpen(false)}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm transition-colors hover:bg-[var(--color-muted)]"
+                className="flex items-center gap-2.5 px-3.5 py-2 text-sm transition-colors hover:bg-[var(--color-muted)]"
                 style={{ color: 'var(--color-foreground)' }}
               >
                 <Mail size={14} style={{ color: 'var(--color-muted-foreground)' }} />
                 Contáctenos
-              </button>
+              </Link>
             </div>
 
             {/* Logout */}
