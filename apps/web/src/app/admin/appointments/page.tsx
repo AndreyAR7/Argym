@@ -66,7 +66,7 @@ export default async function AppointmentsPage({
   const PAGE_SIZE = 30
 
   const session = await getSessionData()
-  const { supabase, tenantId } = session!
+  const { supabase, tenantId, user } = session!
 
   const weekStart = getWeekStart(params.week)
   const weekEnd = new Date(weekStart)
@@ -142,7 +142,7 @@ export default async function AppointmentsPage({
             <CalendarDays size={13} />Calendario
           </Link>
         </div>
-        <NewAppointmentButton coaches={coachList} clients={clientList} currentUserId={session.user.id} />
+        <NewAppointmentButton coaches={coachList} clients={clientList} currentUserId={user.id} />
       </PageHeader>
 
       {view === 'calendar' ? (
