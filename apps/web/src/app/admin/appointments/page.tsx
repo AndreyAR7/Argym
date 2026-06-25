@@ -97,22 +97,14 @@ export default async function AppointmentsPage({
     .lt('start_time', weekEnd.toISOString())
     .order('start_time', { ascending: true })
 
-  const [{ data: coachRoles }, { data: clientRoles }, appointmentsResult] = await Promise.all([
-    supabase
-      .from('user_roles')
-      .select('profiles!inner(id, full_name), roles!inner(name)')
-      .eq('tenant_id', tenantId)
-      .eq('roles.name', 'coach'),
-    supabase
-      .from('user_roles')
-      .select('profiles!inner(id, full_name, client_level), roles!inner(name)')
-      .eq('tenant_id', tenantId)
-      .eq('roles.name', 'client'),
+  const [coachResult, clientResult, appointmentsResult] = await Promise.all([
+    supabase.rpc('get_profiles_by_role', { role_name: 'coach' }),
+    supabase.rpc('get_profiles_by_role', { role_name: 'client' }),
     view === 'calendar' ? calendarQuery : listQuery,
   ])
 
-  const coachList = (coachRoles ?? []).map((r) => (r.profiles as any))
-  const clientList = (clientRoles ?? []).map((r) => (r.profiles as any))
+  const coachList = coachResult.data ?? []
+  const clientList = clientResult.data ?? []
   const appointments = (appointmentsResult.data ?? []) as any[]
   const count = (appointmentsResult as any).count as number | null
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE)
