@@ -27,18 +27,11 @@ export async function createAppointmentAction(data: {
   appointment_type: 'in_person' | 'virtual' | 'phone'
   location: string | null
   meeting_url: string | null
+  participant_ids?: string[]
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
-
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('tenant_id')
-    .eq('id', user.id)
-    .single()
-
-  if (profileError || !profile) return { error: 'No se pudo obtener el tenant del usuario' }
 
   const { data: newId, error } = await supabase.rpc('create_appointment', {
     p_title:            data.title,
@@ -51,7 +44,8 @@ export async function createAppointmentAction(data: {
     p_location:         data.location,
     p_meeting_url:      data.meeting_url,
     p_description:      data.description,
-    p_group_mode:       'individual',
+    p_group_mode:       data.participant_ids && data.participant_ids.length > 1 ? 'group' : 'individual',
+    p_participant_ids:  data.participant_ids ?? null,
   })
 
   if (error) {
