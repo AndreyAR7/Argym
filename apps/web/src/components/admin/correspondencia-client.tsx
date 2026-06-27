@@ -2,9 +2,9 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Mail, Zap, FileText, Plus, ToggleLeft, ToggleRight, Trash2, Edit3, Send, CheckCircle2, Eye, EyeOff, Server, FlaskConical, AlertCircle } from 'lucide-react'
+import { Mail, Zap, FileText, Plus, ToggleLeft, ToggleRight, Trash2, Edit3, Send, CheckCircle2, Eye, EyeOff, Server, FlaskConical, AlertCircle, Download, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { testSmtpAction } from '@/app/admin/correspondencia/actions'
+import { testSmtpAction, seedDefaultTemplatesAction, updateTemplateAction, deleteTemplateAction } from '@/app/admin/correspondencia/actions'
 
 // ── Types ──────────────────────────────────────────────────────
 interface Rule {
@@ -12,7 +12,7 @@ interface Rule {
   delay_minutes: number; is_active: boolean; template_id: string | null
   email_templates: { name: string }[] | { name: string } | null
 }
-interface Template { id: string; name: string; subject: string; variables: string[]; created_at: string }
+interface Template { id: string; name: string; subject: string; body_html: string; variables: string[]; created_at: string }
 interface SmtpConfig {
   id?: string; host: string; port: number; username: string; password: string
   from_email: string; from_name: string; use_tls: boolean; is_active: boolean
@@ -67,8 +67,10 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
 
   const [showRuleModal,     setShowRuleModal]     = useState(false)
   const [showTemplateModal, setShowTemplateModal] = useState(false)
+  const [editingTemplate,   setEditingTemplate]   = useState<Template | null>(null)
   const [smtpSaved,         setSmtpSaved]         = useState(false)
   const [showPassword,      setShowPassword]      = useState(false)
+  const [seedStatus,        setSeedStatus]        = useState<string | null>(null)
   const [isPending,         startTransition]      = useTransition()
 
   const supabase = createClient()
@@ -77,6 +79,26 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
     backgroundColor: 'var(--color-input)',
     border: '1px solid var(--color-border)',
     color: 'var(--color-foreground)',
+  }
+
+  async function handleSeedTemplates() {
+    setSeedStatus('loading')
+    startTransition(async () => {
+      const res = await seedDefaultTemplatesAction()
+      if (res.error) {
+        setSeedStatus(`Error: ${res.error}`)
+      } else {
+        setSeedStatus(`✓ ${res.inserted} plantillas importadas`)
+        router.refresh()
+      }
+      setTimeout(() => setSeedStatus(null), 4000)
+    })
+  }
+
+  async function handleDeleteTemplate(id: string) {
+    if (!confirm('¿Eliminar esta plantilla? Las reglas que la usan quedarán sin plantilla.')) return
+    const res = await deleteTemplateAction(id)
+    if (!res.error) setTemplates(prev => prev.filter(t => t.id !== id))
   }
 
   async function toggleRule(id: string, current: boolean) {
@@ -214,22 +236,48 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
       {/* ── TEMPLATES TAB ─────────────────────────────────────── */}
       {tab === 'templates' && (
         <div>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
-              Diseña los emails que serán enviados por las reglas. Usa {'{{variable}}'} para campos dinámicos.
+              Diseña los emails enviados por las reglas. Usa {'{{variable}}'} para campos dinámicos.
             </p>
-            <button onClick={() => setShowTemplateModal(true)}
-              className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium shrink-0"
-              style={{ backgroundColor: 'var(--color-admin)', color: 'white' }}>
-              <Plus size={15} />Nueva plantilla
-            </button>
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={handleSeedTemplates}
+                disabled={isPending || seedStatus === 'loading'}
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium border disabled:opacity-60 transition-colors"
+                style={{ borderColor: 'var(--color-border)', color: 'var(--color-foreground)', backgroundColor: 'var(--color-muted)' }}
+              >
+                {seedStatus === 'loading'
+                  ? <><Loader2 size={13} className="animate-spin" />Importando…</>
+                  : <><Download size={13} />Importar predeterminadas</>
+                }
+              </button>
+              <button onClick={() => setShowTemplateModal(true)}
+                className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium"
+                style={{ backgroundColor: 'var(--color-admin)', color: 'white' }}>
+                <Plus size={15} />Nueva
+              </button>
+            </div>
           </div>
+
+          {seedStatus && seedStatus !== 'loading' && (
+            <div className="mb-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+              style={{
+                backgroundColor: seedStatus.startsWith('Error')
+                  ? 'color-mix(in srgb, var(--color-destructive) 8%, transparent)'
+                  : 'color-mix(in srgb, var(--color-coach) 8%, transparent)',
+                color: seedStatus.startsWith('Error') ? 'var(--color-destructive)' : 'var(--color-coach)',
+                border: `1px solid ${seedStatus.startsWith('Error') ? 'color-mix(in srgb, var(--color-destructive) 25%, transparent)' : 'color-mix(in srgb, var(--color-coach) 25%, transparent)'}`,
+              }}>
+              {seedStatus}
+            </div>
+          )}
 
           {templates.length === 0 ? (
             <EmptyState
               Icon={FileText}
               title="Sin plantillas"
-              desc="Crea plantillas de email para usar en tus reglas de correspondencia."
+              desc="Importa las plantillas predeterminadas o crea una nueva desde cero."
               action="Nueva plantilla"
               onAction={() => setShowTemplateModal(true)}
             />
@@ -239,13 +287,22 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
                 <div key={t.id} className="rounded-xl border p-4 hover:shadow-sm transition-shadow"
                   style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
                   <div className="flex items-start justify-between gap-2">
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold" style={{ color: 'var(--color-foreground)' }}>{t.name}</p>
                       <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--color-muted-foreground)' }}>{t.subject}</p>
                     </div>
-                    <div className="flex gap-1">
-                      <button className="p-1.5 rounded hover:bg-[var(--color-muted)] transition-colors" style={{ color: 'var(--color-muted-foreground)' }}>
+                    <div className="flex gap-1 shrink-0">
+                      <button
+                        onClick={() => setEditingTemplate(t)}
+                        className="p-1.5 rounded hover:bg-[var(--color-muted)] transition-colors"
+                        style={{ color: 'var(--color-muted-foreground)' }}>
                         <Edit3 size={13} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTemplate(t.id)}
+                        className="p-1.5 rounded hover:bg-[var(--color-destructive)]/10 transition-colors"
+                        style={{ color: 'var(--color-destructive)' }}>
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </div>
@@ -374,6 +431,18 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
           onSaved={(t) => { setTemplates(prev => [t, ...prev]); setShowTemplateModal(false) }}
         />
       )}
+
+      {/* ── Template edit modal ───────────────────────────────── */}
+      {editingTemplate && (
+        <TemplateEditModal
+          template={editingTemplate}
+          onClose={() => setEditingTemplate(null)}
+          onSaved={(updated) => {
+            setTemplates(prev => prev.map(t => t.id === updated.id ? updated : t))
+            setEditingTemplate(null)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -495,7 +564,7 @@ function TemplateModal({ tenantId, onClose, onSaved }: { tenantId: string; onClo
       const { data, error } = await supabase
         .from('email_templates')
         .insert(payload)
-        .select('id, name, subject, variables, created_at')
+        .select('id, name, subject, body_html, variables, created_at')
         .single()
       if (error) { setError(error.message) } else { onSaved(data as Template) }
     })
@@ -627,6 +696,88 @@ function SmtpTester() {
             <span>{status.message}</span>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── Template Edit Modal ─────────────────────────────────────────
+function TemplateEditModal({ template, onClose, onSaved }: {
+  template: Template; onClose: () => void; onSaved: (t: Template) => void
+}) {
+  const [isPending, startTransition] = useTransition()
+  const [variables, setVariables]    = useState<string[]>(template.variables)
+  const [error, setError]            = useState('')
+
+  const VARS = ['client_name', 'coach_name', 'appointment_date', 'appointment_time', 'plan_name', 'gym_name', 'login_url']
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const fd = new FormData(e.currentTarget)
+    const payload = {
+      name:      fd.get('name') as string,
+      subject:   fd.get('subject') as string,
+      body_html: fd.get('body_html') as string,
+      variables,
+    }
+    startTransition(async () => {
+      const res = await updateTemplateAction(template.id, payload)
+      if (res.error) { setError(res.error) }
+      else           { onSaved({ ...template, ...payload }) }
+    })
+  }
+
+  const inputStyle: React.CSSProperties = { backgroundColor: 'var(--color-input)', border: '1px solid var(--color-border)', color: 'var(--color-foreground)' }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-2xl rounded-2xl shadow-xl flex flex-col max-h-[92vh]"
+        style={{ backgroundColor: 'var(--color-card)', border: '1px solid var(--color-border)' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ borderColor: 'var(--color-border)' }}>
+          <h2 className="text-base font-semibold" style={{ color: 'var(--color-foreground)' }}>Editar plantilla</h2>
+          <button onClick={onClose} style={{ color: 'var(--color-muted-foreground)' }}><Mail size={16} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Nombre interno" required>
+                <input name="name" required defaultValue={template.name}
+                  className="rounded-lg px-3 py-2 text-sm outline-none w-full" style={inputStyle} />
+              </Field>
+              <Field label="Asunto del email" required>
+                <input name="subject" required defaultValue={template.subject}
+                  className="rounded-lg px-3 py-2 text-sm outline-none w-full" style={inputStyle} />
+              </Field>
+            </div>
+            <Field label="Variables disponibles">
+              <div className="flex flex-wrap gap-1.5">
+                {VARS.map(v => (
+                  <button key={v} type="button"
+                    onClick={() => setVariables(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])}
+                    className="text-[10px] px-2 py-1 rounded-full font-medium transition-colors"
+                    style={variables.includes(v)
+                      ? { backgroundColor: 'var(--color-admin)', color: 'white' }
+                      : { backgroundColor: 'var(--color-muted)', color: 'var(--color-muted-foreground)' }}>
+                    {`{{${v}}}`}
+                  </button>
+                ))}
+              </div>
+            </Field>
+            <Field label="Cuerpo del email (HTML permitido)" required>
+              <textarea name="body_html" required rows={16} defaultValue={template.body_html}
+                key={template.id}
+                className="rounded-lg px-3 py-2 text-sm outline-none resize-y font-mono w-full" style={inputStyle} />
+            </Field>
+            {error && <p className="text-sm rounded-lg px-3 py-2" style={{ backgroundColor: 'color-mix(in srgb, var(--color-destructive) 8%, transparent)', color: 'var(--color-destructive)' }}>{error}</p>}
+          </div>
+          <div className="px-6 py-4 border-t flex justify-end gap-3 flex-shrink-0" style={{ borderColor: 'var(--color-border)' }}>
+            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium" style={{ backgroundColor: 'var(--color-muted)', color: 'var(--color-foreground)' }}>Cancelar</button>
+            <button type="submit" disabled={isPending} className="rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-60" style={{ backgroundColor: 'var(--color-admin)', color: 'white' }}>
+              {isPending ? 'Guardando…' : 'Guardar cambios'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   )

@@ -17,7 +17,7 @@ export default async function CorrespondenciaPage() {
       .order('created_at', { ascending: false }),
     supabase
       .from('email_templates')
-      .select('id, name, subject, variables, created_at')
+      .select('id, name, subject, body_html, variables, created_at')
       .order('created_at', { ascending: false }),
     supabase
       .from('smtp_configs')
