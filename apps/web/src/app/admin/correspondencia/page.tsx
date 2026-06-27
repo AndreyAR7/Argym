@@ -8,7 +8,7 @@ export const metadata = { title: 'Correspondencia' }
 export default async function CorrespondenciaPage() {
   const session = await getSessionData()
   if (!session) redirect('/login')
-  const { supabase } = session
+  const { supabase, tenantId } = session
 
   const [rulesResult, templatesResult, smtpResult] = await Promise.all([
     supabase
@@ -35,6 +35,7 @@ export default async function CorrespondenciaPage() {
         rules={rulesResult.data ?? []}
         templates={templatesResult.data ?? []}
         smtpConfig={smtpResult.data ?? null}
+        tenantId={tenantId}
       />
     </div>
   )

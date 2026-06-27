@@ -52,8 +52,8 @@ const EVENT_COLORS: Record<string, string> = {
 }
 
 // ── Main Component ──────────────────────────────────────────────
-export function CorrespondenciaClient({ rules: initialRules, templates: initialTemplates, smtpConfig: initialSmtp }: {
-  rules: Rule[]; templates: Template[]; smtpConfig: SmtpConfig | null
+export function CorrespondenciaClient({ rules: initialRules, templates: initialTemplates, smtpConfig: initialSmtp, tenantId }: {
+  rules: Rule[]; templates: Template[]; smtpConfig: SmtpConfig | null; tenantId: string
 }) {
   const router = useRouter()
   const [tab, setTab] = useState<'rules' | 'templates' | 'smtp'>('rules')
@@ -93,6 +93,7 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
     const payload = {
+      tenant_id:  tenantId,
       host:       fd.get('host') as string,
       port:       parseInt(fd.get('port') as string) || 587,
       username:   fd.get('username') as string,
@@ -356,6 +357,7 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
       {showRuleModal && (
         <RuleModal
           templates={templates}
+          tenantId={tenantId}
           onClose={() => setShowRuleModal(false)}
           onSaved={(r) => { setRules(prev => [r as Rule, ...prev]); setShowRuleModal(false) }}
         />
@@ -364,6 +366,7 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
       {/* ── Template modal ────────────────────────────────────── */}
       {showTemplateModal && (
         <TemplateModal
+          tenantId={tenantId}
           onClose={() => setShowTemplateModal(false)}
           onSaved={() => { setShowTemplateModal(false); router.refresh() }}
         />
@@ -396,8 +399,8 @@ function EmptyState({ Icon, title, desc, action, onAction }: {
 }
 
 // ── Rule Modal ──────────────────────────────────────────────────
-function RuleModal({ templates, onClose, onSaved }: {
-  templates: Template[]; onClose: () => void; onSaved: (rule: Partial<Rule>) => void
+function RuleModal({ templates, tenantId, onClose, onSaved }: {
+  templates: Template[]; tenantId: string; onClose: () => void; onSaved: (rule: Partial<Rule>) => void
 }) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState('')
@@ -407,6 +410,7 @@ function RuleModal({ templates, onClose, onSaved }: {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
     const payload = {
+      tenant_id:     tenantId,
       name:          fd.get('name') as string,
       event_type:    fd.get('event_type') as string,
       template_id:   (fd.get('template_id') as string) || null,
@@ -471,7 +475,7 @@ function RuleModal({ templates, onClose, onSaved }: {
 }
 
 // ── Template Modal ──────────────────────────────────────────────
-function TemplateModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function TemplateModal({ tenantId, onClose, onSaved }: { tenantId: string; onClose: () => void; onSaved: () => void }) {
   const [isPending, startTransition] = useTransition()
   const [variables, setVariables] = useState<string[]>([])
   const [error, setError] = useState('')
@@ -482,7 +486,7 @@ function TemplateModal({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
-    const payload = { name: fd.get('name') as string, subject: fd.get('subject') as string, body_html: fd.get('body_html') as string, variables }
+    const payload = { tenant_id: tenantId, name: fd.get('name') as string, subject: fd.get('subject') as string, body_html: fd.get('body_html') as string, variables }
 
     startTransition(async () => {
       const { error } = await supabase.from('email_templates').insert(payload)
