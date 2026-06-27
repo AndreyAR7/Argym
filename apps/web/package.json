@@ -27,9 +27,11 @@
     "react-hook-form": "^7.54.2",
     "tailwind-merge": "^2.6.0",
     "zod": "^3.25.0",
-    "zustand": "^5.0.2"
+    "zustand": "^5.0.2",
+    "nodemailer": "^6.9.16"
   },
   "devDependencies": {
+    "@types/nodemailer": "^6.4.17",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",

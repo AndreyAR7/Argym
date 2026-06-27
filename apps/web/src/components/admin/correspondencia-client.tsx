@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Mail, Zap, FileText, Settings, Plus, ToggleLeft, ToggleRight, Trash2, Edit3, Send, CheckCircle2, Eye, EyeOff, Server } from 'lucide-react'
+import { Mail, Zap, FileText, Plus, ToggleLeft, ToggleRight, Trash2, Edit3, Send, CheckCircle2, Eye, EyeOff, Server, FlaskConical, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { testSmtpAction } from '@/app/admin/correspondencia/actions'
 
 // ── Types ──────────────────────────────────────────────────────
 interface Rule {
@@ -350,6 +351,8 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
             style={{ backgroundColor: 'color-mix(in srgb, var(--color-admin) 6%, transparent)', borderColor: 'color-mix(in srgb, var(--color-admin) 20%, transparent)', color: 'var(--color-muted-foreground)' }}>
             <strong style={{ color: 'var(--color-foreground)' }}>Nota:</strong> El envío de emails se activará automáticamente cuando configures el SMTP y crees reglas activas. Recomendamos Gmail App Passwords o SendGrid para mayor confiabilidad.
           </div>
+
+          <SmtpTester />
         </div>
       )}
 
@@ -549,6 +552,77 @@ function TemplateModal({ tenantId, onClose, onSaved }: { tenantId: string; onClo
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+// ── SMTP Tester ─────────────────────────────────────────────────
+function SmtpTester() {
+  const [email, setEmail]   = useState('')
+  const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null)
+  const [isPending, start]  = useTransition()
+
+  function handleTest() {
+    if (!email) return
+    setStatus(null)
+    start(async () => {
+      const result = await testSmtpAction(email)
+      setStatus(result)
+    })
+  }
+
+  return (
+    <div className="mt-6 rounded-xl border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
+      <div className="flex items-center gap-2 px-5 py-3 border-b" style={{ backgroundColor: 'var(--color-muted)', borderColor: 'var(--color-border)' }}>
+        <FlaskConical size={14} style={{ color: 'var(--color-admin)' }} />
+        <span className="text-sm font-semibold" style={{ color: 'var(--color-foreground)' }}>Probar conexión SMTP</span>
+      </div>
+
+      <div className="px-5 py-4" style={{ backgroundColor: 'var(--color-card)' }}>
+        <p className="text-xs mb-3" style={{ color: 'var(--color-muted-foreground)' }}>
+          Ingresa un correo destino y envía un email de prueba para verificar que la configuración SMTP funciona correctamente.
+        </p>
+
+        <div className="flex gap-2">
+          <input
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="destinatario@ejemplo.com"
+            className="flex-1 rounded-lg px-3 py-2 text-sm outline-none"
+            style={{ backgroundColor: 'var(--color-input)', border: '1px solid var(--color-border)', color: 'var(--color-foreground)' }}
+            onKeyDown={e => e.key === 'Enter' && handleTest()}
+          />
+          <button
+            onClick={handleTest}
+            disabled={isPending || !email}
+            className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50 shrink-0"
+            style={{ backgroundColor: 'var(--color-admin)', color: 'white' }}
+          >
+            {isPending
+              ? <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Enviando…</>
+              : <><Send size={13} />Enviar prueba</>
+            }
+          </button>
+        </div>
+
+        {status && (
+          <div className="mt-3 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm"
+            style={{
+              backgroundColor: status.ok
+                ? 'color-mix(in srgb, var(--color-coach) 10%, transparent)'
+                : 'color-mix(in srgb, var(--color-destructive) 10%, transparent)',
+              color: status.ok ? 'var(--color-coach)' : 'var(--color-destructive)',
+              border: `1px solid ${status.ok ? 'color-mix(in srgb, var(--color-coach) 25%, transparent)' : 'color-mix(in srgb, var(--color-destructive) 25%, transparent)'}`,
+            }}>
+            {status.ok
+              ? <CheckCircle2 size={15} className="shrink-0 mt-0.5" />
+              : <AlertCircle  size={15} className="shrink-0 mt-0.5" />
+            }
+            <span>{status.message}</span>
+          </div>
+        )}
       </div>
     </div>
   )
