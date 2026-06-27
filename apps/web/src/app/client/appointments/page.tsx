@@ -50,15 +50,15 @@ export default async function ClientAppointmentsPage({
   // For calendar view fetch only the current week; for list view fetch all
   const query = supabase
     .from('appointments')
-    .select('id, title, starts_at, ends_at, status, appointment_type, notes, coach:profiles!appointments_coach_id_fkey(full_name)')
+    .select('id, title, start_time, end_time, status, appointment_type, notes, coach:profiles!appointments_coach_id_fkey(full_name)')
     .eq('client_id', user.id)
 
   const { data: appointments } = view === 'calendar'
     ? await query
-        .gte('starts_at', weekStart.toISOString())
-        .lt('starts_at', weekEnd.toISOString())
-        .order('starts_at')
-    : await query.order('starts_at', { ascending: false })
+        .gte('start_time', weekStart.toISOString())
+        .lt('start_time', weekEnd.toISOString())
+        .order('start_time')
+    : await query.order('start_time', { ascending: false })
 
   // Supabase returns foreign-key joins as arrays; normalize to object | null
   const all = (appointments ?? []).map((a: any) => ({
@@ -70,8 +70,8 @@ export default async function ClientAppointmentsPage({
 
   function AppointmentCard({ appt }: { appt: any }) {
     const status = STATUS_CONFIG[appt.status] ?? { label: appt.status, cls: 'bg-[var(--color-muted)] text-[var(--color-muted-foreground)] border-[var(--color-border)]' }
-    const start  = new Date(appt.starts_at)
-    const end    = appt.ends_at ? new Date(appt.ends_at) : null
+    const start  = new Date(appt.start_time)
+    const end    = appt.end_time ? new Date(appt.end_time) : null
     return (
       <div className="flex items-start gap-4 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)]">
         <div className="w-10 h-10 rounded-lg bg-[var(--color-client-light)] flex flex-col items-center justify-center flex-shrink-0 text-[var(--color-client)]">

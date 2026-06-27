@@ -7,8 +7,8 @@ import { ChevronLeft, ChevronRight, Clock, User, MapPin, Video, Phone, X } from 
 interface Appointment {
   id: string
   title: string
-  starts_at: string
-  ends_at: string
+  start_time: string
+  end_time: string
   status: string
   appointment_type: string
   notes: string | null
@@ -113,7 +113,7 @@ export function ClientAppointmentsCalendar({ appointments, weekStart }: Props) {
 
   const aptsByDate: Record<string, Appointment[]> = {}
   for (const apt of appointments) {
-    const k = isoToLocalDateStr(apt.starts_at)
+    const k = isoToLocalDateStr(apt.start_time)
     if (!aptsByDate[k]) aptsByDate[k] = []
     aptsByDate[k].push(apt)
   }
@@ -229,10 +229,10 @@ export function ClientAppointmentsCalendar({ appointments, weekStart }: Props) {
 
                 {/* Appointment blocks */}
                 {dayApts.map(apt => {
-                  const top    = topForTime(apt.starts_at)
-                  const height = heightForDuration(apt.starts_at, apt.ends_at)
+                  const top    = topForTime(apt.start_time)
+                  const height = heightForDuration(apt.start_time, apt.end_time)
                   const color  = STATUS_COLORS[apt.status] ?? 'var(--color-client)'
-                  const startD = new Date(apt.starts_at)
+                  const startD = new Date(apt.start_time)
                   const timeStr = `${String(startD.getHours()).padStart(2,'0')}:${String(startD.getMinutes()).padStart(2,'0')}`
 
                   return (
@@ -292,9 +292,9 @@ export function ClientAppointmentsCalendar({ appointments, weekStart }: Props) {
             <div className="space-y-2 text-xs text-[var(--color-muted-foreground)]">
               <div className="flex items-center gap-1.5">
                 <Clock size={11} />
-                {new Date(tooltip.apt.starts_at).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' })}
+                {new Date(tooltip.apt.start_time).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' })}
                 {' — '}
-                {new Date(tooltip.apt.ends_at).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' })}
+                {new Date(tooltip.apt.end_time).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' })}
               </div>
 
               {tooltip.apt.coach && (
