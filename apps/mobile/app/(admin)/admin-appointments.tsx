@@ -274,6 +274,21 @@ export default function AdminAppointmentsScreen() {
     if (!title.trim()) errors.push('Ingresa un título para la cita.');
     if (selectedClients.length === 0) errors.push('Selecciona al menos un cliente.');
     if (!durationMin) errors.push('Selecciona una duración.');
+
+    const now = new Date();
+    const todayDateStr = now.toLocaleDateString('en-CA');
+    const startDateStr = startDate.toLocaleDateString('en-CA');
+    if (startDateStr < todayDateStr) {
+      errors.push(`No se puede crear una cita en una fecha pasada (${startDateStr}).`);
+    } else if (startDateStr === todayDateStr) {
+      const oneHourAgo = new Date(now.getTime() - 3600000);
+      const startDt = new Date(startISO);
+      if (startDt < oneHourAgo) {
+        const limit = oneHourAgo.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' });
+        errors.push(`La hora de inicio no puede ser anterior a las ${limit} (máximo 1 hora en el pasado).`);
+      }
+    }
+
     if (errors.length > 0) { setFormErrors(errors); return; }
 
     if (!authTenantId) {
