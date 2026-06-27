@@ -1,8 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
-import { PageHeader } from '@/components/shared/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
-import { formatDate } from '@/lib/utils'
+import { CoachNewAppointmentButton } from '@/components/coach/coach-new-appointment-button'
 import { CalendarDays, MapPin, Video, Phone } from 'lucide-react'
 import Link from 'next/link'
 
@@ -47,17 +46,25 @@ export default async function CoachAppointmentsPage({
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  let query = supabase
-    .from('appointments')
-    .select('id, title, start_time, end_time, status, appointment_type, location, meeting_url, notes, client_id', { count: 'exact' })
-    .eq('coach_id', user!.id)
-    .order('start_time', { ascending: false })
+  const [appointmentsResult, profileResult, clientsResult] = await Promise.all([
+    (() => {
+      let q = supabase
+        .from('appointments')
+        .select('id, title, start_time, end_time, status, appointment_type, location, meeting_url, notes, client_id', { count: 'exact' })
+        .eq('coach_id', user!.id)
+        .order('start_time', { ascending: false })
+      if (statusFilter !== 'all') q = q.eq('status', statusFilter)
+      return q
+    })(),
+    supabase.from('profiles').select('full_name').eq('id', user!.id).single(),
+    supabase.rpc('get_profiles_by_role', { role_name: 'client' }),
+  ])
 
-  if (statusFilter !== 'all') query = query.eq('status', statusFilter)
+  const { data: appointments, count } = appointmentsResult
+  const coachName = profileResult.data?.full_name ?? ''
+  const clientList = (clientsResult.data ?? []) as { id: string; full_name: string }[]
 
-  const { data: appointments, count } = await query
-
-  // Fetch client profiles for appointments
+  // Fetch client profiles for display in the table
   const clientIds = [...new Set((appointments ?? []).map((a: any) => a.client_id).filter(Boolean))]
   const clientMap = new Map<string, { full_name: string; avatar_url: string | null }>()
   if (clientIds.length > 0) {
@@ -70,10 +77,25 @@ export default async function CoachAppointmentsPage({
 
   return (
     <div className="p-4 md:p-8">
-      <PageHeader title="Mis Citas" subtitle={`${count ?? 0} cita${count !== 1 ? 's' : ''}`} />
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-lg md:text-xl font-semibold tracking-tight text-[var(--color-foreground)]">
+            Mis Citas
+          </h1>
+          <p className="mt-0.5 text-sm text-[var(--color-muted-foreground)]">
+            {count ?? 0} cita{count !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <CoachNewAppointmentButton
+          clients={clientList}
+          coachId={user!.id}
+          coachName={coachName}
+        />
+      </div>
 
       {/* Status tabs */}
-      <div className="mt-6 flex items-center gap-1 bg-[var(--color-muted)] rounded-lg p-1 overflow-x-auto">
+      <div className="flex items-center gap-1 bg-[var(--color-muted)] rounded-lg p-1 overflow-x-auto">
         {STATUS_TABS.map((tab) => (
           <Link
             key={tab.value}

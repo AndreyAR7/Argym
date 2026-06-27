@@ -5,21 +5,12 @@ import { useCallback } from 'react'
 import { Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-interface ClientFiltersProps {
+interface CoachFiltersProps {
   defaultSearch: string
-  defaultLevel: string
   defaultStatus: string
   defaultBranch?: string
   branches?: { id: string; name: string }[]
 }
-
-const LEVELS = [
-  { value: 'all',          label: 'Todos los niveles' },
-  { value: 'beginner',     label: 'Principiante' },
-  { value: 'intermediate', label: 'Intermedio' },
-  { value: 'advanced',     label: 'Avanzado' },
-  { value: 'none',         label: 'Sin nivel' },
-]
 
 const STATUSES = [
   { value: 'all',      label: 'Todos' },
@@ -28,13 +19,12 @@ const STATUSES = [
   { value: 'rejected', label: 'Rechazados' },
 ]
 
-export function ClientFilters({
+export function CoachFilters({
   defaultSearch,
-  defaultLevel,
   defaultStatus,
   defaultBranch = 'all',
   branches = [],
-}: ClientFiltersProps) {
+}: CoachFiltersProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -44,24 +34,15 @@ export function ClientFilters({
       const params = new URLSearchParams(searchParams.toString())
       if (value && value !== 'all') params.set(key, value)
       else params.delete(key)
-      params.delete('page')
       router.replace(`${pathname}?${params.toString()}`, { scroll: false })
     },
     [router, pathname, searchParams],
   )
 
-  const hasFilters =
-    defaultSearch ||
-    defaultLevel !== 'all' ||
-    defaultStatus !== 'all' ||
-    (defaultBranch && defaultBranch !== 'all')
-
-  function clearAll() {
-    router.replace(pathname, { scroll: false })
-  }
+  const hasFilters = defaultSearch || defaultStatus !== 'all' || (defaultBranch && defaultBranch !== 'all')
 
   return (
-    <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+    <div className="mt-6 flex flex-col sm:flex-row flex-wrap gap-3">
       {/* Search */}
       <div className="relative flex-1 max-w-xs">
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
@@ -69,21 +50,10 @@ export function ClientFilters({
           type="search"
           defaultValue={defaultSearch}
           onChange={(e) => updateParam('search', e.target.value)}
-          placeholder="Buscar por nombre..."
+          placeholder="Buscar coach..."
           className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-[var(--color-input)] bg-[var(--color-card)] text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] outline-none focus:border-[var(--color-ring)] focus:ring-2 focus:ring-[var(--color-ring)]/20 transition-all"
         />
       </div>
-
-      {/* Level filter */}
-      <select
-        defaultValue={defaultLevel}
-        onChange={(e) => updateParam('level', e.target.value)}
-        className="px-3 py-2 text-sm rounded-lg border border-[var(--color-input)] bg-[var(--color-card)] text-[var(--color-foreground)] outline-none focus:border-[var(--color-ring)] focus:ring-2 focus:ring-[var(--color-ring)]/20 transition-all cursor-pointer"
-      >
-        {LEVELS.map((l) => (
-          <option key={l.value} value={l.value}>{l.label}</option>
-        ))}
-      </select>
 
       {/* Branch filter */}
       {branches.length > 0 && (
@@ -117,10 +87,10 @@ export function ClientFilters({
         ))}
       </div>
 
-      {/* Clear all */}
+      {/* Clear */}
       {hasFilters && (
         <button
-          onClick={clearAll}
+          onClick={() => router.replace(pathname, { scroll: false })}
           className="flex items-center gap-1.5 px-3 py-2 text-xs text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors"
         >
           <X size={12} />

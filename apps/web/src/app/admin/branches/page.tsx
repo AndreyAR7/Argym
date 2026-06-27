@@ -1,68 +1,97 @@
-import { getSessionData } from '@/lib/auth/session'
+import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/shared/page-header'
-import { BranchesTable } from '@/components/admin/branches-table'
-import { Building2 } from 'lucide-react'
+import { Building2, MapPin, Phone, Mail, Users2 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { BranchActions } from '@/components/admin/branch-actions'
+import { NewBranchButton } from '@/components/admin/new-branch-button'
+import { formatDate } from '@/lib/utils'
 
 export const metadata = { title: 'Sucursales' }
 
 export default async function BranchesPage() {
-  const session = await getSessionData()
-  const { supabase, tenantId } = session!
+  const supabase = await createClient()
+  const { data: branches } = await supabase.rpc('get_branches_with_stats')
 
-  const [{ data: branches }, { data: branchProfiles }] = await Promise.all([
-    supabase
-      .from('branches')
-      .select('id, name, address, phone, email, is_active')
-      .eq('tenant_id', tenantId)
-      .order('name'),
-    supabase
-      .from('profiles')
-      .select('branch_id')
-      .eq('tenant_id', tenantId)
-      .not('branch_id', 'is', null),
-  ])
-
-  // Client count per branch
-  const countByBranch = (branchProfiles ?? []).reduce<Record<string, number>>((acc, p) => {
-    if (p.branch_id) acc[p.branch_id] = (acc[p.branch_id] ?? 0) + 1
-    return acc
-  }, {})
-
-  const branchList = (branches ?? []).map((b) => ({
-    ...b,
-    client_count: countByBranch[b.id] ?? 0,
-  }))
-
-  const totalClients = branchList.reduce((sum, b) => sum + b.client_count, 0)
-  const activeBranches = branchList.filter((b) => b.is_active).length
+  const count = branches?.length ?? 0
 
   return (
     <div className="p-4 md:p-8">
-      <PageHeader
-        title="Sucursales"
-        subtitle={`${activeBranches} activa${activeBranches !== 1 ? 's' : ''} · ${totalClients} clientes asignados`}
-      />
+      <PageHeader title="Sucursales" subtitle={`${count} sucursal${count !== 1 ? 'es' : ''}`}>
+        <NewBranchButton />
+      </PageHeader>
 
-      {/* Summary cards */}
-      {branchList.length > 0 && (
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border p-4" style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
-            <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Total sucursales</p>
-            <p className="mt-1 text-2xl font-bold" style={{ color: 'var(--color-foreground)' }}>{branchList.length}</p>
+      <div className="mt-6">
+        {count === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
+            <Building2 size={40} className="text-[var(--color-border)]" />
+            <div>
+              <p className="text-sm font-medium text-[var(--color-foreground)]">Sin sucursales</p>
+              <p className="text-sm text-[var(--color-muted-foreground)] mt-0.5 max-w-sm">
+                Crea una sucursal para organizar tus clientes y coaches por sede.
+              </p>
+            </div>
           </div>
-          <div className="rounded-xl border p-4" style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
-            <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Sucursales activas</p>
-            <p className="mt-1 text-2xl font-bold" style={{ color: 'var(--color-admin)' }}>{activeBranches}</p>
-          </div>
-          <div className="rounded-xl border p-4" style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
-            <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>Clientes asignados</p>
-            <p className="mt-1 text-2xl font-bold" style={{ color: 'var(--color-foreground)' }}>{totalClients}</p>
-          </div>
-        </div>
-      )}
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {branches?.map((branch: any) => (
+              <div key={branch.id}
+                className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-5 space-y-3">
 
-      <div className="mt-8">
-        <BranchesTable branches={branchList} />
+                {/* Header */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-base font-semibold text-[var(--color-foreground)]">{branch.name}</span>
+                    <Badge value={branch.is_active ? 'approved' : 'inactive'} />
+                  </div>
+                  <BranchActions branch={branch} />
+                </div>
+
+                {/* Contact info */}
+                <div className="space-y-1">
+                  {branch.address && (
+                    <div className="flex items-center gap-1.5 text-sm text-[var(--color-muted-foreground)]">
+                      <MapPin size={13} className="shrink-0" />
+                      {branch.address}
+                    </div>
+                  )}
+                  {branch.phone && (
+                    <div className="flex items-center gap-1.5 text-sm text-[var(--color-muted-foreground)]">
+                      <Phone size={13} className="shrink-0" />
+                      {branch.phone}
+                    </div>
+                  )}
+                  {branch.email && (
+                    <div className="flex items-center gap-1.5 text-sm text-[var(--color-muted-foreground)]">
+                      <Mail size={13} className="shrink-0" />
+                      {branch.email}
+                    </div>
+                  )}
+                  {!branch.address && !branch.phone && !branch.email && (
+                    <p className="text-xs text-[var(--color-muted-foreground)] italic">Sin información de contacto</p>
+                  )}
+                </div>
+
+                {/* User counts */}
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium"
+                    style={{ backgroundColor: 'var(--color-coach-light)', color: 'var(--color-coach)' }}>
+                    <Users2 size={11} />
+                    {branch.coach_count ?? 0} coaches
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium"
+                    style={{ backgroundColor: 'var(--color-client-light)', color: 'var(--color-client)' }}>
+                    <Users2 size={11} />
+                    {branch.client_count ?? 0} clientes
+                  </span>
+                </div>
+
+                <p className="text-xs text-[var(--color-muted-foreground)]">
+                  Creada {formatDate(branch.created_at)}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

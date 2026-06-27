@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTransition } from 'react'
-import { Home, Dumbbell, Video, CalendarDays, Apple, TrendingUp, CreditCard, User, LogOut, X } from 'lucide-react'
+import { Home, Dumbbell, Video, CalendarDays, Apple, TrendingUp, CreditCard, User, LogOut, X, Sparkles } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logoutAction } from '@/lib/auth/actions'
 
@@ -40,6 +40,7 @@ const NAV = [
   {
     title: 'Cuenta',
     items: [
+      { label: 'Planes', href: '/client/planes', icon: Sparkles },
       { label: 'Mi Suscripción', href: '/client/subscription', icon: CreditCard },
       { label: 'Perfil', href: '/client/profile', icon: User },
     ],

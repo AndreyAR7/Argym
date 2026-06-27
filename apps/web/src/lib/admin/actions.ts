@@ -166,6 +166,7 @@ export async function createPlanAction(data: {
   billing_cycle: 'monthly' | 'yearly' | 'one_time'
   features: string[]
   expiry_date?: string | null
+  plan_tier?: string | null
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -192,6 +193,7 @@ export async function createPlanAction(data: {
       billing_cycle: data.billing_cycle,
       features,
       expiry_date: data.expiry_date || null,
+      plan_tier: data.plan_tier || null,
     })
 
   if (error) return { error: error.message }
@@ -207,6 +209,7 @@ export async function updatePlanAction(planId: string, data: {
   billing_cycle: 'monthly' | 'yearly' | 'one_time'
   features: string[]
   expiry_date?: string | null
+  plan_tier?: string | null
 }) {
   const supabase = await createClient()
 
@@ -224,6 +227,7 @@ export async function updatePlanAction(planId: string, data: {
       billing_cycle: data.billing_cycle,
       features,
       expiry_date: data.expiry_date || null,
+      plan_tier: data.plan_tier || null,
     })
     .eq('id', planId)
 
@@ -296,5 +300,98 @@ export async function cancelSubscriptionAction(subscriptionId: string, reason: s
   if (error) return { error: error.message }
   revalidatePath('/admin/billing')
   revalidatePath('/admin/clients')
+  return { success: true }
+}
+
+// ── Branches ───────────────────────────────────────────────────
+
+export async function createBranchAction(data: {
+  name: string
+  address: string | null
+  phone: string | null
+  email: string | null
+}): Promise<{ success?: true; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('tenant_id')
+    .eq('id', user.id)
+    .single()
+  if (!profile) return { error: 'Perfil no encontrado' }
+
+  const { error } = await supabase
+    .from('branches')
+    .insert({
+      tenant_id: profile.tenant_id,
+      name: data.name,
+      address: data.address,
+      phone: data.phone,
+      email: data.email,
+    })
+
+  if (error) return { error: error.message }
+  revalidatePath('/admin/branches')
+  return { success: true }
+}
+
+export async function updateBranchAction(
+  id: string,
+  data: {
+    name: string
+    address: string | null
+    phone: string | null
+    email: string | null
+  },
+): Promise<{ success?: true; error?: string }> {
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('branches')
+    .update({
+      name: data.name,
+      address: data.address,
+      phone: data.phone,
+      email: data.email,
+    })
+    .eq('id', id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/admin/branches')
+  return { success: true }
+}
+
+export async function toggleBranchActiveAction(
+  id: string,
+  isActive: boolean,
+): Promise<{ success?: true; error?: string }> {
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('branches')
+    .update({ is_active: isActive })
+    .eq('id', id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/admin/branches')
+  return { success: true }
+}
+
+export async function assignUserToBranchAction(
+  userId: string,
+  branchId: string | null,
+): Promise<{ success?: true; error?: string }> {
+  const supabase = await createClient()
+
+  const { error } = await supabase.rpc('assign_user_to_branch', {
+    p_user_id: userId,
+    p_branch_id: branchId,
+  })
+
+  if (error) return { error: error.message }
+  revalidatePath('/admin/clients')
+  revalidatePath('/admin/coaches')
   return { success: true }
 }

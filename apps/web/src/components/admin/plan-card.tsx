@@ -16,6 +16,13 @@ interface Plan {
   is_active: boolean
   subscriber_count: number
   expiry_date?: string | null
+  plan_tier?: string | null
+}
+
+const TIER_LABELS: Record<string, string> = {
+  beginner: 'Principiante',
+  intermediate: 'Intermedio',
+  advanced: 'Avanzado',
 }
 
 interface PlanCardProps {
@@ -96,9 +103,16 @@ export function PlanCard({ plan }: PlanCardProps) {
                 </p>
               )}
             </div>
-            <span className="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md bg-[var(--color-admin-light)] text-[var(--color-admin)]">
-              {CYCLE_BADGE[plan.billing_cycle] ?? plan.billing_cycle}
-            </span>
+            <div className="flex flex-col items-end gap-1 flex-shrink-0">
+              <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md bg-[var(--color-admin-light)] text-[var(--color-admin)]">
+                {CYCLE_BADGE[plan.billing_cycle] ?? plan.billing_cycle}
+              </span>
+              {plan.plan_tier && (
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-[var(--color-muted)] text-[var(--color-muted-foreground)]">
+                  {TIER_LABELS[plan.plan_tier] ?? plan.plan_tier}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Price */}

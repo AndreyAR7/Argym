@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
 import { PageHeader } from '@/components/shared/page-header'
 import { ClientRowActions } from '@/components/admin/client-row-actions'
+import { CoachFilters } from '@/components/admin/coach-filters'
 import { formatDate } from '@/lib/utils'
 import { UserPlus, Users2 } from 'lucide-react'
 import Link from 'next/link'
@@ -12,14 +13,21 @@ export const metadata = { title: 'Coaches' }
 export default async function CoachesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; status?: string }>
+  searchParams: Promise<{ search?: string; status?: string; branch?: string }>
 }) {
   const params = await searchParams
   const search = params.search ?? ''
   const status = params.status ?? 'approved'
+  const branchFilter = params.branch ?? 'all'
 
   const session = await getSessionData()
   const { supabase, tenantId } = session!
+
+  const { data: branches } = await supabase
+    .from('branches')
+    .select('id, name')
+    .eq('is_active', true)
+    .order('name')
 
   // Get coach user IDs
   const { data: coachRoleIds } = await supabase
@@ -32,12 +40,13 @@ export default async function CoachesPage({
 
   let query = supabase
     .from('profiles')
-    .select('id, full_name, avatar_url, phone, is_active, approval_status, created_at', { count: 'exact' })
+    .select('id, full_name, avatar_url, phone, is_active, approval_status, created_at, branch_id', { count: 'exact' })
     .eq('tenant_id', tenantId)
     .in('id', coachIds.length > 0 ? coachIds : ['00000000-0000-0000-0000-000000000000'])
 
   if (search) query = query.ilike('full_name', `%${search}%`)
   if (status !== 'all') query = query.eq('approval_status', status)
+  if (branchFilter !== 'all') query = query.eq('branch_id', branchFilter)
 
   const { data: coaches, count } = await query.order('full_name', { ascending: true })
 
@@ -53,15 +62,13 @@ export default async function CoachesPage({
         </Link>
       </PageHeader>
 
-      {/* Search */}
-      <div className="mt-6 flex gap-3">
-        <input
-          type="search"
-          defaultValue={search}
-          placeholder="Buscar coach..."
-          className="max-w-xs w-full px-3.5 py-2 text-sm rounded-lg border border-[var(--color-input)] bg-[var(--color-card)] text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] outline-none focus:border-[var(--color-ring)] focus:ring-2 focus:ring-[var(--color-ring)]/20"
-        />
-      </div>
+      {/* Search & Filter */}
+      <CoachFilters
+        defaultSearch={search}
+        defaultStatus={status}
+        defaultBranch={branchFilter}
+        branches={branches ?? []}
+      />
 
       {/* Table */}
       <div className="mt-4 rounded-xl border border-[var(--color-border)] overflow-hidden overflow-x-auto">
@@ -71,6 +78,7 @@ export default async function CoachesPage({
               <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Coach</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider hidden md:table-cell">Teléfono</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Estado</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider hidden md:table-cell">Sucursal</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider hidden lg:table-cell">Miembro desde</th>
               <th className="px-4 py-3 text-right text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Acciones</th>
             </tr>
@@ -91,6 +99,9 @@ export default async function CoachesPage({
                   <td className="px-4 py-3">
                     <Badge value={coach.is_active === false ? 'inactive' : coach.approval_status ?? 'pending'} />
                   </td>
+                  <td className="px-4 py-3 text-[var(--color-muted-foreground)] hidden md:table-cell">
+                    {(branches ?? []).find((b: { id: string; name: string }) => b.id === (coach as any).branch_id)?.name ?? '—'}
+                  </td>
                   <td className="px-4 py-3 text-sm text-[var(--color-muted-foreground)] hidden lg:table-cell">
                     {formatDate(coach.created_at)}
                   </td>
@@ -102,13 +113,15 @@ export default async function CoachesPage({
                       clientLevel={null}
                       plans={[]}
                       tenantId={tenantId}
+                      branchId={(coach as any).branch_id ?? null}
+                      branches={branches ?? []}
                     />
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="py-16 text-center">
+                <td colSpan={6} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <Users2 size={32} className="text-[var(--color-border)]" />
                     <p className="text-sm text-[var(--color-muted-foreground)]">

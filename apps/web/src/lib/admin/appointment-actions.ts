@@ -55,6 +55,7 @@ export async function createAppointmentAction(data: {
 
   console.log('[createAppointmentAction] Created appointment:', newId)
   revalidatePath('/admin/appointments')
+  revalidatePath('/coach/appointments')
   return { success: true }
 }
 

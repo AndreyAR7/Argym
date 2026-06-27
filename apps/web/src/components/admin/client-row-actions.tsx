@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useTransition, useRef } from 'react'
-import { MoreHorizontal, UserX, UserCheck, Tag, Pencil } from 'lucide-react'
-import { toggleProfileActiveAction, assignPlanAction } from '@/lib/admin/actions'
+import { MoreHorizontal, UserX, UserCheck, Tag, Pencil, Building2 } from 'lucide-react'
+import { toggleProfileActiveAction, assignPlanAction, assignUserToBranchAction } from '@/lib/admin/actions'
 
 interface Plan {
   id: string
@@ -20,6 +20,8 @@ interface ClientRowActionsProps {
   clientLevel: string | null
   plans: Plan[]
   tenantId: string
+  branchId: string | null
+  branches: { id: string; name: string }[]
 }
 
 export function ClientRowActions({
@@ -28,9 +30,12 @@ export function ClientRowActions({
   isActive,
   plans,
   tenantId,
+  branchId,
+  branches,
 }: ClientRowActionsProps) {
   const [open, setOpen] = useState(false)
   const [showAssign, setShowAssign] = useState(false)
+  const [showBranch, setShowBranch] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
   const [isPending, startTransition] = useTransition()
   const [pos, setPos] = useState({ top: 0, right: 0 })
@@ -51,6 +56,13 @@ export function ClientRowActions({
     startTransition(async () => {
       await toggleProfileActiveAction(clientId, !isActive)
       setOpen(false)
+    })
+  }
+
+  async function handleAssignBranch(bid: string | null) {
+    startTransition(async () => {
+      await assignUserToBranchAction(clientId, bid)
+      setShowBranch(false)
     })
   }
 
@@ -90,6 +102,13 @@ export function ClientRowActions({
                 <Tag size={13} className="text-[var(--color-muted-foreground)]" />
                 Asignar plan
               </button>
+              <button
+                onClick={() => { setOpen(false); setShowBranch(true) }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors"
+              >
+                <Building2 size={13} className="text-[var(--color-muted-foreground)]" />
+                Asignar sucursal
+              </button>
               <a
                 href={`/admin/clients/${clientId}`}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors"
@@ -112,6 +131,48 @@ export function ClientRowActions({
           </>
         )}
       </div>
+
+      {/* Assign branch modal */}
+      {showBranch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-xl">
+            <h2 className="text-base font-semibold text-[var(--color-foreground)] mb-1">Asignar sucursal</h2>
+            <p className="text-sm text-[var(--color-muted-foreground)] mb-5">
+              Selecciona la sucursal para <strong>{clientName}</strong>
+            </p>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              <button
+                onClick={() => handleAssignBranch(null)}
+                className={"w-full flex items-center gap-3 rounded-lg border p-3.5 text-left transition-all " + (branchId === null ? 'border-[var(--color-admin)] bg-[var(--color-admin-light)]' : 'border-[var(--color-border)] hover:bg-[var(--color-muted)]')}
+              >
+                <p className="text-sm font-medium text-[var(--color-foreground)]">Sin sucursal</p>
+                <p className="text-xs text-[var(--color-muted-foreground)]">Cuenta principal</p>
+              </button>
+              {branches.map((b) => (
+                <button
+                  key={b.id}
+                  onClick={() => handleAssignBranch(b.id)}
+                  className={"w-full flex items-center gap-3 rounded-lg border p-3.5 text-left transition-all " + (branchId === b.id ? 'border-[var(--color-admin)] bg-[var(--color-admin-light)]' : 'border-[var(--color-border)] hover:bg-[var(--color-muted)]')}
+                >
+                  <Building2 size={15} className="text-[var(--color-muted-foreground)] flex-shrink-0" />
+                  <p className="text-sm font-medium text-[var(--color-foreground)]">{b.name}</p>
+                </button>
+              ))}
+              {branches.length === 0 && (
+                <p className="text-sm text-[var(--color-muted-foreground)] text-center py-4">No hay sucursales creadas</p>
+              )}
+            </div>
+            <div className="flex gap-2.5 mt-5">
+              <button
+                onClick={() => setShowBranch(false)}
+                className="flex-1 rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Assign plan modal */}
       {showAssign && (

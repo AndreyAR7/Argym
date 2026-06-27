@@ -21,17 +21,25 @@ const PAGE_SIZE = 20
 export default async function ClientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; level?: string; status?: string; page?: string }>
+  searchParams: Promise<{ search?: string; level?: string; status?: string; page?: string; branch?: string }>
 }) {
   const params = await searchParams
   const search  = params.search  ?? ''
   const level   = params.level   ?? 'all'
   const status  = params.status  ?? 'approved'
+  const branch  = params.branch  ?? 'all'
   const page    = Math.max(1, parseInt(params.page ?? '1'))
   const offset  = (page - 1) * PAGE_SIZE
 
   const session = await getSessionData()
   const { supabase, tenantId } = session!
+
+  // ── Fetch branches for filter dropdown ──
+  const { data: branches } = await supabase
+    .from('branches')
+    .select('id, name')
+    .eq('is_active', true)
+    .order('name')
 
   // ── Get client IDs via SECURITY DEFINER RPC (bypasses user_roles RLS) ──
   const { data: clientProfiles } = await supabase.rpc('get_profiles_by_role', { role_name: 'client' })
@@ -42,7 +50,7 @@ export default async function ClientsPage({
     .from('profiles')
     .select(`
       id, full_name, avatar_url, phone, client_level,
-      is_active, approval_status, created_at,
+      is_active, approval_status, created_at, branch_id,
       user_subscriptions(
         id, status, final_price,
         plans(id, name, price, currency, plan_tier)
@@ -57,6 +65,7 @@ export default async function ClientsPage({
     else clientQuery = clientQuery.eq('client_level', level)
   }
   if (status !== 'all') clientQuery = clientQuery.eq('approval_status', status)
+  if (branch !== 'all') clientQuery = clientQuery.eq('branch_id', branch)
   clientQuery = clientQuery.order('created_at', { ascending: false }).range(offset, offset + PAGE_SIZE - 1)
 
   const [{ data: clients, count }, { data: plans }] = await Promise.all([
@@ -89,6 +98,8 @@ export default async function ClientsPage({
           defaultSearch={search}
           defaultLevel={level}
           defaultStatus={status}
+          defaultBranch={branch}
+          branches={branches ?? []}
         />
       </div>
 
@@ -108,6 +119,9 @@ export default async function ClientsPage({
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">
                 Estado
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider hidden md:table-cell">
+                Sucursal
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider hidden xl:table-cell">
                 Miembro desde
@@ -174,6 +188,11 @@ export default async function ClientsPage({
                       <Badge value={client.is_active === false ? 'inactive' : client.approval_status ?? 'pending'} />
                     </td>
 
+                    {/* Branch */}
+                    <td className="px-4 py-3 text-sm text-[var(--color-muted-foreground)] hidden md:table-cell">
+                      {(branches ?? []).find((b) => b.id === (client as any).branch_id)?.name ?? '—'}
+                    </td>
+
                     {/* Member since */}
                     <td className="px-4 py-3 text-sm text-[var(--color-muted-foreground)] hidden xl:table-cell">
                       {formatDate(client.created_at)}
@@ -188,6 +207,8 @@ export default async function ClientsPage({
                         clientLevel={client.client_level ?? null}
                         plans={plans ?? []}
                         tenantId={tenantId}
+                        branchId={(client as any).branch_id ?? null}
+                        branches={branches ?? []}
                       />
                     </td>
                   </tr>
@@ -195,7 +216,7 @@ export default async function ClientsPage({
               })
             ) : (
               <tr>
-                <td colSpan={6} className="py-16 text-center">
+                <td colSpan={7} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <Users size={32} className="text-[var(--color-border)]" />
                     <div>

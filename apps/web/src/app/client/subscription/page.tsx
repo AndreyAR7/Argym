@@ -125,6 +125,14 @@ export default async function ClientSubscriptionPage() {
           </div>
         </div>
       )}
+
+      <div className="mt-8 text-center">
+        <a href="/client/planes"
+          className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
+          style={{ backgroundColor: 'var(--color-client)', color: 'white' }}>
+          Ver planes disponibles
+        </a>
+      </div>
     </div>
   )
 }

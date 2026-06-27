@@ -14,6 +14,7 @@ interface Plan {
   features: { name: string; value: string }[]
   is_active: boolean
   expiry_date?: string | null
+  plan_tier?: string | null
 }
 
 interface PlanFormModalProps {
@@ -41,6 +42,7 @@ export function PlanFormModal({ plan, onClose }: PlanFormModalProps) {
   const [expiryDate, setExpiryDate] = useState(
     plan?.expiry_date ? plan.expiry_date.slice(0, 10) : ''
   )
+  const [planTier, setPlanTier] = useState<string>(plan?.plan_tier ?? 'all')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -71,6 +73,7 @@ export function PlanFormModal({ plan, onClose }: PlanFormModalProps) {
         billing_cycle: billingCycle,
         features: features.filter((f) => f.trim()),
         expiry_date: expiryDate || null,
+        plan_tier: planTier === 'all' ? null : planTier,
       }
 
       const result = plan
@@ -191,6 +194,35 @@ export function PlanFormModal({ plan, onClose }: PlanFormModalProps) {
                   {BILLING_LABELS[cycle]}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Plan tier */}
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-foreground)] mb-1.5">
+              Nivel de cliente
+              <span className="text-[var(--color-muted-foreground)] font-normal ml-1">(filtra quién puede verlo)</span>
+            </label>
+            <div className="flex gap-2">
+              {(['all', 'beginner', 'intermediate', 'advanced'] as const).map((tier) => {
+                const labels: Record<string, string> = {
+                  all: 'Todos', beginner: 'Principiante', intermediate: 'Intermedio', advanced: 'Avanzado',
+                }
+                return (
+                  <button
+                    key={tier}
+                    type="button"
+                    onClick={() => setPlanTier(tier)}
+                    className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-all ${
+                      planTier === tier
+                        ? 'border-[var(--color-admin)] bg-[var(--color-admin-light)] text-[var(--color-admin)]'
+                        : 'border-[var(--color-border)] text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:border-[var(--color-ring)]'
+                    }`}
+                  >
+                    {labels[tier]}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
