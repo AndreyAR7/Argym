@@ -164,18 +164,34 @@ export default function AppointmentFormModal({ coaches, clients, currentUserId, 
   }
 
   function validate(date: string, title: string): string | null {
-    if (!title.trim())              return 'El título de la cita es obligatorio.'
-    if (selectedClients.length === 0) return 'Agrega al menos un cliente.'
-    if (!date)                      return 'La fecha es obligatoria.'
-    const start = new Date(`${date}T${startTime}`)
-    const end   = new Date(`${date}T${endTime}`)
-    if (isNaN(start.getTime()))     return 'Fecha u hora inválida.'
-    if (end <= start)               return 'La hora de fin debe ser posterior a la de inicio.'
+    if (!title.trim())               return 'El título de la cita es obligatorio.'
+    if (selectedClients.length === 0) return 'Debes seleccionar al menos un cliente.'
+    if (!date)                       return 'La fecha es obligatoria.'
+
+    const start = new Date(`${date}T${startTime}:00`)
+    const end   = new Date(`${date}T${endTime}:00`)
+    if (isNaN(start.getTime()))      return 'La fecha o la hora ingresada no es válida.'
+    if (end <= start)                return 'La hora de fin debe ser posterior a la hora de inicio.'
+
     const dur = (end.getTime() - start.getTime()) / 60000
-    if (dur < 15)  return 'Duración mínima: 15 minutos.'
-    if (dur > 480) return 'Duración máxima: 8 horas.'
-    const oneHourAgo = new Date(Date.now() - 3600000)
-    if (start < oneHourAgo) return 'La hora de inicio no puede ser más de 1 hora en el pasado.'
+    if (dur < 15)  return 'La duración mínima de una cita es 15 minutos.'
+    if (dur > 480) return 'La duración máxima de una cita es 8 horas.'
+
+    const now     = new Date()
+    const todayStr = now.toLocaleDateString('en-CA') // YYYY-MM-DD en zona local
+
+    if (date < todayStr) {
+      return `No se puede crear una cita en una fecha pasada (${date}).`
+    }
+
+    if (date === todayStr) {
+      const oneHourAgo = new Date(now.getTime() - 3600000)
+      if (start < oneHourAgo) {
+        const limit = oneHourAgo.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' })
+        return `La hora de inicio no puede ser anterior a las ${limit} (máximo 1 hora en el pasado).`
+      }
+    }
+
     return null
   }
 
