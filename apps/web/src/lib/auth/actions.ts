@@ -12,6 +12,8 @@ function getAppBaseUrl(): string {
 
 export async function loginWithGoogleAction() {
   const baseUrl = getAppBaseUrl()
+  console.log('[OAuth] NEXT_PUBLIC_APP_URL =', process.env.NEXT_PUBLIC_APP_URL)
+  console.log('[OAuth] redirectTo =', `${baseUrl}/auth/callback`)
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signInWithOAuth({
