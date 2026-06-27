@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState } from 'react'
+import { Suspense, useActionState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { loginAction, loginWithGoogleAction } from '@/lib/auth/actions'
@@ -16,10 +16,21 @@ function GoogleIcon() {
   )
 }
 
-export default function LoginPage() {
-  const [state, formAction, isPending] = useActionState(loginAction, null)
+// Isolated to its own component so useSearchParams() is inside the Suspense boundary.
+function OAuthError() {
   const searchParams = useSearchParams()
-  const hasOAuthError  = searchParams.get('error') === 'oauth_error'
+  if (searchParams.get('error') !== 'oauth_error') return null
+  return (
+    <div className="rounded-lg border border-[var(--color-destructive)]/20 bg-[var(--color-destructive)]/5 px-4 py-3 mb-4">
+      <p className="text-sm text-[var(--color-destructive)]">
+        Error al iniciar sesión con Google. Intenta de nuevo.
+      </p>
+    </div>
+  )
+}
+
+function LoginForm() {
+  const [state, formAction, isPending] = useActionState(loginAction, null)
 
   return (
     <div>
@@ -56,11 +67,9 @@ export default function LoginPage() {
       </div>
 
       <form action={formAction} className="space-y-5">
-        {(state?.error || hasOAuthError) && (
+        {state?.error && (
           <div className="rounded-lg border border-[var(--color-destructive)]/20 bg-[var(--color-destructive)]/5 px-4 py-3">
-            <p className="text-sm text-[var(--color-destructive)]">
-              {state?.error ?? 'Error al iniciar sesión con Google. Intenta de nuevo.'}
-            </p>
+            <p className="text-sm text-[var(--color-destructive)]">{state.error}</p>
           </div>
         )}
 
@@ -123,5 +132,15 @@ export default function LoginPage() {
         </Link>
       </p>
     </div>
+  )
+}
+
+// useSearchParams() must be inside a Suspense boundary (Next.js 15 requirement).
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <OAuthError />
+      <LoginForm />
+    </Suspense>
   )
 }
