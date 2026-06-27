@@ -60,7 +60,11 @@ export default async function ClientAppointmentsPage({
         .order('starts_at')
     : await query.order('starts_at', { ascending: false })
 
-  const all      = appointments ?? []
+  // Supabase returns foreign-key joins as arrays; normalize to object | null
+  const all = (appointments ?? []).map((a: any) => ({
+    ...a,
+    coach: Array.isArray(a.coach) ? (a.coach[0] ?? null) : a.coach,
+  }))
   const upcoming = all.filter((a: any) => ['scheduled', 'confirmed'].includes(a.status))
   const past     = all.filter((a: any) => !['scheduled', 'confirmed'].includes(a.status))
 
