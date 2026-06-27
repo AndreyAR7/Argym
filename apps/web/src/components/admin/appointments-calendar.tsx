@@ -2,21 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, ChevronRight, MapPin, Video, Phone, X, Clock, Users } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import AppointmentFormModal from '@/components/admin/appointment-form-modal'
+import AppointmentEditModal, { type AppointmentForEdit } from '@/components/admin/appointment-edit-modal'
 
 interface Participant { id: string; full_name: string; avatar_url: string | null }
 
-interface Appointment {
-  id: string
-  title: string
-  start_time: string
-  end_time: string
-  status: string
-  appointment_type: string
-  group_mode: string
-  client: { full_name: string; avatar_url: string | null } | null
-  coach:  { full_name: string } | null
+interface Appointment extends AppointmentForEdit {
+  client_avatar: string | null
+  client:  { full_name: string; avatar_url: string | null } | null
+  coach:   { full_name: string } | null
   participants: Participant[]
 }
 
@@ -39,12 +34,6 @@ const TYPE_COLORS: Record<string, { bg: string; border: string; text: string }> 
   in_person: { bg: 'color-mix(in srgb, var(--color-admin) 14%, white)',  border: 'var(--color-admin)',  text: 'var(--color-admin)'  },
   virtual:   { bg: 'color-mix(in srgb, var(--color-coach) 14%, white)',  border: 'var(--color-coach)',  text: 'var(--color-coach)'  },
   phone:     { bg: 'color-mix(in srgb, var(--color-client) 14%, white)', border: 'var(--color-client)', text: 'var(--color-client)' },
-}
-
-const TYPE_ICON: Record<string, React.ReactNode> = {
-  in_person: <MapPin size={10} />,
-  virtual:   <Video  size={10} />,
-  phone:     <Phone  size={10} />,
 }
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
@@ -72,13 +61,12 @@ function nowTop(): number | null {
   return (h * 60 + m - HOUR_START * 60) * PX_PER_MIN
 }
 
-interface SlotClick  { date: string; time: string }
-interface AptTooltip { apt: Appointment; x: number; y: number }
+interface SlotClick { date: string; time: string }
 
 export function AppointmentsCalendar({ appointments, coaches, clients, weekStart }: Props) {
   const router = useRouter()
-  const [slotClick, setSlotClick] = useState<SlotClick  | null>(null)
-  const [tooltip,   setTooltip]   = useState<AptTooltip | null>(null)
+  const [slotClick,    setSlotClick]    = useState<SlotClick | null>(null)
+  const [editingApt,   setEditingApt]   = useState<Appointment | null>(null)
   const [currentTopPx, setCurrentTopPx] = useState<number | null>(nowTop)
 
   // Update current-time line every minute
@@ -117,7 +105,7 @@ export function AppointmentsCalendar({ appointments, coaches, clients, weekStart
     const rect = e.currentTarget.getBoundingClientRect()
     const y    = e.clientY - rect.top
     if (y < 0 || y > TOTAL_HEIGHT) return
-    setTooltip(null)
+    setEditingApt(null)
     const mins  = Math.floor(y / PX_PER_MIN) + HOUR_START * 60
     const h     = Math.min(Math.floor(mins / 60), HOUR_END - 1)
     const m     = Math.floor((mins % 60) / 30) * 30
@@ -283,9 +271,8 @@ export function AppointmentsCalendar({ appointments, coaches, clients, weekStart
                       }}
                       onClick={e => {
                         e.stopPropagation()
-                        const rect = e.currentTarget.getBoundingClientRect()
                         setSlotClick(null)
-                        setTooltip({ apt, x: rect.right + 8, y: rect.top })
+                        setEditingApt(apt)
                       }}
                     >
                       <p className="text-[10px] font-semibold truncate leading-tight" style={{ color: colors.text }}>{apt.title}</p>
@@ -303,98 +290,17 @@ export function AppointmentsCalendar({ appointments, coaches, clients, weekStart
         </div>
       </div>
 
-      {/* Appointment tooltip */}
-      {tooltip && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setTooltip(null)} />
-          <div
-            className="fixed z-50 w-64 rounded-xl border shadow-xl p-4"
-            style={{
-              top:             `${Math.min(tooltip.y, window.innerHeight - 280)}px`,
-              left:            `${Math.min(tooltip.x, window.innerWidth - 280)}px`,
-              backgroundColor: 'var(--color-card)',
-              borderColor:     'var(--color-border)',
-            }}
-          >
-            <div className="flex items-start justify-between gap-2 mb-3">
-              <div className="flex items-center gap-1.5">
-                <div className="w-1 h-full min-h-[16px] rounded-full flex-shrink-0"
-                  style={{ backgroundColor: (TYPE_COLORS[tooltip.apt.appointment_type] ?? TYPE_COLORS.in_person).border }} />
-                <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--color-foreground)' }}>{tooltip.apt.title}</p>
-              </div>
-              <button onClick={() => setTooltip(null)} className="shrink-0 hover:opacity-70" style={{ color: 'var(--color-muted-foreground)' }}>
-                <X size={14} />
-              </button>
-            </div>
-
-            <div className="space-y-2 text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
-              {/* Time */}
-              <div className="flex items-center gap-1.5">
-                <Clock size={11} />
-                {new Date(tooltip.apt.start_time).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' })}
-                {' — '}
-                {new Date(tooltip.apt.end_time).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' })}
-              </div>
-
-              {/* Clients */}
-              {tooltip.apt.group_mode === 'group' && tooltip.apt.participants.length > 0 ? (
-                <div>
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Users size={11} />
-                    <span className="font-medium">{tooltip.apt.participants.length} clientes</span>
-                  </div>
-                  <div className="pl-4 space-y-0.5">
-                    {tooltip.apt.participants.slice(0, 5).map(p => (
-                      <p key={p.id} className="truncate">{p.full_name}</p>
-                    ))}
-                    {tooltip.apt.participants.length > 5 && (
-                      <p>+{tooltip.apt.participants.length - 5} más</p>
-                    )}
-                  </div>
-                </div>
-              ) : tooltip.apt.client ? (
-                <div className="flex items-center gap-1.5">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-                  {tooltip.apt.client.full_name}
-                </div>
-              ) : null}
-
-              {/* Type */}
-              <div className="flex items-center gap-1.5">
-                {TYPE_ICON[tooltip.apt.appointment_type]}
-                {tooltip.apt.appointment_type === 'in_person' ? 'Presencial'
-                  : tooltip.apt.appointment_type === 'virtual' ? 'Virtual' : 'Teléfono'}
-              </div>
-
-              {/* Coach */}
-              {tooltip.apt.coach && (
-                <div className="flex items-center gap-1.5">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                  Coach: {tooltip.apt.coach.full_name}
-                </div>
-              )}
-
-              {/* Status */}
-              <div className="flex items-center gap-1.5">
-                <span className="inline-block w-1.5 h-1.5 rounded-full"
-                  style={{ backgroundColor:
-                    tooltip.apt.status === 'confirmed' ? 'var(--color-coach)' :
-                    tooltip.apt.status === 'cancelled' ? 'var(--color-destructive)' :
-                    tooltip.apt.status === 'completed' ? 'var(--color-muted-foreground)' :
-                    'var(--color-admin)'
-                  }} />
-                {tooltip.apt.status === 'scheduled'  ? 'Programada'  :
-                 tooltip.apt.status === 'confirmed'  ? 'Confirmada'  :
-                 tooltip.apt.status === 'completed'  ? 'Completada'  :
-                 tooltip.apt.status === 'cancelled'  ? 'Cancelada'   :
-                 tooltip.apt.status === 'no_show'    ? 'No asistió'  : tooltip.apt.status}
-              </div>
-            </div>
-          </div>
-        </>
+      {/* Edit modal — opens when clicking an existing appointment */}
+      {editingApt && (
+        <AppointmentEditModal
+          appointment={editingApt}
+          coaches={coaches}
+          clients={clients}
+          onClose={() => setEditingApt(null)}
+        />
       )}
 
-      {/* Same modal as the "Nueva cita" button, pre-filled with clicked date/time */}
+      {/* Create modal — opens when clicking an empty calendar slot */}
       {slotClick && (
         <AppointmentFormModal
           coaches={coaches}

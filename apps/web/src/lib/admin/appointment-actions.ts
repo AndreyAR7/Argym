@@ -57,3 +57,41 @@ export async function createAppointmentAction(data: {
   revalidatePath('/admin/appointments')
   return { success: true }
 }
+
+export async function updateAppointmentAction(
+  id: string,
+  data: {
+    title: string
+    start_time: string
+    end_time: string
+    status: 'scheduled' | 'confirmed' | 'completed' | 'no_show' | 'cancelled'
+    appointment_type: 'in_person' | 'virtual' | 'phone'
+    coach_id: string | null
+    client_id: string | null
+    location: string | null
+    meeting_url: string | null
+    description: string | null
+  },
+) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('appointments')
+    .update(data)
+    .eq('id', id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/admin/appointments')
+  return { success: true }
+}
+
+export async function deleteAppointmentAction(id: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('appointments')
+    .delete()
+    .eq('id', id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/admin/appointments')
+  return { success: true }
+}
