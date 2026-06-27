@@ -15,9 +15,13 @@ interface Props {
   };
   onPress?: () => void;
   onReschedule?: () => void;
+  onConfirm?: () => void;
+  onRequestPostpone?: () => void;
 }
 
 const STATUS_LABEL: Record<string, string> = {
+  pending_confirmation: 'Pendiente',
+  postpone_requested:   'Cambio solicitado',
   scheduled: 'Programada',
   confirmed: 'Confirmada',
   completed: 'Completada',
@@ -26,6 +30,8 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_COLOR: Record<string, string> = {
+  pending_confirmation: '#F59E0B',
+  postpone_requested:   '#F59E0B',
   scheduled: '#F59E0B',
   confirmed: '#10B981',
   completed: '#3B82F6',
@@ -45,7 +51,7 @@ function formatTime(iso: string) {
   return { day, time };
 }
 
-export function AppointmentCard({ appointment, onPress, onReschedule }: Props) {
+export function AppointmentCard({ appointment, onPress, onReschedule, onConfirm, onRequestPostpone }: Props) {
   const T = useTheme();
   const { day, time } = formatTime(appointment.start_time);
   const isVirtual = appointment.appointment_type === 'virtual';
@@ -84,6 +90,37 @@ export function AppointmentCard({ appointment, onPress, onReschedule }: Props) {
         {appointment.notes && (
           <Text style={[styles.notes, { color: T.textMuted }]}>{appointment.notes}</Text>
         )}
+        {/* Confirm / postpone actions for pending_confirmation */}
+        {status === 'pending_confirmation' && (onConfirm || onRequestPostpone) && (
+          <View style={styles.actionRow}>
+            {onConfirm && (
+              <TouchableOpacity
+                onPress={(e) => { e.stopPropagation?.(); onConfirm(); }}
+                style={[styles.actionBtn, { backgroundColor: '#10B98122', borderColor: '#10B98155' }]}
+              >
+                <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '700' }}>✓ Aceptar</Text>
+              </TouchableOpacity>
+            )}
+            {onRequestPostpone && (
+              <TouchableOpacity
+                onPress={(e) => { e.stopPropagation?.(); onRequestPostpone(); }}
+                style={[styles.actionBtn, { backgroundColor: '#F59E0B22', borderColor: '#F59E0B55' }]}
+              >
+                <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '700' }}>↷ Posponer</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {/* Postpone requested banner */}
+        {status === 'postpone_requested' && (
+          <View style={[styles.postponeBanner, { backgroundColor: '#F59E0B11', borderColor: '#F59E0B44' }]}>
+            <Text style={{ color: '#F59E0B', fontSize: 11, fontWeight: '600' }}>
+              ⏳ Solicitud de cambio enviada — esperando al equipo
+            </Text>
+          </View>
+        )}
+
         {onReschedule && (status === 'cancelled' || status === 'no_show') && (
           <TouchableOpacity
             onPress={(e) => { e.stopPropagation?.(); onReschedule(); }}
@@ -118,4 +155,7 @@ const styles = StyleSheet.create({
   notes: { fontSize: 12, marginTop: 2, fontStyle: 'italic' },
   arrow: { paddingRight: 14 },
   rescheduleBtn: { alignSelf: 'flex-start', marginTop: 8, borderRadius: 6, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5 },
+  actionRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  actionBtn: { flex: 1, borderRadius: 6, borderWidth: 1, paddingVertical: 7, alignItems: 'center' },
+  postponeBanner: { marginTop: 8, borderRadius: 6, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 6 },
 });

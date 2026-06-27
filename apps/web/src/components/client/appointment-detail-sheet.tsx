@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect } from 'react'
-import { X, Clock, User, MapPin, Video, Phone, ExternalLink, Navigation, MonitorPlay } from 'lucide-react'
+import { useEffect, useState, useTransition } from 'react'
+import { X, Clock, User, MapPin, Video, Phone, ExternalLink, Navigation, MonitorPlay, Check, CalendarClock, AlertCircle } from 'lucide-react'
+import { confirmAppointmentAction, requestPostponeAction } from '@/lib/client/appointment-actions'
 
 export interface AppointmentDetail {
   id: string
@@ -22,6 +23,8 @@ interface Props {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  pending_confirmation: { label: 'Pendiente de confirmación', color: '#f59e0b' },
+  postpone_requested:   { label: 'Cambio solicitado',         color: '#f59e0b' },
   scheduled: { label: 'Programada', color: 'var(--color-client)' },
   confirmed:  { label: 'Confirmada',  color: '#22c55e'                },
   completed:  { label: 'Completada',  color: 'var(--color-muted-foreground)' },
@@ -36,6 +39,9 @@ const TYPE_CONFIG: Record<string, { label: string; Icon: React.FC<{ size?: numbe
 }
 
 export function AppointmentDetailSheet({ appointment, onClose }: Props) {
+  const [isPending, startTransition] = useTransition()
+  const [actionError, setActionError] = useState<string | null>(null)
+
   useEffect(() => {
     if (!appointment) return
     const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -48,6 +54,27 @@ export function AppointmentDetailSheet({ appointment, onClose }: Props) {
   const status   = STATUS_CONFIG[appointment.status] ?? { label: appointment.status, color: 'var(--color-muted-foreground)' }
   const typeConf = TYPE_CONFIG[appointment.appointment_type] ?? TYPE_CONFIG.in_person
   const TypeIcon = typeConf.Icon
+
+  function handleConfirm() {
+    setActionError(null)
+    startTransition(async () => {
+      const res = await confirmAppointmentAction(appointment!.id)
+      if (res?.error) setActionError(res.error)
+      else onClose()
+    })
+  }
+
+  function handlePostpone() {
+    setActionError(null)
+    startTransition(async () => {
+      const res = await requestPostponeAction(appointment!.id, appointment!.title)
+      if (res?.error) setActionError(res.error)
+      else onClose()
+    })
+  }
+
+  const isPendingConfirmation = appointment.status === 'pending_confirmation'
+  const isPostponeRequested   = appointment.status === 'postpone_requested'
 
   const startD   = new Date(appointment.start_time)
   const endD     = new Date(appointment.end_time)
@@ -155,6 +182,56 @@ export function AppointmentDetailSheet({ appointment, onClose }: Props) {
 
         {/* Action area */}
         <div className="px-5 pt-1 pb-8 space-y-3">
+
+          {/* ── PENDING CONFIRMATION — client must accept or request postpone ── */}
+          {isPendingConfirmation && (
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>
+                ¿Puedes asistir a esta cita?
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={handleConfirm}
+                  disabled={isPending}
+                  className="flex items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
+                  style={{ backgroundColor: '#22c55e', color: 'white' }}
+                >
+                  <Check size={15} />
+                  Aceptar
+                </button>
+                <button
+                  onClick={handlePostpone}
+                  disabled={isPending}
+                  className="flex items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 border-2"
+                  style={{ color: '#f59e0b', borderColor: '#f59e0b', backgroundColor: 'transparent' }}
+                >
+                  <CalendarClock size={15} />
+                  Posponer
+                </button>
+              </div>
+              {actionError && (
+                <div className="flex items-center gap-1.5 text-xs rounded-lg px-3 py-2"
+                  style={{ backgroundColor: 'color-mix(in srgb, var(--color-destructive) 8%, transparent)', color: 'var(--color-destructive)' }}>
+                  <AlertCircle size={12} />
+                  {actionError}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── POSTPONE REQUESTED — waiting for admin to act ── */}
+          {isPostponeRequested && (
+            <div className="flex items-start gap-3 px-3 py-3 rounded-xl"
+              style={{ backgroundColor: 'color-mix(in srgb, #f59e0b 10%, transparent)', border: '1px solid color-mix(in srgb, #f59e0b 30%, transparent)' }}>
+              <CalendarClock size={16} className="shrink-0 mt-0.5" style={{ color: '#f59e0b' }} />
+              <div>
+                <p className="text-sm font-semibold" style={{ color: '#f59e0b' }}>Solicitud enviada</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted-foreground)' }}>
+                  Tu solicitud de cambio fue enviada al equipo. Te avisaremos cuando reprogramen la cita.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* ── VIRTUAL ── */}
           {isVirtual && appointment.meeting_url && (

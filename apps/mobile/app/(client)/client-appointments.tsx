@@ -15,7 +15,7 @@ import { CalendarDayView } from '@/components/admin/CalendarDayView';
 import { useAuthStore } from '@/store/auth.store';
 import { useAppointmentsClient } from '@/hooks/useAppointments';
 import { RescheduleModal } from '@/components/shared/RescheduleModal';
-import { cancelExpiredClientAppointments } from '@/services/appointments.service';
+import { cancelExpiredClientAppointments, confirmAppointment, requestPostponeAppointment } from '@/services/appointments.service';
 import type { Appointment } from '@/types/appointments';
 
 // ── Date strip ────────────────────────────────────────────────
@@ -244,6 +244,16 @@ export default function ClientAppointments() {
                   onReschedule={
                     (item._type === 'apt' && (item.apt.status === 'cancelled' || item.apt.status === 'no_show'))
                       ? () => setRescheduleApt(item.apt)
+                      : undefined
+                  }
+                  onConfirm={
+                    item._type === 'apt' && item.apt.status === 'pending_confirmation'
+                      ? () => confirmAppointment(item.apt.id).then(() => refetch()).catch(() => {})
+                      : undefined
+                  }
+                  onRequestPostpone={
+                    item._type === 'apt' && item.apt.status === 'pending_confirmation'
+                      ? () => requestPostponeAppointment(item.apt.id, item.apt.title).then(() => refetch()).catch(() => {})
                       : undefined
                   }
                 />

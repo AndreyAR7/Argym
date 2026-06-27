@@ -5,22 +5,26 @@ import { ChevronDown } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { updateAppointmentStatusAction } from '@/lib/admin/appointment-actions'
 
-type Status = 'scheduled' | 'confirmed' | 'completed' | 'no_show' | 'cancelled'
+type Status = 'pending_confirmation' | 'scheduled' | 'confirmed' | 'completed' | 'no_show' | 'cancelled' | 'postpone_requested'
 
 const TRANSITIONS: Record<Status, Status[]> = {
-  scheduled:  ['confirmed', 'cancelled'],
-  confirmed:  ['completed', 'no_show', 'cancelled'],
-  completed:  [],
-  no_show:    [],
-  cancelled:  [],
+  pending_confirmation: ['confirmed', 'cancelled'],
+  postpone_requested:   ['pending_confirmation', 'confirmed', 'cancelled'],
+  scheduled:            ['confirmed', 'cancelled'],
+  confirmed:            ['completed', 'no_show', 'cancelled'],
+  completed:            [],
+  no_show:              [],
+  cancelled:            [],
 }
 
 const STATUS_LABELS: Record<Status, string> = {
-  scheduled:  'Programada',
-  confirmed:  'Confirmada',
-  completed:  'Completada',
-  no_show:    'No asistió',
-  cancelled:  'Cancelada',
+  pending_confirmation: 'Pend. confirmación',
+  postpone_requested:   'Cambio solicitado',
+  scheduled:            'Programada',
+  confirmed:            'Confirmada',
+  completed:            'Completada',
+  no_show:              'No asistió',
+  cancelled:            'Cancelada',
 }
 
 interface AppointmentStatusSelectProps {

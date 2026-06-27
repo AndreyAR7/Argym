@@ -58,8 +58,9 @@ export default async function ClientAppointmentsPage({
     ...a,
     coach: Array.isArray(a.coach) ? (a.coach[0] ?? null) : a.coach,
   }))
-  const upcoming = all.filter((a: any) => ['scheduled', 'confirmed'].includes(a.status))
-  const past     = all.filter((a: any) => !['scheduled', 'confirmed'].includes(a.status))
+  const ACTIVE_STATUSES = ['scheduled', 'confirmed', 'pending_confirmation', 'postpone_requested']
+  const upcoming = all.filter((a: any) => ACTIVE_STATUSES.includes(a.status))
+  const past     = all.filter((a: any) => !ACTIVE_STATUSES.includes(a.status))
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">

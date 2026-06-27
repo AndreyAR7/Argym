@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function updateAppointmentStatusAction(
   appointmentId: string,
-  status: 'scheduled' | 'confirmed' | 'completed' | 'no_show' | 'cancelled',
+  status: 'pending_confirmation' | 'scheduled' | 'confirmed' | 'completed' | 'no_show' | 'cancelled' | 'postpone_requested',
 ) {
   const supabase = await createClient()
   const { error } = await supabase
@@ -39,7 +39,7 @@ export async function createAppointmentAction(data: {
     p_coach_id:         data.coach_id || null,
     p_start_time:       data.start_time,
     p_end_time:         data.end_time,
-    p_status:           'scheduled',
+    p_status:           'pending_confirmation',
     p_appointment_type: data.appointment_type,
     p_location:         data.location,
     p_meeting_url:      data.meeting_url,
@@ -64,7 +64,7 @@ export async function updateAppointmentAction(
     title: string
     start_time: string
     end_time: string
-    status: 'scheduled' | 'confirmed' | 'completed' | 'no_show' | 'cancelled'
+    status: 'pending_confirmation' | 'scheduled' | 'confirmed' | 'completed' | 'no_show' | 'cancelled' | 'postpone_requested'
     appointment_type: 'in_person' | 'virtual' | 'phone'
     coach_id: string | null
     client_id: string | null

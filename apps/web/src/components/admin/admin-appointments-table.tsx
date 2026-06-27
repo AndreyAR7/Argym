@@ -87,6 +87,9 @@ export function AdminAppointmentsTable({ appointments, coaches, clients, statusF
                   key={apt.id}
                   onClick={() => setEditing(apt)}
                   className="hover:bg-[var(--color-muted)] transition-colors cursor-pointer"
+                  style={apt.status === 'postpone_requested'
+                    ? { backgroundColor: 'color-mix(in srgb, #f59e0b 6%, transparent)' }
+                    : undefined}
                 >
                   <td className="px-4 py-3">
                     <p className="font-medium text-[var(--color-foreground)] line-clamp-1">{apt.title}</p>

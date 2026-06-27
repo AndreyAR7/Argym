@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { MapPin, Video, Phone, AlertCircle, Search, X, Trash2, Users, ChevronDown } from 'lucide-react'
+import { MapPin, Video, Phone, AlertCircle, Search, X, Trash2, Users, ChevronDown, CalendarClock } from 'lucide-react'
 import { updateAppointmentAction, deleteAppointmentAction } from '@/lib/admin/appointment-actions'
 
 export interface AppointmentForEdit {
@@ -11,7 +11,7 @@ export interface AppointmentForEdit {
   description: string | null
   start_time: string
   end_time: string
-  status: 'scheduled' | 'confirmed' | 'completed' | 'no_show' | 'cancelled'
+  status: 'pending_confirmation' | 'scheduled' | 'confirmed' | 'completed' | 'no_show' | 'cancelled' | 'postpone_requested'
   appointment_type: 'in_person' | 'virtual' | 'phone'
   location: string | null
   meeting_url: string | null
@@ -55,11 +55,13 @@ const TYPES = [
 ]
 
 const STATUSES = [
-  { value: 'scheduled' as const, label: 'Programada' },
-  { value: 'confirmed' as const, label: 'Confirmada' },
-  { value: 'completed' as const, label: 'Completada' },
-  { value: 'no_show'   as const, label: 'No asistió' },
-  { value: 'cancelled' as const, label: 'Cancelada'  },
+  { value: 'pending_confirmation' as const, label: 'Pendiente de confirmación' },
+  { value: 'scheduled'            as const, label: 'Programada'                },
+  { value: 'confirmed'            as const, label: 'Confirmada'                },
+  { value: 'completed'            as const, label: 'Completada'                },
+  { value: 'no_show'              as const, label: 'No asistió'                },
+  { value: 'cancelled'            as const, label: 'Cancelada'                 },
+  { value: 'postpone_requested'   as const, label: 'Cambio solicitado'         },
 ]
 
 // ── Search-as-you-type combobox ─────────────────────────────────
@@ -337,6 +339,20 @@ export default function AppointmentEditModal({ appointment, coaches, clients, on
                   style={{ color: 'var(--color-muted-foreground)' }} />
               </div>
             </div>
+
+            {/* Postpone request banner */}
+            {appointment.status === 'postpone_requested' && (
+              <div className="flex items-start gap-3 rounded-xl px-4 py-3"
+                style={{ backgroundColor: 'color-mix(in srgb, #f59e0b 10%, transparent)', border: '1px solid color-mix(in srgb, #f59e0b 30%, transparent)' }}>
+                <CalendarClock size={16} className="shrink-0 mt-0.5" style={{ color: '#f59e0b' }} />
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: '#f59e0b' }}>El cliente solicitó posponer esta cita</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted-foreground)' }}>
+                    Edita la fecha y hora, luego guarda. El cliente recibirá la nueva propuesta.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Appointment type */}
             <div className="flex flex-col gap-1">
