@@ -6,8 +6,11 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function loginWithGoogleAction() {
   const hdrs = await headers()
-  const host = hdrs.get('host') ?? 'localhost:3000'
-  const protocol = host.startsWith('localhost') ? 'http' : 'https'
+  // x-forwarded-host is set by reverse proxies (Render, Vercel, Nginx) and contains
+  // the real external hostname. The raw `host` header has the internal binding address
+  // (e.g. localhost:10000 on Render) and must NOT be used for OAuth redirect URLs.
+  const host = hdrs.get('x-forwarded-host') ?? hdrs.get('host') ?? 'localhost:3000'
+  const protocol = hdrs.get('x-forwarded-proto') ?? (host.includes('localhost') ? 'http' : 'https')
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signInWithOAuth({
@@ -54,8 +57,8 @@ export async function forgotPasswordAction(
   if (!email) return { error: 'El correo es requerido' }
 
   const hdrs = await headers()
-  const host = hdrs.get('host') ?? 'localhost:3000'
-  const protocol = host.startsWith('localhost') ? 'http' : 'https'
+  const host = hdrs.get('x-forwarded-host') ?? hdrs.get('host') ?? 'localhost:3000'
+  const protocol = hdrs.get('x-forwarded-proto') ?? (host.includes('localhost') ? 'http' : 'https')
   const redirectTo = `${protocol}://${host}/auth/callback?next=/reset-password`
 
   const supabase = await createClient()
