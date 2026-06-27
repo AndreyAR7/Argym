@@ -20,24 +20,36 @@ export async function testSmtpAction(toEmail: string): Promise<{ ok: boolean; me
     return { ok: false, message: 'La configuración SMTP está incompleta (faltan host, usuario o contraseña).' }
   }
 
+  const port = Number(config.port)
   const transporter = createTransport({
-    host:   config.host,
-    port:   config.port,
-    secure: config.port === 465,
+    host:       config.host,
+    port,
+    secure:     port === 465,
+    requireTLS: port === 587,
     auth: { user: config.username, pass: config.password },
+    tls: { rejectUnauthorized: false },
   })
 
   try {
     await transporter.verify()
   } catch (err: any) {
-    const msg = err.message ?? String(err)
-    if (msg.includes('535') || msg.includes('Invalid login') || msg.includes('Username and Password')) {
-      return { ok: false, message: 'Credenciales incorrectas. Para Gmail usa una Contraseña de Aplicación (App Password).' }
+    const msg  = err.message ?? String(err)
+    const code = err.responseCode ?? err.code ?? ''
+    if (
+      code === 535 || String(code) === '535' ||
+      msg.includes('535') || msg.includes('Invalid login') ||
+      msg.includes('Username and Password') || msg.includes('BadCredentials')
+    ) {
+      const isGmail = config.host.includes('gmail')
+      const hint = isGmail
+        ? 'Para Gmail: 1) Activa la verificación en 2 pasos en la cuenta, 2) genera una Contraseña de Aplicación en Seguridad → Contraseñas de aplicaciones, 3) pega los 16 caracteres sin espacios.'
+        : 'Verifica el usuario y contraseña. Si usas Gmail, necesitas una Contraseña de Aplicación.'
+      return { ok: false, message: `Autenticación rechazada (535). ${hint}` }
     }
     if (msg.includes('ECONNREFUSED') || msg.includes('ETIMEDOUT') || msg.includes('ENOTFOUND')) {
-      return { ok: false, message: `No se puede conectar a ${config.host}:${config.port}. Verifica host y puerto.` }
+      return { ok: false, message: `No se puede conectar a ${config.host}:${port}. Verifica host y puerto.` }
     }
-    return { ok: false, message: `Error de conexión: ${msg}` }
+    return { ok: false, message: `Error SMTP: [${code}] ${msg}` }
   }
 
   try {

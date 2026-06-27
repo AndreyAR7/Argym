@@ -4,6 +4,21 @@ import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 
+export async function loginWithGoogleAction() {
+  const hdrs = await headers()
+  const host = hdrs.get('host') ?? 'localhost:3000'
+  const protocol = host.startsWith('localhost') ? 'http' : 'https'
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: `${protocol}://${host}/auth/callback` },
+  })
+
+  if (error || !data.url) redirect('/login?error=oauth_error')
+  redirect(data.url)
+}
+
 export async function loginAction(_prevState: { error: string } | null, formData: FormData) {
   const email = formData.get('email') as string
   const password = formData.get('password') as string

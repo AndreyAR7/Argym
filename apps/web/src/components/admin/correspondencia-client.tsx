@@ -58,8 +58,8 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
 }) {
   const router = useRouter()
   const [tab, setTab] = useState<'rules' | 'templates' | 'smtp'>('rules')
-  const [rules, setRules]     = useState<Rule[]>(initialRules)
-  const [templates]           = useState<Template[]>(initialTemplates)
+  const [rules, setRules]         = useState<Rule[]>(initialRules)
+  const [templates, setTemplates] = useState<Template[]>(initialTemplates)
   const [smtp, setSmtp]       = useState<SmtpConfig>(initialSmtp ?? {
     host: '', port: 587, username: '', password: '',
     from_email: '', from_name: '', use_tls: true, is_active: false,
@@ -371,7 +371,7 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
         <TemplateModal
           tenantId={tenantId}
           onClose={() => setShowTemplateModal(false)}
-          onSaved={() => { setShowTemplateModal(false); router.refresh() }}
+          onSaved={(t) => { setTemplates(prev => [t, ...prev]); setShowTemplateModal(false) }}
         />
       )}
     </div>
@@ -478,7 +478,7 @@ function RuleModal({ templates, tenantId, onClose, onSaved }: {
 }
 
 // ── Template Modal ──────────────────────────────────────────────
-function TemplateModal({ tenantId, onClose, onSaved }: { tenantId: string; onClose: () => void; onSaved: () => void }) {
+function TemplateModal({ tenantId, onClose, onSaved }: { tenantId: string; onClose: () => void; onSaved: (t: Template) => void }) {
   const [isPending, startTransition] = useTransition()
   const [variables, setVariables] = useState<string[]>([])
   const [error, setError] = useState('')
@@ -492,8 +492,12 @@ function TemplateModal({ tenantId, onClose, onSaved }: { tenantId: string; onClo
     const payload = { tenant_id: tenantId, name: fd.get('name') as string, subject: fd.get('subject') as string, body_html: fd.get('body_html') as string, variables }
 
     startTransition(async () => {
-      const { error } = await supabase.from('email_templates').insert(payload)
-      if (error) { setError(error.message) } else { onSaved() }
+      const { data, error } = await supabase
+        .from('email_templates')
+        .insert(payload)
+        .select('id, name, subject, variables, created_at')
+        .single()
+      if (error) { setError(error.message) } else { onSaved(data as Template) }
     })
   }
 
@@ -538,9 +542,9 @@ function TemplateModal({ tenantId, onClose, onSaved }: { tenantId: string; onClo
             </Field>
 
             <Field label="Cuerpo del email (HTML permitido)" required>
-              <textarea name="body_html" required rows={8}
+              <textarea name="body_html" required rows={16}
                 placeholder={`Hola {{client_name}},\n\nTu cita ha sido confirmada para el {{appointment_date}} a las {{appointment_time}}.\n\nSaludos,\n{{gym_name}}`}
-                className="rounded-lg px-3 py-2 text-sm outline-none resize-none font-mono w-full" style={inputStyle} />
+                className="rounded-lg px-3 py-2 text-sm outline-none resize-y font-mono w-full" style={inputStyle} />
             </Field>
 
             {error && <p className="text-sm rounded-lg px-3 py-2" style={{ backgroundColor: 'color-mix(in srgb, var(--color-destructive) 8%, transparent)', color: 'var(--color-destructive)' }}>{error}</p>}

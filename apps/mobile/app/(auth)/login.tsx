@@ -24,7 +24,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const T = useTheme();
 
-  const { signIn, isLoading, error, clearError } = useAuthStore();
+  const { signIn, signInWithGoogle, isLoading, error, clearError } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -183,7 +183,7 @@ export default function LoginScreen() {
             borderRadius: 10,
             paddingVertical: 14,
             alignItems: 'center',
-            marginBottom: 24,
+            marginBottom: 20,
           }}
         >
           {isLoading ? (
@@ -193,6 +193,47 @@ export default function LoginScreen() {
               {t('auth.login')}
             </Text>
           )}
+        </TouchableOpacity>
+
+        {/* Divider */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+          <View style={{ flex: 1, height: 1, backgroundColor: T.border }} />
+          <Text style={{ marginHorizontal: 12, color: T.textMuted, fontSize: 12 }}>
+            o continúa con
+          </Text>
+          <View style={{ flex: 1, height: 1, backgroundColor: T.border }} />
+        </View>
+
+        {/* Google button */}
+        <TouchableOpacity
+          onPress={() => { clearError(); signInWithGoogle(); }}
+          disabled={isLoading}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            borderWidth: 1,
+            borderColor: T.border,
+            borderRadius: 10,
+            paddingVertical: 13,
+            backgroundColor: T.bgCardElevated,
+            marginBottom: 24,
+            opacity: isLoading ? 0.5 : 1,
+          }}
+        >
+          {/* Google "G" logo rendered as styled text */}
+          <View style={{
+            width: 22, height: 22, borderRadius: 11,
+            backgroundColor: '#ffffff',
+            alignItems: 'center', justifyContent: 'center',
+            borderWidth: 1, borderColor: '#e0e0e0',
+          }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#4285F4', lineHeight: 16 }}>G</Text>
+          </View>
+          <Text style={{ color: T.text, fontSize: 15, fontWeight: '600' }}>
+            Continuar con Google
+          </Text>
         </TouchableOpacity>
 
         {/* Register link */}

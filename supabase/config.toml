@@ -73,3 +73,6 @@ enabled = false
 
 [functions.notify-push]
 verify_jwt = false
+
+[functions.send-communication]
+verify_jwt = false

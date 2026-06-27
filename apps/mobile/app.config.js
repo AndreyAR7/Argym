@@ -20,6 +20,7 @@ module.exports = {
         }
       ],
       "expo-system-ui",
+      "expo-web-browser",
       [
         "expo-notifications",
         {

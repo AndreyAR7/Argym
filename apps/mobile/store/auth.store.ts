@@ -1,9 +1,13 @@
 import { create } from 'zustand';
+import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '@/lib/supabase';
 import { AppErrorCode } from '@/lib/types';
 import { registerPushToken, unregisterPushToken } from '@/lib/pushNotifications';
 import { resetAllStores } from '@/lib/resetAllStores';
 import type { Profile, PrimaryRole } from '@/lib/types';
+
+WebBrowser.maybeCompleteAuthSession();
 
 let authSubscription: { unsubscribe: () => void } | null = null;
 
@@ -28,6 +32,7 @@ interface AuthState {
 
 interface AuthActions {
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
   refreshIfNeeded: () => Promise<void>;
@@ -285,6 +290,85 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
     await supabase.auth.signOut();
     resetAllStores();
     set({ user: null, session: null, permissions: [], approvalStatus: null, rejectionReason: null, error: null, isLoading: false });
+  },
+
+  signInWithGoogle: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      // Construct the redirect URI using the app's deep-link scheme.
+      // scheme comes from app.config.js → expo.scheme: "saas-client-management"
+      const redirectUri = Linking.createURL('auth/callback');
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: redirectUri, skipBrowserRedirect: true },
+      });
+
+      if (error || !data.url) {
+        set({ isLoading: false, error: 'auth.errors.generic' });
+        return;
+      }
+
+      // Open in-app browser; it closes automatically when the redirect URI is hit.
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUri);
+
+      if (result.type !== 'success' || !result.url) {
+        // User dismissed the browser
+        set({ isLoading: false });
+        return;
+      }
+
+      // Extract the PKCE code from the redirect URL and exchange it for a session.
+      const parsed = new URL(result.url);
+      const code   = parsed.searchParams.get('code');
+
+      if (!code) {
+        set({ isLoading: false, error: 'auth.errors.generic' });
+        return;
+      }
+
+      const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
+      if (sessionError || !sessionData.session) {
+        set({ isLoading: false, error: 'auth.errors.generic' });
+        return;
+      }
+
+      const sess = sessionData.session;
+      let profile: Awaited<ReturnType<typeof fetchProfile>>;
+      try {
+        profile = await fetchProfile(sess.user.id);
+      } catch {
+        set({
+          session: { access_token: sess.access_token, refresh_token: sess.refresh_token, expires_at: sess.expires_at ?? 0, user: { id: sess.user.id, email: sess.user.email ?? '' } },
+          user: null,
+          permissions: [],
+          approvalStatus: 'pending',
+          rejectionReason: null,
+          isLoading: false,
+          error: null,
+        });
+        return;
+      }
+
+      const approvalStatus = profile.approval_status ?? 'pending';
+      const permissions    = approvalStatus === 'approved'
+        ? await fetchPermissions(sess.user.id, profile.tenant_id)
+        : [];
+
+      set({
+        session: { access_token: sess.access_token, refresh_token: sess.refresh_token, expires_at: sess.expires_at ?? 0, user: { id: sess.user.id, email: sess.user.email ?? '' } },
+        user: profile as unknown as Profile,
+        permissions,
+        approvalStatus,
+        rejectionReason: profile.rejection_reason ?? null,
+        isLoading: false,
+        error: null,
+      });
+
+      registerPushToken(sess.user.id).catch(() => {});
+    } catch {
+      set({ isLoading: false, error: 'auth.errors.generic' });
+    }
   },
 
   hasPermission: (code) => get().permissions.includes(code),

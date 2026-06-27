@@ -38,6 +38,11 @@ export async function GET(request: NextRequest) {
     console.error('[auth/callback] exchangeCodeForSession:', error.message)
   }
 
-  // Token missing or exchange failed — send user to the reset page with an error flag
-  return NextResponse.redirect(`${origin}/reset-password?error=invalid_link`)
+  // Token missing or exchange failed.
+  // If the callback was initiated by the password-reset flow, bounce back there.
+  // Otherwise send the user to login with a generic error flag.
+  const errorDest = next.startsWith('/reset-password')
+    ? `${origin}/reset-password?error=invalid_link`
+    : `${origin}/login?error=oauth_error`
+  return NextResponse.redirect(errorDest)
 }
