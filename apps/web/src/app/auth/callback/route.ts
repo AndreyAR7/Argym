@@ -18,15 +18,6 @@ export async function GET(request: NextRequest) {
 
   const baseUrl = getBaseUrl(request)
 
-  console.log({
-    requestUrl:      request.url,
-    nextOrigin:      request.nextUrl.origin,
-    xForwardedHost:  request.headers.get('x-forwarded-host'),
-    xForwardedProto: request.headers.get('x-forwarded-proto'),
-    env:             process.env.NEXT_PUBLIC_APP_URL,
-    baseUrl,
-  })
-
   if (code) {
     // Build the redirect response first so we can attach cookies to it.
     // The Supabase server client writes the session cookies directly onto
