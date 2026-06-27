@@ -10,7 +10,7 @@ import { testSmtpAction } from '@/app/admin/correspondencia/actions'
 interface Rule {
   id: string; name: string; event_type: string; recipients: string
   delay_minutes: number; is_active: boolean; template_id: string | null
-  email_templates: { name: string } | null
+  email_templates: { name: string }[] | { name: string } | null
 }
 interface Template { id: string; name: string; subject: string; variables: string[]; created_at: string }
 interface SmtpConfig {
@@ -183,7 +183,7 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
                         </span>
                       </td>
                       <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
-                        {rule.email_templates?.name ?? <span className="italic">Sin plantilla</span>}
+                        {(Array.isArray(rule.email_templates) ? rule.email_templates[0]?.name : rule.email_templates?.name) ?? <span className="italic">Sin plantilla</span>}
                       </td>
                       <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
                         {RECIPIENT_LABELS[rule.recipients] ?? rule.recipients}
