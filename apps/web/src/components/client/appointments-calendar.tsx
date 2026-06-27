@@ -2,18 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, ChevronRight, Clock, User, MapPin, Video, Phone, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { AppointmentDetailSheet, type AppointmentDetail } from './appointment-detail-sheet'
 
-interface Appointment {
-  id: string
-  title: string
-  start_time: string
-  end_time: string
-  status: string
-  appointment_type: string
-  notes: string | null
-  coach: { full_name: string } | null
-}
+interface Appointment extends AppointmentDetail {}
 
 interface Props {
   appointments: Appointment[]
@@ -35,25 +27,6 @@ const STATUS_COLORS: Record<string, string> = {
   no_show:    '#f59e0b',
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  scheduled: 'Programada',
-  confirmed:  'Confirmada',
-  completed:  'Completada',
-  cancelled:  'Cancelada',
-  no_show:    'No asistió',
-}
-
-const TYPE_ICON: Record<string, React.ReactNode> = {
-  in_person: <MapPin size={10} />,
-  virtual:   <Video  size={10} />,
-  phone:     <Phone  size={10} />,
-}
-
-const TYPE_LABEL: Record<string, string> = {
-  in_person: 'Presencial',
-  virtual:   'Virtual',
-  phone:     'Teléfono',
-}
 
 function localDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -82,11 +55,9 @@ function nowTop(): number | null {
   return (h * 60 + m - HOUR_START * 60) * PX_PER_MIN
 }
 
-interface Tooltip { apt: Appointment; x: number; y: number }
-
 export function ClientAppointmentsCalendar({ appointments, weekStart }: Props) {
   const router = useRouter()
-  const [tooltip, setTooltip]           = useState<Tooltip | null>(null)
+  const [selected, setSelected]         = useState<Appointment | null>(null)
   const [currentTopPx, setCurrentTopPx] = useState<number | null>(nowTop)
 
   useEffect(() => {
@@ -218,12 +189,12 @@ export function ClientAppointmentsCalendar({ appointments, weekStart }: Props) {
                     style={{ top: `${(i * 60 + 30) * PX_PER_MIN}px` }} />
                 ))}
 
-                {/* Current time line */}
+                {/* Current time line — red */}
                 {isToday && currentTopPx !== null && (
                   <div className="absolute inset-x-0 z-10 pointer-events-none flex items-center"
                     style={{ top: `${currentTopPx}px` }}>
-                    <div className="w-2 h-2 rounded-full flex-shrink-0 -ml-1 bg-[var(--color-client)]" />
-                    <div className="flex-1 h-px bg-[var(--color-client)]" />
+                    <div className="w-2 h-2 rounded-full flex-shrink-0 -ml-1 bg-red-500" />
+                    <div className="flex-1 border-t border-red-500" />
                   </div>
                 )}
 
@@ -246,10 +217,7 @@ export function ClientAppointmentsCalendar({ appointments, weekStart }: Props) {
                         backgroundColor: `color-mix(in srgb, ${color} 15%, white)`,
                         borderLeft:      `3px solid ${color}`,
                       }}
-                      onClick={e => {
-                        const rect = e.currentTarget.getBoundingClientRect()
-                        setTooltip({ apt, x: rect.right + 8, y: rect.top })
-                      }}
+                      onClick={() => setSelected(apt)}
                     >
                       <p className="text-[10px] font-semibold truncate leading-tight" style={{ color }}>
                         {apt.title}
@@ -268,60 +236,7 @@ export function ClientAppointmentsCalendar({ appointments, weekStart }: Props) {
         </div>
       </div>
 
-      {/* Tooltip */}
-      {tooltip && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setTooltip(null)} />
-          <div
-            className="fixed z-50 w-60 rounded-xl border shadow-xl p-4 bg-[var(--color-card)] border-[var(--color-border)]"
-            style={{
-              top:  `${Math.min(tooltip.y, window.innerHeight - 260)}px`,
-              left: `${Math.min(tooltip.x, window.innerWidth  - 256)}px`,
-            }}
-          >
-            <div className="flex items-start justify-between gap-2 mb-3">
-              <p className="text-sm font-semibold leading-snug text-[var(--color-foreground)]">
-                {tooltip.apt.title}
-              </p>
-              <button onClick={() => setTooltip(null)}
-                className="shrink-0 text-[var(--color-muted-foreground)] hover:opacity-70">
-                <X size={14} />
-              </button>
-            </div>
-
-            <div className="space-y-2 text-xs text-[var(--color-muted-foreground)]">
-              <div className="flex items-center gap-1.5">
-                <Clock size={11} />
-                {new Date(tooltip.apt.start_time).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' })}
-                {' — '}
-                {new Date(tooltip.apt.end_time).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' })}
-              </div>
-
-              {tooltip.apt.coach && (
-                <div className="flex items-center gap-1.5">
-                  <User size={11} />
-                  {tooltip.apt.coach.full_name}
-                </div>
-              )}
-
-              <div className="flex items-center gap-1.5">
-                {TYPE_ICON[tooltip.apt.appointment_type] ?? <MapPin size={10} />}
-                {TYPE_LABEL[tooltip.apt.appointment_type] ?? tooltip.apt.appointment_type}
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: STATUS_COLORS[tooltip.apt.status] ?? 'var(--color-client)' }} />
-                {STATUS_LABELS[tooltip.apt.status] ?? tooltip.apt.status}
-              </div>
-
-              {tooltip.apt.notes && (
-                <p className="italic pt-1 border-t border-[var(--color-border)]">{tooltip.apt.notes}</p>
-              )}
-            </div>
-          </div>
-        </>
-      )}
+      <AppointmentDetailSheet appointment={selected} onClose={() => setSelected(null)} />
     </div>
   )
 }
