@@ -135,12 +135,15 @@ function LoginForm() {
   )
 }
 
-// useSearchParams() must be inside a Suspense boundary (Next.js 15 requirement).
+// OAuthError uses useSearchParams() which requires a Suspense boundary (Next.js 15).
+// LoginForm is kept outside so it always renders — including the Google button.
 export default function LoginPage() {
   return (
-    <Suspense>
-      <OAuthError />
+    <>
+      <Suspense fallback={null}>
+        <OAuthError />
+      </Suspense>
       <LoginForm />
-    </Suspense>
+    </>
   )
 }
