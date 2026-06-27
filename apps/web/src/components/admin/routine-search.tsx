@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTransition } from 'react'
 
-export function RoutineSearch({ defaultValue }: { defaultValue: string }) {
+export function RoutineSearch({ defaultValue, basePath = '/admin/routines' }: { defaultValue: string; basePath?: string }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [, startTransition] = useTransition()
@@ -15,7 +15,7 @@ export function RoutineSearch({ defaultValue }: { defaultValue: string }) {
     const sp = new URLSearchParams(searchParams.toString())
     if (search) sp.set('search', search)
     else sp.delete('search')
-    startTransition(() => router.push(`/admin/routines?${sp.toString()}`))
+    startTransition(() => router.push(`${basePath}?${sp.toString()}`))
   }
 
   return (
