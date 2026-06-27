@@ -16,7 +16,7 @@ interface Props {
   onPress?: () => void;
   onReschedule?: () => void;
   onConfirm?: () => void;
-  onRequestPostpone?: () => void;
+  onDecline?: () => void;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -51,7 +51,7 @@ function formatTime(iso: string) {
   return { day, time };
 }
 
-export function AppointmentCard({ appointment, onPress, onReschedule, onConfirm, onRequestPostpone }: Props) {
+export function AppointmentCard({ appointment, onPress, onReschedule, onConfirm, onDecline }: Props) {
   const T = useTheme();
   const { day, time } = formatTime(appointment.start_time);
   const isVirtual = appointment.appointment_type === 'virtual';
@@ -90,8 +90,8 @@ export function AppointmentCard({ appointment, onPress, onReschedule, onConfirm,
         {appointment.notes && (
           <Text style={[styles.notes, { color: T.textMuted }]}>{appointment.notes}</Text>
         )}
-        {/* Confirm / postpone actions for pending_confirmation */}
-        {status === 'pending_confirmation' && (onConfirm || onRequestPostpone) && (
+        {/* Confirm / decline actions for pending_confirmation */}
+        {status === 'pending_confirmation' && (onConfirm || onDecline) && (
           <View style={styles.actionRow}>
             {onConfirm && (
               <TouchableOpacity
@@ -101,23 +101,14 @@ export function AppointmentCard({ appointment, onPress, onReschedule, onConfirm,
                 <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '700' }}>✓ Aceptar</Text>
               </TouchableOpacity>
             )}
-            {onRequestPostpone && (
+            {onDecline && (
               <TouchableOpacity
-                onPress={(e) => { e.stopPropagation?.(); onRequestPostpone(); }}
-                style={[styles.actionBtn, { backgroundColor: '#F59E0B22', borderColor: '#F59E0B55' }]}
+                onPress={(e) => { e.stopPropagation?.(); onDecline(); }}
+                style={[styles.actionBtn, { backgroundColor: '#EF444422', borderColor: '#EF444455' }]}
               >
-                <Text style={{ color: '#F59E0B', fontSize: 12, fontWeight: '700' }}>↷ Posponer</Text>
+                <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '700' }}>✕ No puedo</Text>
               </TouchableOpacity>
             )}
-          </View>
-        )}
-
-        {/* Postpone requested banner */}
-        {status === 'postpone_requested' && (
-          <View style={[styles.postponeBanner, { backgroundColor: '#F59E0B11', borderColor: '#F59E0B44' }]}>
-            <Text style={{ color: '#F59E0B', fontSize: 11, fontWeight: '600' }}>
-              ⏳ Solicitud de cambio enviada — esperando al equipo
-            </Text>
           </View>
         )}
 

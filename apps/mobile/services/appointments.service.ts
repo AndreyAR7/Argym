@@ -191,45 +191,10 @@ export async function confirmAppointment(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function requestPostponeAppointment(id: string, appointmentTitle: string): Promise<void> {
+export async function declineAppointment(id: string): Promise<void> {
   const { error } = await supabase
     .from('appointments')
-    .update({ status: 'postpone_requested' })
+    .update({ status: 'cancelled' })
     .eq('id', id);
   if (error) throw error;
-
-  // Best-effort push notification to admins
-  try {
-    const [profileResult, adminIdsResult] = await Promise.all([
-      supabase.auth.getUser(),
-      supabase.rpc('get_tenant_admin_ids'),
-    ]);
-
-    const userId = profileResult.data.user?.id;
-    if (!userId) return;
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('full_name')
-      .eq('id', userId)
-      .single();
-
-    const clientName = profile?.full_name ?? 'Un cliente';
-    const adminIds: string[] = adminIdsResult.data ?? [];
-
-    if (adminIds.length > 0) {
-      await supabase.functions.invoke('notify-push', {
-        body: {
-          notifications: adminIds.map((adminId: string) => ({
-            user_id: adminId,
-            title: 'Solicitud de cambio de cita',
-            message: `${clientName} solicitó posponer: ${appointmentTitle}`,
-            type: 'appointment_postpone_request',
-          })),
-        },
-      });
-    }
-  } catch {
-    // Non-blocking
-  }
 }

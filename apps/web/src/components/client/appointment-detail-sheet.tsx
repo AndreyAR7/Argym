@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
-import { X, Clock, User, MapPin, Video, Phone, ExternalLink, Navigation, MonitorPlay, Check, CalendarClock, AlertCircle } from 'lucide-react'
-import { confirmAppointmentAction, requestPostponeAction } from '@/lib/client/appointment-actions'
+import { X, Clock, User, MapPin, Video, Phone, ExternalLink, Navigation, MonitorPlay, Check, XCircle, AlertCircle } from 'lucide-react'
+import { confirmAppointmentAction, declineAppointmentAction } from '@/lib/client/appointment-actions'
 
 export interface AppointmentDetail {
   id: string
@@ -64,17 +64,16 @@ export function AppointmentDetailSheet({ appointment, onClose }: Props) {
     })
   }
 
-  function handlePostpone() {
+  function handleDecline() {
     setActionError(null)
     startTransition(async () => {
-      const res = await requestPostponeAction(appointment!.id, appointment!.title)
+      const res = await declineAppointmentAction(appointment!.id)
       if (res?.error) setActionError(res.error)
       else onClose()
     })
   }
 
   const isPendingConfirmation = appointment.status === 'pending_confirmation'
-  const isPostponeRequested   = appointment.status === 'postpone_requested'
 
   const startD   = new Date(appointment.start_time)
   const endD     = new Date(appointment.end_time)
@@ -200,13 +199,13 @@ export function AppointmentDetailSheet({ appointment, onClose }: Props) {
                   Aceptar
                 </button>
                 <button
-                  onClick={handlePostpone}
+                  onClick={handleDecline}
                   disabled={isPending}
                   className="flex items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 border-2"
-                  style={{ color: '#f59e0b', borderColor: '#f59e0b', backgroundColor: 'transparent' }}
+                  style={{ color: 'var(--color-destructive)', borderColor: 'var(--color-destructive)', backgroundColor: 'transparent' }}
                 >
-                  <CalendarClock size={15} />
-                  Posponer
+                  <XCircle size={15} />
+                  No puedo asistir
                 </button>
               </div>
               {actionError && (
@@ -216,20 +215,6 @@ export function AppointmentDetailSheet({ appointment, onClose }: Props) {
                   {actionError}
                 </div>
               )}
-            </div>
-          )}
-
-          {/* ── POSTPONE REQUESTED — waiting for admin to act ── */}
-          {isPostponeRequested && (
-            <div className="flex items-start gap-3 px-3 py-3 rounded-xl"
-              style={{ backgroundColor: 'color-mix(in srgb, #f59e0b 10%, transparent)', border: '1px solid color-mix(in srgb, #f59e0b 30%, transparent)' }}>
-              <CalendarClock size={16} className="shrink-0 mt-0.5" style={{ color: '#f59e0b' }} />
-              <div>
-                <p className="text-sm font-semibold" style={{ color: '#f59e0b' }}>Solicitud enviada</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted-foreground)' }}>
-                  Tu solicitud de cambio fue enviada al equipo. Te avisaremos cuando reprogramen la cita.
-                </p>
-              </div>
             </div>
           )}
 
