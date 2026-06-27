@@ -1,21 +1,22 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 
+function getAppBaseUrl(): string {
+  // NEXT_PUBLIC_APP_URL is the authoritative source in production.
+  // Header-based detection is unreliable on Render (internal binding is localhost:10000).
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL
+  return 'http://localhost:3000'
+}
+
 export async function loginWithGoogleAction() {
-  const hdrs = await headers()
-  // x-forwarded-host is set by reverse proxies (Render, Vercel, Nginx) and contains
-  // the real external hostname. The raw `host` header has the internal binding address
-  // (e.g. localhost:10000 on Render) and must NOT be used for OAuth redirect URLs.
-  const host = hdrs.get('x-forwarded-host') ?? hdrs.get('host') ?? 'localhost:3000'
-  const protocol = hdrs.get('x-forwarded-proto') ?? (host.includes('localhost') ? 'http' : 'https')
+  const baseUrl = getAppBaseUrl()
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: `${protocol}://${host}/auth/callback` },
+    options: { redirectTo: `${baseUrl}/auth/callback` },
   })
 
   if (error || !data.url) redirect('/login?error=oauth_error')
@@ -56,10 +57,8 @@ export async function forgotPasswordAction(
   const email = (formData.get('email') as string)?.trim()
   if (!email) return { error: 'El correo es requerido' }
 
-  const hdrs = await headers()
-  const host = hdrs.get('x-forwarded-host') ?? hdrs.get('host') ?? 'localhost:3000'
-  const protocol = hdrs.get('x-forwarded-proto') ?? (host.includes('localhost') ? 'http' : 'https')
-  const redirectTo = `${protocol}://${host}/auth/callback?next=/reset-password`
+  const baseUrl = getAppBaseUrl()
+  const redirectTo = `${baseUrl}/auth/callback?next=/reset-password`
 
   const supabase = await createClient()
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
