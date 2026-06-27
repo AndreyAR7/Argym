@@ -57,21 +57,54 @@ export function AppointmentQuickForm({ date, startTime, coaches, clients, onClos
     ? clients
     : clients.filter((c) => (c.client_level ?? '').toLowerCase() === levelFilter)
 
+  function validate(title: string, client_id: string): string | null {
+    if (!title.trim())   return 'El título de la cita es obligatorio.'
+    if (!client_id)      return 'Debes seleccionar un cliente.'
+
+    const start = new Date(`${date}T${startTime}:00`)
+    const end   = new Date(`${date}T${endTime}:00`)
+    if (isNaN(start.getTime())) return 'La fecha o la hora ingresada no es válida.'
+    if (end <= start)           return 'La hora de fin debe ser posterior a la hora de inicio.'
+
+    const dur = (end.getTime() - start.getTime()) / 60000
+    if (dur < 15)  return 'La duración mínima de una cita es 15 minutos.'
+    if (dur > 480) return 'La duración máxima de una cita es 8 horas.'
+
+    const now      = new Date()
+    const todayStr = now.toLocaleDateString('en-CA')
+
+    if (date < todayStr) {
+      return `No se puede crear una cita en una fecha pasada (${date}).`
+    }
+    if (date === todayStr) {
+      const oneHourAgo = new Date(now.getTime() - 3600000)
+      if (start < oneHourAgo) {
+        const limit = oneHourAgo.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' })
+        return `La hora de inicio no puede ser anterior a las ${limit} (máximo 1 hora en el pasado).`
+      }
+    }
+
+    return null
+  }
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
 
     const fd = new FormData(e.currentTarget)
 
-    const title = fd.get('title') as string
-    const client_id = fd.get('client_id') as string
-    const coach_id = (fd.get('coach_id') as string) || null
-    const notes = ((fd.get('notes') as string) || '').trim() || null
-    const location = appointmentType === 'in_person' ? ((fd.get('location') as string) || null) : null
-    const meeting_url = appointmentType === 'virtual' ? ((fd.get('meeting_url') as string) || null) : null
+    const title      = (fd.get('title')     as string ?? '').trim()
+    const client_id  =  fd.get('client_id') as string
+    const coach_id   = (fd.get('coach_id')  as string) || null
+    const notes      = ((fd.get('notes')    as string) || '').trim() || null
+    const location    = appointmentType === 'in_person' ? ((fd.get('location')    as string) || null) : null
+    const meeting_url = appointmentType === 'virtual'   ? ((fd.get('meeting_url') as string) || null) : null
 
-    const start_time = new Date(`${date}T${startTime}`).toISOString()
-    const end_time = new Date(`${date}T${endTime}`).toISOString()
+    const err = validate(title, client_id)
+    if (err) { setError(err); return }
+
+    const start_time = new Date(`${date}T${startTime}:00`).toISOString()
+    const end_time   = new Date(`${date}T${endTime}:00`).toISOString()
 
     startTransition(async () => {
       try {
@@ -346,9 +379,9 @@ export function AppointmentQuickForm({ date, startTime, coaches, clients, onClos
               <p
                 className="text-sm rounded-lg px-3 py-2"
                 style={{
-                  backgroundColor: 'color-mix(in srgb, var(--color-admin) 10%, transparent)',
-                  color: 'var(--color-admin)',
-                  border: '1px solid color-mix(in srgb, var(--color-admin) 30%, transparent)',
+                  backgroundColor: 'color-mix(in srgb, var(--color-destructive) 8%, transparent)',
+                  color: 'var(--color-destructive)',
+                  border: '1px solid color-mix(in srgb, var(--color-destructive) 25%, transparent)',
                 }}
               >
                 {error}
