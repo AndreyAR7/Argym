@@ -39,6 +39,33 @@ export async function rejectUserAction(userId: string, reason: string) {
   return { success: true }
 }
 
+// ── Create coach (via Edge Function) ──────────────────────────
+
+export async function createCoachAction(data: {
+  full_name: string
+  email: string
+  password: string
+  phone: string | null
+}): Promise<{ success?: true; id?: string; error?: string }> {
+  const supabase = await createClient()
+
+  const { data: result, error } = await supabase.functions.invoke('create-user', {
+    body: {
+      role:      'coach',
+      full_name: data.full_name.trim(),
+      email:     data.email.trim().toLowerCase(),
+      password:  data.password,
+      phone:     data.phone?.trim() || undefined,
+    },
+  })
+
+  if (error) return { error: error.message }
+  if (result?.error) return { error: result.error }
+
+  revalidatePath('/admin/coaches')
+  return { success: true, id: result?.id }
+}
+
 // ── Client / Coach management ──────────────────────────────────
 
 export async function toggleProfileActiveAction(targetUserId: string, isActive: boolean) {
