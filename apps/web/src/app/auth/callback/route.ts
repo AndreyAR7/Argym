@@ -1,19 +1,38 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+function getBaseUrl(request: NextRequest): string {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL
+
+  const proto = request.headers.get('x-forwarded-proto')
+  const host  = request.headers.get('x-forwarded-host')
+  if (proto && host) return `${proto}://${host}`
+
+  return request.nextUrl.origin
+}
+
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url)
-  console.log('[auth/callback] request.url =', request.url)
-  console.log('[auth/callback] origin =', origin)
+  const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/'
+
+  const baseUrl = getBaseUrl(request)
+
+  console.log({
+    requestUrl:      request.url,
+    nextOrigin:      request.nextUrl.origin,
+    xForwardedHost:  request.headers.get('x-forwarded-host'),
+    xForwardedProto: request.headers.get('x-forwarded-proto'),
+    env:             process.env.NEXT_PUBLIC_APP_URL,
+    baseUrl,
+  })
 
   if (code) {
     // Build the redirect response first so we can attach cookies to it.
     // The Supabase server client writes the session cookies directly onto
     // this response — that way the browser receives them in the same request
     // that performs the PKCE code exchange.
-    const redirectResponse = NextResponse.redirect(`${origin}${next}`)
+    const redirectResponse = NextResponse.redirect(`${baseUrl}${next}`)
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -44,7 +63,7 @@ export async function GET(request: NextRequest) {
   // If the callback was initiated by the password-reset flow, bounce back there.
   // Otherwise send the user to login with a generic error flag.
   const errorDest = next.startsWith('/reset-password')
-    ? `${origin}/reset-password?error=invalid_link`
-    : `${origin}/login?error=oauth_error`
+    ? `${baseUrl}/reset-password?error=invalid_link`
+    : `${baseUrl}/login?error=oauth_error`
   return NextResponse.redirect(errorDest)
 }
