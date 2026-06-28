@@ -16,11 +16,34 @@ export async function loginWithGoogleAction() {
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: `${baseUrl}/auth/callback` },
+    // After exchanging the code, /auth/callback redirects here.
+    // select-branch checks if the user already has a branch and skips if so.
+    options: { redirectTo: `${baseUrl}/auth/callback?next=/select-branch` },
   })
 
   if (error || !data.url) redirect('/login?error=oauth_error')
   redirect(data.url)
+}
+
+export async function saveBranchAction(
+  branchId: string,
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { error } = await supabase.rpc('set_own_branch', { p_branch_id: branchId })
+  if (error) return { error: error.message }
+
+  // Redirect based on current approval status
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('approval_status')
+    .eq('id', user.id)
+    .single()
+
+  if (profile?.approval_status === 'approved') redirect('/')
+  redirect('/pending-approval')
 }
 
 export async function loginAction(_prevState: { error: string } | null, formData: FormData) {

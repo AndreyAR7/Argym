@@ -36,29 +36,40 @@ export function RegisterForm({ branches }: Props) {
           </div>
         )}
 
-        {/* Branch / Gym selector */}
+        {/* Branch visual cards */}
         {branches.length > 0 && (
-          <div className="space-y-1.5">
-            <label htmlFor="branch_id" className="block text-sm font-medium text-[var(--color-foreground)]">
-              Gimnasio / Sede <span className="text-[var(--color-destructive)]">*</span>
-            </label>
-            <select
-              id="branch_id"
-              name="branch_id"
-              required
-              disabled={isPending}
-              defaultValue=""
-              className="w-full rounded-lg border border-[var(--color-input)] bg-[var(--color-card)] px-3.5 py-2.5 text-sm text-[var(--color-foreground)] outline-none transition-all focus:border-[var(--color-ring)] focus:ring-2 focus:ring-[var(--color-ring)]/20 disabled:opacity-50"
-            >
-              <option value="" disabled>Selecciona tu sede</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.tenants?.name ? `${b.tenants.name} — ` : ''}{b.name}
-                  {b.address ? ` · ${b.address}` : ''}
-                </option>
+          <fieldset className="space-y-2" disabled={isPending}>
+            <legend className="block text-sm font-medium text-[var(--color-foreground)]">
+              Sede <span className="text-[var(--color-destructive)]">*</span>
+            </legend>
+            <div className="grid gap-2 mt-1.5">
+              {branches.map((b, i) => (
+                <label key={b.id} className="cursor-pointer">
+                  <input
+                    type="radio"
+                    name="branch_id"
+                    value={b.id}
+                    required={i === 0}
+                    className="sr-only peer"
+                  />
+                  <div className="rounded-xl border-2 border-[var(--color-input)] px-4 py-3 transition-all
+                                  peer-checked:border-[var(--color-primary)]
+                                  peer-checked:bg-[color-mix(in_srgb,var(--color-primary)_6%,var(--color-card))]
+                                  hover:border-[var(--color-primary)]/60
+                                  peer-disabled:opacity-50 peer-disabled:cursor-not-allowed">
+                    <p className="font-semibold text-sm text-[var(--color-foreground)]">
+                      {b.name}
+                    </p>
+                    {b.address && (
+                      <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
+                        {b.address}
+                      </p>
+                    )}
+                  </div>
+                </label>
               ))}
-            </select>
-          </div>
+            </div>
+          </fieldset>
         )}
 
         <div className="space-y-1.5">
