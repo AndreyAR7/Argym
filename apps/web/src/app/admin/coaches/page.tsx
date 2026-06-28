@@ -7,6 +7,7 @@ import { CoachFilters } from '@/components/admin/coach-filters'
 import { formatDate } from '@/lib/utils'
 import { UserPlus, Users2 } from 'lucide-react'
 import Link from 'next/link'
+import { ElevateCoachButton } from '@/components/admin/elevate-coach-modal'
 
 export const metadata = { title: 'Coaches' }
 
@@ -53,6 +54,7 @@ export default async function CoachesPage({
   return (
     <div className="p-4 md:p-8">
       <PageHeader title="Coaches" subtitle={`${count ?? 0} coaches registrados`}>
+        <ElevateCoachButton />
         <Link
           href="/admin/coaches/new"
           className="flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-3.5 py-2 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90"

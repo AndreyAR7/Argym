@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { TrendingUp, Scale, Flame, Plus } from 'lucide-react'
+import { TrendingUp, Scale, Flame, Plus, BarChart2 } from 'lucide-react'
 import { MeasurementWizard, WizardMeasurement } from './measurement-wizard'
 import type { Gender } from './body-silhouette'
 
@@ -211,6 +211,240 @@ function ComparisonCard({ measurements }: { measurements: BodyMeasurement[] }) {
           )
         })}
       </div>
+    </div>
+  )
+}
+
+// ─── Metric Chart (SVG sparkline) ────────────────────────────
+
+function MetricChart({
+  label,
+  unit,
+  data,
+  color,
+}: {
+  label: string
+  unit: string
+  data: { date: string; value: number }[]
+  color: string
+}) {
+  if (data.length < 2) return null
+  const values = data.map((d) => d.value)
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const range = max - min || 0.001
+  const W = 260, H = 48, P = 4
+
+  const pts = values.map((v, i) => ({
+    x: P + (i / (values.length - 1)) * (W - P * 2),
+    y: P + (1 - (v - min) / range) * (H - P * 2),
+    v,
+  }))
+
+  const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
+  const areaPath = `${linePath} L${pts[pts.length - 1].x.toFixed(1)},${(H - P).toFixed(1)} L${pts[0].x.toFixed(1)},${(H - P).toFixed(1)} Z`
+
+  const delta = values[values.length - 1] - values[0]
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs font-medium text-[var(--color-muted-foreground)]">{label}</span>
+        <div className="flex items-center gap-3 text-[10px]">
+          <span className="text-[var(--color-muted-foreground)]">
+            {values[0].toFixed(1)}{unit} → {values[values.length - 1].toFixed(1)}{unit}
+          </span>
+          <span className="font-bold" style={{ color }}>
+            {delta > 0 ? '+' : ''}{delta.toFixed(1)}{unit}
+          </span>
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 48 }}>
+        <path d={areaPath} fill={color} fillOpacity="0.12" />
+        <path d={linePath} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        {pts.map((p, i) => (
+          <circle
+            key={i}
+            cx={p.x} cy={p.y}
+            r={i === pts.length - 1 ? 3.5 : 2}
+            fill={i === pts.length - 1 ? color : 'transparent'}
+            stroke={color} strokeWidth="1.5"
+          />
+        ))}
+      </svg>
+      <div className="flex justify-between mt-0.5 text-[9px] text-[var(--color-muted-foreground)]">
+        <span>{new Date(data[0].date + 'T12:00:00').toLocaleDateString('es-CR', { day: 'numeric', month: 'short' })}</span>
+        <span>{new Date(data[data.length - 1].date + 'T12:00:00').toLocaleDateString('es-CR', { day: 'numeric', month: 'short' })}</span>
+      </div>
+    </div>
+  )
+}
+
+// ─── Advice engine ────────────────────────────────────────────
+
+interface AdviceCard { icon: string; title: string; body: string; type: 'success' | 'warning' | 'info' }
+
+function generateAdvice(measurements: BodyMeasurement[], dailyProgress: DailyProgress[]): AdviceCard[] {
+  const advice: AdviceCard[] = []
+
+  if (measurements.length < 2) {
+    advice.push({ icon: '📊', title: 'Comienza tu seguimiento', body: 'Registrá al menos 2 mediciones para recibir análisis personalizados de tu progreso.', type: 'info' })
+    return advice
+  }
+
+  const latest = measurements[0]
+  const oldest = measurements[measurements.length - 1]
+
+  // Weight trend
+  if (latest.weight_kg != null && oldest.weight_kg != null) {
+    const change = latest.weight_kg - oldest.weight_kg
+    if (change <= -2) {
+      advice.push({ icon: '⚡', title: 'Reducción de peso sostenida', body: `Llevas ${Math.abs(change).toFixed(1)} kg menos desde tu primera medición. Mantén el plan y asegurate de preservar masa muscular con entrenamiento de fuerza.`, type: 'success' })
+    } else if (change >= 2) {
+      const fatImproved = latest.body_fat_pct != null && oldest.body_fat_pct != null && latest.body_fat_pct < oldest.body_fat_pct
+      if (fatImproved) {
+        advice.push({ icon: '💪', title: 'Ganancia muscular detectada', body: `Tu peso subió ${change.toFixed(1)} kg pero tu grasa bajó. Eso indica ganancia de masa muscular. Seguí con el entrenamiento de fuerza.`, type: 'success' })
+      } else {
+        advice.push({ icon: '⚠️', title: 'Tendencia de aumento de peso', body: `Tu peso subió ${change.toFixed(1)} kg desde el inicio. Revisá tu alimentación y aumentá la actividad cardiovascular.`, type: 'warning' })
+      }
+    }
+  }
+
+  // Waist trend
+  if (latest.waist_cm != null && oldest.waist_cm != null) {
+    const change = latest.waist_cm - oldest.waist_cm
+    if (change <= -2) {
+      advice.push({ icon: '🎯', title: 'Cintura en reducción', body: `Perdiste ${Math.abs(change).toFixed(1)} cm de cintura. Combiná cardio con abdominales hipopresivos para acelerar el resultado.`, type: 'success' })
+    } else if (change >= 2) {
+      advice.push({ icon: '🔥', title: 'Zona media para trabajar', body: 'Tu cintura aumentó. Enfocate en ejercicio aeróbico de moderada intensidad y reducí los carbohidratos refinados.', type: 'warning' })
+    }
+  }
+
+  // Body fat trend
+  if (latest.body_fat_pct != null && oldest.body_fat_pct != null) {
+    const change = latest.body_fat_pct - oldest.body_fat_pct
+    if (change <= -2) {
+      advice.push({ icon: '🏃', title: '% Grasa corporal baja', body: `Tu grasa bajó ${Math.abs(change).toFixed(1)} puntos. Excelente resultado. Mantené la progresión de carga en el entrenamiento.`, type: 'success' })
+    } else if (change >= 2) {
+      advice.push({ icon: '🥗', title: '% Grasa en aumento', body: 'Tu grasa corporal subió. Aumentá la intensidad del entrenamiento y ajustá la dieta hacia un déficit calórico moderado (300-500 kcal/día).', type: 'warning' })
+    }
+  }
+
+  // Activity frequency
+  const last14 = dailyProgress.slice(-14)
+  const activeDays = last14.filter((d) => d.pct > 0).length
+  if (activeDays >= 10) {
+    advice.push({ icon: '⭐', title: 'Frecuencia excepcional', body: `${activeDays} de 14 días activos. Tu constancia es tu mayor ventaja. Asegurate de descansar al menos 1-2 días por semana.`, type: 'success' })
+  } else if (activeDays < 4) {
+    advice.push({ icon: '💡', title: 'Aumenta tu frecuencia', body: `Solo ${activeDays} días activos en las últimas 2 semanas. La constancia es más importante que la intensidad. Apuntá a 4 sesiones por semana.`, type: 'warning' })
+  }
+
+  // BMI advice
+  if (latest.weight_kg != null && latest.height_cm != null) {
+    const bmi = calcBMI(latest.weight_kg, latest.height_cm)
+    const cat = bmiCategory(bmi)
+    if (cat.label === 'Normal') {
+      advice.push({ icon: '✅', title: 'IMC en rango saludable', body: `Tu IMC actual es ${bmi} (${cat.label}). Enfocate en composición corporal: mantener o ganar músculo mientras mantenés el peso.`, type: 'success' })
+    } else if (cat.label.startsWith('Obesidad')) {
+      advice.push({ icon: '🎯', title: `IMC: ${cat.label}`, body: `Tu IMC es ${bmi}. Combiná cardio de baja intensidad con entrenamiento de fuerza. Un déficit de 500 kcal/día es seguro y sostenible.`, type: 'warning' })
+    }
+  }
+
+  if (advice.length === 0) {
+    advice.push({ icon: '📏', title: 'Progreso estable', body: 'Tus métricas se mantienen constantes. Seguí registrando mediciones semanalmente para detectar tendencias a tiempo.', type: 'info' })
+  }
+
+  return advice.slice(0, 4)
+}
+
+// ─── Tab: Análisis ────────────────────────────────────────────
+
+const ADVICE_STYLES: Record<AdviceCard['type'], { bg: string; border: string; title: string; text: string }> = {
+  success: { bg: '#f0fdf4', border: '#86efac', title: '#15803d', text: '#166534' },
+  warning: { bg: '#fffbeb', border: '#fcd34d', title: '#b45309', text: '#92400e' },
+  info:    { bg: '#eff6ff', border: '#93c5fd', title: '#1d4ed8', text: '#1e40af' },
+}
+
+function AnalisisTab({
+  measurements,
+  dailyProgress,
+}: {
+  measurements: BodyMeasurement[]
+  dailyProgress: DailyProgress[]
+}) {
+  const advice = generateAdvice(measurements, dailyProgress)
+
+  const sorted = [...measurements].reverse()
+  const wData    = sorted.filter((m) => m.weight_kg != null).map((m) => ({ date: m.measured_at, value: m.weight_kg! }))
+  const fatData  = sorted.filter((m) => m.body_fat_pct != null).map((m) => ({ date: m.measured_at, value: m.body_fat_pct! }))
+  const bmiData  = sorted.filter((m) => m.weight_kg != null && m.height_cm != null).map((m) => ({ date: m.measured_at, value: calcBMI(m.weight_kg!, m.height_cm!) }))
+  const wstData  = sorted.filter((m) => m.waist_cm != null).map((m) => ({ date: m.measured_at, value: m.waist_cm! }))
+  const abdData  = sorted.filter((m) => m.abdomen_cm != null).map((m) => ({ date: m.measured_at, value: m.abdomen_cm! }))
+  const hipData  = sorted.filter((m) => m.hip_cm != null).map((m) => ({ date: m.measured_at, value: m.hip_cm! }))
+  const armData  = sorted.filter((m) => m.arm_cm != null).map((m) => ({ date: m.measured_at, value: m.arm_cm! }))
+
+  const hasCharts = wData.length >= 2 || fatData.length >= 2 || wstData.length >= 2
+
+  return (
+    <div className="space-y-4">
+      {/* Advice cards */}
+      <div>
+        <p className="text-sm font-semibold text-[var(--color-foreground)] mb-3">Consejos según tu progreso</p>
+        <div className="space-y-2.5">
+          {advice.map((card, i) => {
+            const s = ADVICE_STYLES[card.type]
+            return (
+              <div key={i} className="rounded-xl border p-3.5" style={{ backgroundColor: s.bg, borderColor: s.border }}>
+                <p className="text-sm font-bold mb-0.5" style={{ color: s.title }}>
+                  {card.icon} {card.title}
+                </p>
+                <p className="text-xs leading-relaxed" style={{ color: s.text }}>{card.body}</p>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Charts */}
+      {hasCharts && (
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+          <p className="text-sm font-semibold text-[var(--color-foreground)] mb-5">Evolución de métricas</p>
+          <div className="space-y-6">
+            {wData.length >= 2 && (
+              <MetricChart label="Peso" unit=" kg" data={wData} color="#f59e0b" />
+            )}
+            {bmiData.length >= 2 && (
+              <MetricChart label="IMC" unit="" data={bmiData} color="#8b5cf6" />
+            )}
+            {fatData.length >= 2 && (
+              <MetricChart label="% Grasa corporal" unit="%" data={fatData} color="#ef4444" />
+            )}
+            {(wstData.length >= 2 || abdData.length >= 2 || hipData.length >= 2 || armData.length >= 2) && (
+              <>
+                <div className="border-t border-[var(--color-border)]/60 pt-4">
+                  <p className="text-[10px] font-bold text-[var(--color-muted-foreground)] uppercase tracking-widest mb-5">
+                    Circunferencias
+                  </p>
+                </div>
+                {wstData.length >= 2 && <MetricChart label="Cintura" unit=" cm" data={wstData} color="var(--color-client)" />}
+                {abdData.length >= 2 && <MetricChart label="Abdomen" unit=" cm" data={abdData} color="#fb923c" />}
+                {hipData.length >= 2 && <MetricChart label="Cadera" unit=" cm" data={hipData} color="#f472b6" />}
+                {armData.length >= 2 && <MetricChart label="Brazo" unit=" cm" data={armData} color="#4ade80" />}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {measurements.length === 0 && (
+        <div className="rounded-xl border border-dashed border-[var(--color-border)] p-10 text-center">
+          <p className="text-3xl mb-3">📊</p>
+          <p className="text-sm font-medium text-[var(--color-foreground)]">Sin datos para analizar</p>
+          <p className="text-xs text-[var(--color-muted-foreground)] mt-1">
+            Registrá tus primeras mediciones para ver análisis y consejos personalizados.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
@@ -518,9 +752,10 @@ function RachaTab({ streak }: { streak: StreakData }) {
 // ─── Main Component ───────────────────────────────────────────
 
 const TABS = [
-  { id: 'routines', label: 'Rutinas', icon: TrendingUp },
-  { id: 'measures', label: 'Medidas', icon: Scale },
-  { id: 'streak',   label: 'Racha',   icon: Flame },
+  { id: 'routines', label: 'Rutinas',  icon: TrendingUp },
+  { id: 'measures', label: 'Medidas',  icon: Scale },
+  { id: 'streak',   label: 'Racha',    icon: Flame },
+  { id: 'analisis', label: 'Análisis', icon: BarChart2 },
 ] as const
 
 type TabId = typeof TABS[number]['id']
@@ -577,6 +812,7 @@ export function ProgressClient({ measurements, dailyProgress, streak, thisWeekMe
         />
       )}
       {activeTab === 'streak' && <RachaTab streak={streak} />}
+      {activeTab === 'analisis' && <AnalisisTab measurements={measurements} dailyProgress={dailyProgress} />}
 
       <MeasurementWizard
         open={showWizard}

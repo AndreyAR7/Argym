@@ -399,3 +399,59 @@ export async function assignUserToBranchAction(
   revalidatePath('/admin/coaches')
   return { success: true }
 }
+
+// ── Elevate client to coach ────────────────────────────────────
+
+export async function getClientsForElevationAction(): Promise<{
+  clients: Array<{ id: string; full_name: string | null; phone: string | null }>
+}> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { clients: [] }
+
+  const { data: myProfile } = await supabase
+    .from('profiles')
+    .select('tenant_id')
+    .eq('id', user.id)
+    .single()
+
+  if (!myProfile) return { clients: [] }
+
+  const { data: clientRoles } = await supabase
+    .from('user_roles')
+    .select('user_id, roles!inner(name)')
+    .eq('tenant_id', myProfile.tenant_id)
+    .eq('roles.name', 'client')
+
+  const clientIds = (clientRoles ?? []).map((r: any) => r.user_id)
+  if (clientIds.length === 0) return { clients: [] }
+
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, full_name, phone')
+    .eq('tenant_id', myProfile.tenant_id)
+    .in('id', clientIds)
+    .eq('is_active', true)
+    .eq('approval_status', 'approved')
+    .order('full_name', { ascending: true })
+
+  return { clients: data ?? [] }
+}
+
+export async function elevateToCoachAction(
+  userId: string,
+): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { error } = await supabase.rpc('elevate_user_to_coach', {
+    p_user_id:  userId,
+    p_admin_id: user.id,
+  })
+
+  if (error) return { error: error.message }
+  revalidatePath('/admin/coaches')
+  revalidatePath('/admin/clients')
+  return { success: true }
+}
