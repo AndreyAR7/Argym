@@ -74,14 +74,17 @@ export default async function ClientProgressPage() {
   // This week's bounds for measurement check
   const week = getWeekBounds(today)
 
+  const MEASUREMENT_FIELDS = 'id, measured_at, weight_kg, height_cm, body_fat_pct, neck_cm, shoulder_cm, chest_cm, waist_cm, abdomen_cm, hip_cm, arm_cm, thigh_cm, calf_cm, notes'
+
   const [
     { data: measurements },
     { data: progressRows },
     { data: thisWeekRows },
+    { data: profileData },
   ] = await Promise.all([
     supabase
       .from('body_measurements')
-      .select('id, measured_at, weight_kg, height_cm, body_fat_pct, waist_cm, notes')
+      .select(MEASUREMENT_FIELDS)
       .eq('client_id', user.id)
       .order('measured_at', { ascending: false })
       .limit(24),
@@ -93,12 +96,17 @@ export default async function ClientProgressPage() {
       .lte('session_date', todayStr),
     supabase
       .from('body_measurements')
-      .select('id, measured_at, weight_kg, height_cm, body_fat_pct, waist_cm, notes')
+      .select(MEASUREMENT_FIELDS)
       .eq('client_id', user.id)
       .gte('measured_at', week.start)
       .lte('measured_at', week.end)
       .order('measured_at', { ascending: false })
       .limit(1),
+    supabase
+      .from('profiles')
+      .select('gender')
+      .eq('id', user.id)
+      .single(),
   ])
 
   // Build daily progress map for last 35 days
@@ -144,6 +152,7 @@ export default async function ClientProgressPage() {
             activeDates,
           }}
           thisWeekMeasurement={(thisWeekRows ?? [])[0] ?? null}
+          gender={profileData?.gender ?? null}
         />
       </div>
     </div>

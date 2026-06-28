@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { TrendingUp, Scale, Flame, Plus, X } from 'lucide-react'
-import { upsertBodyMeasurementAction } from '@/lib/client/actions'
+import { useState } from 'react'
+import { TrendingUp, Scale, Flame, Plus } from 'lucide-react'
+import { MeasurementWizard, WizardMeasurement } from './measurement-wizard'
+import type { Gender } from './body-silhouette'
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -12,7 +13,15 @@ interface BodyMeasurement {
   weight_kg: number | null
   height_cm: number | null
   body_fat_pct: number | null
+  neck_cm: number | null
+  shoulder_cm: number | null
+  chest_cm: number | null
   waist_cm: number | null
+  abdomen_cm: number | null
+  hip_cm: number | null
+  arm_cm: number | null
+  thigh_cm: number | null
+  calf_cm: number | null
   notes: string | null
 }
 
@@ -32,6 +41,7 @@ interface Props {
   dailyProgress: DailyProgress[]
   streak: StreakData
   thisWeekMeasurement: BodyMeasurement | null
+  gender: string | null
 }
 
 // ─── BMI helpers ──────────────────────────────────────────────
@@ -41,14 +51,14 @@ function calcBMI(w: number, h: number) {
 }
 
 function bmiCategory(bmi: number) {
-  if (bmi < 18.5) return { label: 'Bajo peso', color: '#3b82f6' }
-  if (bmi < 25)   return { label: 'Normal',    color: '#22c55e' }
-  if (bmi < 30)   return { label: 'Sobrepeso', color: '#f59e0b' }
-  if (bmi < 35)   return { label: 'Obesidad I',  color: '#ef4444' }
-  return                  { label: 'Obesidad II', color: '#b91c1c' }
+  if (bmi < 18.5) return { label: 'Bajo peso',   color: '#3b82f6' }
+  if (bmi < 25)   return { label: 'Normal',       color: '#22c55e' }
+  if (bmi < 30)   return { label: 'Sobrepeso',    color: '#f59e0b' }
+  if (bmi < 35)   return { label: 'Obesidad I',   color: '#ef4444' }
+  return                  { label: 'Obesidad II',  color: '#b91c1c' }
 }
 
-// ─── Bar Chart (last 7 days) ──────────────────────────────────
+// ─── Bar Chart ────────────────────────────────────────────────
 
 const DAY_ABBR = ['D', 'L', 'M', 'X', 'J', 'V', 'S']
 
@@ -72,7 +82,7 @@ function BarChart({ data }: { data: { label: string; pct: number }[] }) {
   )
 }
 
-// ─── Streak Calendar (5 weeks) ────────────────────────────────
+// ─── Streak Calendar ──────────────────────────────────────────
 
 function StreakCalendar({ activeDates }: { activeDates: string[] }) {
   const today = new Date()
@@ -116,11 +126,7 @@ function StreakCalendar({ activeDates }: { activeDates: string[] }) {
               key={day.dateStr}
               className="aspect-square rounded-md flex items-center justify-center text-[9px] font-medium"
               style={{
-                backgroundColor: day.future
-                  ? 'transparent'
-                  : day.active
-                  ? '#22c55e'
-                  : 'var(--color-muted)',
+                backgroundColor: day.future ? 'transparent' : day.active ? '#22c55e' : 'var(--color-muted)',
                 color: day.active ? '#fff' : day.future ? 'transparent' : 'var(--color-muted-foreground)',
               }}
             >
@@ -143,98 +149,67 @@ function StreakCalendar({ activeDates }: { activeDates: string[] }) {
   )
 }
 
-// ─── Add Measurement Modal ────────────────────────────────────
+// ─── Comparison Card ──────────────────────────────────────────
 
-function AddMeasurementModal({
-  onClose,
-  existing,
-}: {
-  onClose: () => void
-  existing: BodyMeasurement | null
-}) {
-  const [weight, setWeight] = useState(existing?.weight_kg?.toString() ?? '')
-  const [height, setHeight] = useState(existing?.height_cm?.toString() ?? '')
-  const [bodyFat, setBodyFat] = useState(existing?.body_fat_pct?.toString() ?? '')
-  const [waist, setWaist] = useState(existing?.waist_cm?.toString() ?? '')
-  const [notes, setNotes] = useState(existing?.notes ?? '')
-  const [error, setError] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
+const COMPARISON_METRICS: { key: keyof BodyMeasurement; label: string; unit: string; lowerIsBetter: boolean | null }[] = [
+  { key: 'weight_kg',    label: 'Peso',        unit: 'kg', lowerIsBetter: null },
+  { key: 'body_fat_pct', label: '% Grasa',     unit: '%',  lowerIsBetter: true },
+  { key: 'waist_cm',     label: 'Cintura',     unit: 'cm', lowerIsBetter: true },
+  { key: 'abdomen_cm',   label: 'Abdomen',     unit: 'cm', lowerIsBetter: true },
+  { key: 'hip_cm',       label: 'Cadera',      unit: 'cm', lowerIsBetter: null },
+  { key: 'chest_cm',     label: 'Pecho',       unit: 'cm', lowerIsBetter: null },
+  { key: 'arm_cm',       label: 'Brazo',       unit: 'cm', lowerIsBetter: false },
+  { key: 'thigh_cm',     label: 'Muslo',       unit: 'cm', lowerIsBetter: null },
+]
 
-  function handleSave() {
-    if (!weight) { setError('El peso es requerido'); return }
-    const w = parseFloat(weight)
-    if (isNaN(w) || w <= 0) { setError('Peso inválido'); return }
-    setError(null)
-    startTransition(async () => {
-      const result = await upsertBodyMeasurementAction({
-        weight_kg: w,
-        height_cm: height ? parseFloat(height) : null,
-        body_fat_pct: bodyFat ? parseFloat(bodyFat) : null,
-        waist_cm: waist ? parseFloat(waist) : null,
-        notes: notes.trim() || null,
-      })
-      if (result?.error) setError(result.error)
-      else onClose()
-    })
-  }
+function deltaColor(delta: number, lowerIsBetter: boolean | null): string {
+  if (delta === 0) return 'var(--color-muted-foreground)'
+  if (lowerIsBetter === null) return 'var(--color-muted-foreground)'
+  if (lowerIsBetter) return delta < 0 ? '#22c55e' : '#ef4444'
+  return delta > 0 ? '#22c55e' : '#f59e0b'
+}
 
-  const inputCls = 'w-full px-3 py-2.5 text-sm rounded-lg border border-[var(--color-input)] bg-[var(--color-muted)] text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] outline-none focus:border-[var(--color-client)] focus:ring-2 focus:ring-[var(--color-client)]/15 transition-all'
-  const labelCls = 'block text-xs font-medium text-[var(--color-foreground)] mb-1.5'
+function ComparisonCard({ measurements }: { measurements: BodyMeasurement[] }) {
+  if (measurements.length < 2) return null
+  const latest = measurements[0]
+  const first = measurements[measurements.length - 1]
+
+  const rows = COMPARISON_METRICS.filter(
+    (m) => (latest[m.key] as number | null) != null && (first[m.key] as number | null) != null
+  )
+  if (rows.length === 0) return null
+
+  const firstDate = new Date(first.measured_at + 'T12:00:00').toLocaleDateString('es-CR', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] shadow-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
-          <h2 className="font-semibold text-[var(--color-foreground)]">
-            {existing ? 'Editar medición de esta semana' : 'Nueva medición'}
-          </h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]">
-            <X size={15} />
-          </button>
-        </div>
-        <div className="p-5 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelCls}>Peso (kg) <span className="text-[var(--color-destructive)]">*</span></label>
-              <input type="number" value={weight} onChange={(e) => setWeight(e.target.value)}
-                step="0.1" min="0" placeholder="75.5" className={inputCls} />
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-semibold text-[var(--color-foreground)]">📊 Inicio vs Ahora</p>
+        <span className="text-[10px] text-[var(--color-muted-foreground)]">Inicio: {firstDate}</span>
+      </div>
+      <div className="space-y-2">
+        {rows.map((m) => {
+          const v1 = first[m.key] as number
+          const v2 = latest[m.key] as number
+          const delta = Math.round((v2 - v1) * 10) / 10
+          const sign = delta > 0 ? '+' : ''
+          const color = deltaColor(delta, m.lowerIsBetter)
+          return (
+            <div key={m.key as string} className="flex items-center justify-between text-xs">
+              <span className="text-[var(--color-muted-foreground)] w-20">{m.label}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[var(--color-muted-foreground)]">{v1} {m.unit}</span>
+                <span className="text-[var(--color-muted-foreground)]">→</span>
+                <span className="font-bold text-[var(--color-foreground)]">{v2} {m.unit}</span>
+                <span className="font-bold w-14 text-right" style={{ color }}>
+                  {sign}{delta} {m.unit}
+                </span>
+              </div>
             </div>
-            <div>
-              <label className={labelCls}>Estatura (cm)</label>
-              <input type="number" value={height} onChange={(e) => setHeight(e.target.value)}
-                step="0.1" min="0" placeholder="170" className={inputCls} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelCls}>% Grasa corporal</label>
-              <input type="number" value={bodyFat} onChange={(e) => setBodyFat(e.target.value)}
-                step="0.1" min="0" max="100" placeholder="18.0" className={inputCls} />
-            </div>
-            <div>
-              <label className={labelCls}>Cintura (cm)</label>
-              <input type="number" value={waist} onChange={(e) => setWaist(e.target.value)}
-                step="0.5" min="0" placeholder="80" className={inputCls} />
-            </div>
-          </div>
-          <div>
-            <label className={labelCls}>Notas</label>
-            <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)}
-              placeholder="Opcional..." className={inputCls} />
-          </div>
-          {error && <p className="text-xs text-[var(--color-destructive)] bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
-        </div>
-        <div className="px-5 pb-5 flex gap-3">
-          <button onClick={onClose} disabled={isPending}
-            className="flex-1 py-2.5 rounded-lg border border-[var(--color-border)] text-sm font-medium text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors disabled:opacity-50">
-            Cancelar
-          </button>
-          <button onClick={handleSave} disabled={isPending}
-            className="flex-1 py-2.5 rounded-lg text-sm font-medium text-white transition-opacity disabled:opacity-50"
-            style={{ backgroundColor: 'var(--color-client)' }}>
-            {isPending ? 'Guardando…' : 'Guardar'}
-          </button>
-        </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -280,6 +255,18 @@ function RoutinasTab({ dailyProgress, streak }: { dailyProgress: DailyProgress[]
 }
 
 // ─── Tab: Medidas ─────────────────────────────────────────────
+
+const CIRCUM_FIELDS: { key: keyof BodyMeasurement; label: string; color: string }[] = [
+  { key: 'neck_cm',     label: 'Cuello',     color: '#a78bfa' },
+  { key: 'shoulder_cm', label: 'Hombros',    color: '#60a5fa' },
+  { key: 'chest_cm',    label: 'Pecho',      color: '#34d399' },
+  { key: 'waist_cm',    label: 'Cintura',    color: 'var(--color-client)' },
+  { key: 'abdomen_cm',  label: 'Abdomen',    color: '#fb923c' },
+  { key: 'hip_cm',      label: 'Cadera',     color: '#f472b6' },
+  { key: 'arm_cm',      label: 'Brazo',      color: '#4ade80' },
+  { key: 'thigh_cm',    label: 'Muslo',      color: '#facc15' },
+  { key: 'calf_cm',     label: 'Pantorrilla', color: '#94a3b8' },
+]
 
 function MedidasTab({
   measurements,
@@ -344,23 +331,48 @@ function MedidasTab({
               </div>
             )}
           </div>
-          {comp && (comp.fatKg != null || comp.leanKg != null || latest.waist_cm != null) && (
-            <div className="space-y-2 text-sm">
+
+          {/* Body composition rows */}
+          {comp && (comp.fatKg != null || comp.leanKg != null) && (
+            <div className="space-y-1.5 text-sm mb-4">
               {[
-                { label: 'Masa grasa', value: comp.fatKg, unit: 'kg', color: '#f59e0b' },
-                { label: '% Grasa corporal', value: latest.body_fat_pct, unit: '%', color: '#f59e0b' },
-                { label: 'Masa magra', value: comp.leanKg, unit: 'kg', color: '#22c55e' },
-                { label: 'Cintura', value: latest.waist_cm, unit: 'cm', color: 'var(--color-client)' },
+                { label: 'Masa grasa',     value: comp.fatKg,            unit: 'kg', color: '#f59e0b' },
+                { label: '% Grasa corp.',  value: latest.body_fat_pct,   unit: '%',  color: '#f59e0b' },
+                { label: 'Masa magra',     value: comp.leanKg,           unit: 'kg', color: '#22c55e' },
               ].filter((r) => r.value != null).map((r) => (
                 <div key={r.label} className="flex justify-between py-1.5 border-b border-[var(--color-border)]/40 last:border-0">
                   <span className="text-[var(--color-muted-foreground)]">{r.label}</span>
-                  <span className="font-semibold" style={{ color: r.color }}>{r.value} <span className="text-xs font-normal text-[var(--color-muted-foreground)]">{r.unit}</span></span>
+                  <span className="font-semibold" style={{ color: r.color }}>
+                    {r.value} <span className="text-xs font-normal text-[var(--color-muted-foreground)]">{r.unit}</span>
+                  </span>
                 </div>
               ))}
             </div>
           )}
+
+          {/* Circumference grid */}
+          {CIRCUM_FIELDS.some((f) => (latest[f.key] as number | null) != null) && (
+            <div>
+              <p className="text-xs font-semibold text-[var(--color-muted-foreground)] mb-2 uppercase tracking-wide">Circunferencias</p>
+              <div className="grid grid-cols-3 gap-2">
+                {CIRCUM_FIELDS.map((f) => {
+                  const v = latest[f.key] as number | null
+                  if (v == null) return null
+                  return (
+                    <div key={f.key as string} className="flex flex-col items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-muted)] px-2 py-2 text-center">
+                      <span className="text-base font-black" style={{ color: f.color }}>{v}</span>
+                      <span className="text-[9px] text-[var(--color-muted-foreground)] mt-0.5">{f.label} cm</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
+
+      {/* Comparison card */}
+      <ComparisonCard measurements={measurements} />
 
       {weightHistory.length >= 2 && (
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
@@ -409,17 +421,27 @@ function MedidasTab({
           <div className="space-y-0">
             {measurements.slice(0, 12).map((m, i) => {
               const c = m.weight_kg && m.height_cm ? (() => { const bmi = calcBMI(m.weight_kg!, m.height_cm!); return { bmi, cat: bmiCategory(bmi) } })() : null
+              const circumStr = [
+                m.waist_cm   && `cin ${m.waist_cm}`,
+                m.abdomen_cm && `abd ${m.abdomen_cm}`,
+                m.hip_cm     && `cad ${m.hip_cm}`,
+                m.arm_cm     && `bra ${m.arm_cm}`,
+                m.thigh_cm   && `mus ${m.thigh_cm}`,
+                m.calf_cm    && `pan ${m.calf_cm}`,
+              ].filter(Boolean).join(' · ')
               return (
-                <div key={m.id} className={`flex items-center justify-between py-2.5 ${i < Math.min(measurements.length, 12) - 1 ? 'border-b border-[var(--color-border)]/50' : ''}`}>
-                  <div>
+                <div key={m.id} className={`flex items-start justify-between py-2.5 ${i < Math.min(measurements.length, 12) - 1 ? 'border-b border-[var(--color-border)]/50' : ''}`}>
+                  <div className="min-w-0 flex-1 pr-3">
                     <p className="text-sm font-medium text-[var(--color-foreground)]">
                       {new Date(m.measured_at + 'T12:00:00').toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric', month: 'short' })}
                     </p>
-                    {m.notes && <p className="text-xs text-[var(--color-muted-foreground)]">{m.notes}</p>}
+                    {circumStr && <p className="text-[10px] text-[var(--color-muted-foreground)] mt-0.5">{circumStr}</p>}
+                    {m.notes && <p className="text-xs text-[var(--color-muted-foreground)] italic">{m.notes}</p>}
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex-shrink-0">
                     {m.weight_kg != null && <p className="text-sm font-bold text-amber-600">{m.weight_kg} kg</p>}
-                    {c && <p className="text-[10px] font-semibold" style={{ color: c.cat.color }}>IMC {c.bmi} · {c.cat.label}</p>}
+                    {m.body_fat_pct != null && <p className="text-[10px] text-[var(--color-muted-foreground)]">{m.body_fat_pct}% grasa</p>}
+                    {c && <p className="text-[10px] font-semibold" style={{ color: c.cat.color }}>IMC {c.bmi}</p>}
                   </div>
                 </div>
               )
@@ -432,7 +454,9 @@ function MedidasTab({
         <div className="rounded-xl border border-dashed border-[var(--color-border)] p-10 text-center">
           <p className="text-3xl mb-3">📏</p>
           <p className="text-sm font-medium text-[var(--color-foreground)]">Sin mediciones aún</p>
-          <p className="text-xs text-[var(--color-muted-foreground)] mt-1">Registrá tu peso y medidas para hacer seguimiento de tu composición corporal.</p>
+          <p className="text-xs text-[var(--color-muted-foreground)] mt-1">
+            Registrá tu peso y medidas para hacer seguimiento de tu composición corporal.
+          </p>
         </div>
       )}
     </div>
@@ -464,8 +488,8 @@ function RachaTab({ streak }: { streak: StreakData }) {
       <div className="grid grid-cols-3 gap-3">
         {[
           { value: currentStreak, label: 'Racha actual', color: '#f59e0b' },
-          { value: longestStreak, label: 'Mejor racha', color: '#22c55e' },
-          { value: totalActive, label: 'Días activos', color: 'var(--color-client)' },
+          { value: longestStreak, label: 'Mejor racha',  color: '#22c55e' },
+          { value: totalActive,   label: 'Días activos', color: 'var(--color-client)' },
         ].map((s, i) => (
           <div key={i} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-center">
             <p className="text-3xl font-black" style={{ color: s.color }}>{s.value}</p>
@@ -501,9 +525,27 @@ const TABS = [
 
 type TabId = typeof TABS[number]['id']
 
-export function ProgressClient({ measurements, dailyProgress, streak, thisWeekMeasurement }: Props) {
+export function ProgressClient({ measurements, dailyProgress, streak, thisWeekMeasurement, gender }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>('routines')
-  const [showModal, setShowModal] = useState(false)
+  const [showWizard, setShowWizard] = useState(false)
+
+  const wizardExisting: WizardMeasurement | null = thisWeekMeasurement
+    ? {
+        weight_kg:    thisWeekMeasurement.weight_kg,
+        height_cm:    thisWeekMeasurement.height_cm,
+        body_fat_pct: thisWeekMeasurement.body_fat_pct,
+        neck_cm:      thisWeekMeasurement.neck_cm,
+        shoulder_cm:  thisWeekMeasurement.shoulder_cm,
+        chest_cm:     thisWeekMeasurement.chest_cm,
+        waist_cm:     thisWeekMeasurement.waist_cm,
+        abdomen_cm:   thisWeekMeasurement.abdomen_cm,
+        hip_cm:       thisWeekMeasurement.hip_cm,
+        arm_cm:       thisWeekMeasurement.arm_cm,
+        thigh_cm:     thisWeekMeasurement.thigh_cm,
+        calf_cm:      thisWeekMeasurement.calf_cm,
+        notes:        thisWeekMeasurement.notes,
+      }
+    : null
 
   return (
     <>
@@ -527,15 +569,21 @@ export function ProgressClient({ measurements, dailyProgress, streak, thisWeekMe
       </div>
 
       {activeTab === 'routines' && <RoutinasTab dailyProgress={dailyProgress} streak={streak} />}
-      {activeTab === 'measures' && <MedidasTab measurements={measurements} thisWeekMeasurement={thisWeekMeasurement} onAdd={() => setShowModal(true)} />}
-      {activeTab === 'streak' && <RachaTab streak={streak} />}
-
-      {showModal && (
-        <AddMeasurementModal
-          onClose={() => setShowModal(false)}
-          existing={thisWeekMeasurement}
+      {activeTab === 'measures' && (
+        <MedidasTab
+          measurements={measurements}
+          thisWeekMeasurement={thisWeekMeasurement}
+          onAdd={() => setShowWizard(true)}
         />
       )}
+      {activeTab === 'streak' && <RachaTab streak={streak} />}
+
+      <MeasurementWizard
+        open={showWizard}
+        onClose={() => setShowWizard(false)}
+        existing={wizardExisting}
+        gender={gender as Gender | null}
+      />
     </>
   )
 }

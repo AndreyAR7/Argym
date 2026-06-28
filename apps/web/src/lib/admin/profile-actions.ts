@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 export async function updateMyProfileAction(data: {
   full_name: string
   phone: string | null
+  gender?: string | null
 }): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -13,11 +14,12 @@ export async function updateMyProfileAction(data: {
 
   const { error } = await supabase
     .from('profiles')
-    .update({ full_name: data.full_name, phone: data.phone })
+    .update({ full_name: data.full_name, phone: data.phone, gender: data.gender ?? null })
     .eq('id', user.id)
 
   if (error) return { error: error.message }
   revalidatePath('/admin/profile')
+  revalidatePath('/client/profile')
   return { success: true }
 }
 

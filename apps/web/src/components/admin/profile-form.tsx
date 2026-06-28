@@ -8,6 +8,12 @@ import { getInitials } from '@/lib/utils'
 import { formatDate } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 
+const GENDER_OPTIONS = [
+  { value: 'male',   label: '♂ Hombre' },
+  { value: 'female', label: '♀ Mujer'  },
+  { value: 'other',  label: '○ Prefiero no indicar' },
+] as const
+
 interface ProfileFormProps {
   userId: string
   email: string
@@ -15,14 +21,16 @@ interface ProfileFormProps {
   phone: string | null
   avatarUrl: string | null
   createdAt: string | null
+  gender?: string | null
 }
 
-export function ProfileForm({ userId, email, fullName, phone, avatarUrl, createdAt }: ProfileFormProps) {
+export function ProfileForm({ userId, email, fullName, phone, avatarUrl, createdAt, gender: genderProp }: ProfileFormProps) {
   const [isPending, startTransition] = useTransition()
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState(fullName)
   const [phoneVal, setPhoneVal] = useState(phone ?? '')
+  const [genderVal, setGenderVal] = useState<string | null>(genderProp ?? null)
 
   // Avatar upload state
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -83,6 +91,7 @@ export function ProfileForm({ userId, email, fullName, phone, avatarUrl, created
       const result = await updateMyProfileAction({
         full_name: name.trim(),
         phone: phoneVal.trim() || null,
+        gender: genderVal,
       })
       if (result.error) {
         setError(result.error)
@@ -240,6 +249,31 @@ export function ProfileForm({ userId, email, fullName, phone, avatarUrl, created
                 disabled={isPending}
                 className={`${inputCls} pl-9`}
               />
+            </div>
+          </div>
+
+          {/* Gender */}
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-foreground)] mb-1.5">
+              Género <span className="text-[var(--color-muted-foreground)] font-normal">(cambia la silueta en el asistente de medidas)</span>
+            </label>
+            <div className="flex gap-2">
+              {GENDER_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setGenderVal(genderVal === opt.value ? null : opt.value)}
+                  disabled={isPending}
+                  className="flex-1 py-2 px-2 text-xs font-medium rounded-lg border transition-all disabled:opacity-50"
+                  style={
+                    genderVal === opt.value
+                      ? { backgroundColor: 'var(--color-admin)', borderColor: 'var(--color-admin)', color: '#fff' }
+                      : { backgroundColor: 'transparent', borderColor: 'var(--color-border)', color: 'var(--color-muted-foreground)' }
+                  }
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </div>
 

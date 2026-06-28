@@ -49,7 +49,15 @@ export async function upsertBodyMeasurementAction(data: {
   weight_kg: number
   height_cm: number | null
   body_fat_pct: number | null
+  neck_cm: number | null
+  shoulder_cm: number | null
+  chest_cm: number | null
   waist_cm: number | null
+  abdomen_cm: number | null
+  hip_cm: number | null
+  arm_cm: number | null
+  thigh_cm: number | null
+  calf_cm: number | null
   notes: string | null
 }) {
   const ctx = await getAuthContext()
@@ -67,10 +75,15 @@ export async function upsertBodyMeasurementAction(data: {
         height_cm: data.height_cm,
         body_fat_pct: data.body_fat_pct,
         muscle_mass_kg: null,
+        neck_cm: data.neck_cm,
+        shoulder_cm: data.shoulder_cm,
+        chest_cm: data.chest_cm,
         waist_cm: data.waist_cm,
-        chest_cm: null,
-        hip_cm: null,
-        arm_cm: null,
+        abdomen_cm: data.abdomen_cm,
+        hip_cm: data.hip_cm,
+        arm_cm: data.arm_cm,
+        thigh_cm: data.thigh_cm,
+        calf_cm: data.calf_cm,
         notes: data.notes,
       },
       { onConflict: 'client_id,measured_at' },
