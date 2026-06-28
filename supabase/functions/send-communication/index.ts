@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { createTransport } from 'npm:nodemailer'
+import PDFDocument from 'npm:pdfkit'
 
 interface Payload {
   event_type:       string
@@ -9,6 +10,160 @@ interface Payload {
   user_id?:         string
 }
 
+interface ReceiptData {
+  invoiceNumber:    string
+  gymName:          string
+  clientName:       string
+  planName:         string
+  billingCycle:     string
+  price:            string
+  currency:         string
+  amount:           number
+  paymentDate:      string
+  endDate:          string
+  paymentReference: string
+}
+
+type Attachment = {
+  filename:    string
+  content:     Uint8Array | string
+  contentType: string
+}
+
+// ── XML receipt (simple structured document, not Costa Rica FE) ─────────────
+function generateReceiptXML(d: ReceiptData): string {
+  const e = (s: string | number) =>
+    String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<ComprobantePago>
+  <Emisor>
+    <Nombre>${e(d.gymName)}</Nombre>
+  </Emisor>
+  <Receptor>
+    <Nombre>${e(d.clientName)}</Nombre>
+  </Receptor>
+  <NumeroComprobante>${e(d.invoiceNumber)}</NumeroComprobante>
+  <FechaPago>${e(d.paymentDate)}</FechaPago>
+  <Plan>${e(d.planName)}</Plan>
+  <CicloPago>${e(d.billingCycle)}</CicloPago>
+  <Monto>${d.amount}</Monto>
+  <Moneda>${e(d.currency)}</Moneda>
+  <MontoFormateado>${e(d.price)}</MontoFormateado>
+  <ReferenciaPago>${e(d.paymentReference)}</ReferenciaPago>
+  <Vencimiento>${e(d.endDate)}</Vencimiento>
+</ComprobantePago>`
+}
+
+// ── PDF receipt ──────────────────────────────────────────────────────────────
+async function generateReceiptPDF(d: ReceiptData): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({
+      size: 'A4',
+      margin: 50,
+      info: { Title: `Comprobante ${d.invoiceNumber}`, Author: d.gymName },
+    })
+
+    const chunks: Uint8Array[] = []
+    doc.on('data', (chunk: Uint8Array) => chunks.push(chunk))
+    doc.on('end', () => {
+      const total = chunks.reduce((n, c) => n + c.length, 0)
+      const out = new Uint8Array(total)
+      let offset = 0
+      for (const c of chunks) { out.set(c, offset); offset += c.length }
+      resolve(out)
+    })
+    doc.on('error', reject)
+
+    const LM = 50    // left margin
+    const RM = 545   // right edge (A4 = 595pt, margins 50pt each)
+    const CW = 495   // content width
+    const COL = 220  // value column X
+
+    // ── Header ────────────────────────────────────────────────────────────────
+    doc
+      .fontSize(22).font('Helvetica-Bold')
+      .text(d.gymName, LM, 50, { align: 'center', width: CW })
+
+    doc
+      .fontSize(11).font('Helvetica').fillColor('#666666')
+      .text('COMPROBANTE DE PAGO', LM, doc.y + 6, { align: 'center', width: CW })
+      .fillColor('#000000')
+
+    let y = doc.y + 18
+    doc.moveTo(LM, y).lineTo(RM, y).strokeColor('#cccccc').lineWidth(0.5).stroke()
+    y += 20
+
+    // ── Invoice meta ──────────────────────────────────────────────────────────
+    doc.fontSize(10).font('Helvetica-Bold').text('No. Comprobante:', LM, y, { width: 165 })
+    doc.fontSize(10).font('Helvetica').text(d.invoiceNumber, COL, y, { width: RM - COL })
+    y += 18
+
+    doc.fontSize(10).font('Helvetica-Bold').text('Fecha de pago:', LM, y, { width: 165 })
+    doc.fontSize(10).font('Helvetica').text(d.paymentDate, COL, y, { width: RM - COL })
+    y += 28
+
+    // ── Divider before details ────────────────────────────────────────────────
+    doc.moveTo(LM, y).lineTo(RM, y).strokeColor('#eeeeee').lineWidth(0.5).stroke()
+    y += 16
+
+    // ── Detail rows ───────────────────────────────────────────────────────────
+    const rows: [string, string][] = [
+      ['Cliente:',       d.clientName],
+      ['Plan:',          d.planName],
+      ['Ciclo de pago:', d.billingCycle],
+      ['Monto pagado:',  d.price],
+      ['Referencia:',    d.paymentReference],
+      ['Válido hasta:',  d.endDate],
+    ]
+
+    for (const [label, value] of rows) {
+      doc.fontSize(10).font('Helvetica-Bold').text(label, LM, y, { width: 165 })
+      doc.fontSize(10).font('Helvetica').text(value, COL, y, { width: RM - COL })
+      y += 22
+    }
+
+    y += 26
+
+    // ── Footer ────────────────────────────────────────────────────────────────
+    doc.moveTo(LM, y).lineTo(RM, y).strokeColor('#cccccc').lineWidth(0.5).stroke()
+    y += 14
+
+    doc
+      .fontSize(8).fillColor('#999999')
+      .text(
+        'Documento generado automáticamente. No constituye factura electrónica oficial ante Hacienda.',
+        LM, y, { align: 'center', width: CW },
+      )
+
+    doc.end()
+  })
+}
+
+// ── Build receipt attachments for plan.purchased ─────────────────────────────
+async function buildReceiptAttachments(d: ReceiptData): Promise<Attachment[]> {
+  const slug = d.invoiceNumber.replace(/[^a-zA-Z0-9-]/g, '-')
+  const [pdfBytes] = await Promise.all([generateReceiptPDF(d)])
+  const xmlString = generateReceiptXML(d)
+  return [
+    {
+      filename:    `comprobante-${slug}.pdf`,
+      content:     pdfBytes,
+      contentType: 'application/pdf',
+    },
+    {
+      filename:    `comprobante-${slug}.xml`,
+      content:     xmlString,
+      contentType: 'application/xml; charset=utf-8',
+    },
+  ]
+}
+
+// ── Main handler ─────────────────────────────────────────────────────────────
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 })
 
@@ -79,6 +234,7 @@ Deno.serve(async (req: Request) => {
   let clientEmail = ''
   let coachEmail  = ''
   let adminEmails: string[] = []
+  let attachments: Attachment[] = []
 
   if (event_type.startsWith('appointment.') && payload.appointment_id) {
     // ── Appointment event ─────────────────────────────────────────
@@ -149,6 +305,9 @@ Deno.serve(async (req: Request) => {
       : plan?.billing_cycle === 'yearly' ? 'Anual'
       : 'Pago único'
 
+    const currency   = plan?.currency ?? 'CRC'
+    const rawAmount  = sub.final_price ?? 0
+
     const priceLabel =
       plan?.currency && sub.final_price != null
         ? `${plan.currency} ${Number(sub.final_price).toLocaleString('es-CR')}`
@@ -162,9 +321,7 @@ Deno.serve(async (req: Request) => {
           })
         : 'Sin vencimiento'
 
-    const endDateLabel =
-      (sub as any).end_date ? fmtDate((sub as any).end_date) : 'Sin vencimiento'
-
+    const endDateLabel     = (sub as any).end_date ? fmtDate((sub as any).end_date) : 'Sin vencimiento'
     const paymentDateLabel = fmtDate((sub as any).start_date ?? new Date().toISOString())
 
     // Fetch the invoice generated for this subscription
@@ -181,16 +338,43 @@ Deno.serve(async (req: Request) => {
     ])
     clientEmail = clientEmailResult
 
+    const clientName = clientProfile?.full_name ?? 'Cliente'
+    const planName   = plan?.name ?? 'Plan'
+    const invoiceNum = invoice?.invoice_number ?? '—'
+    const payRef     = (sub as any).payment_reference ?? '—'
+
     templateVars = {
       ...templateVars,
-      client_name:        clientProfile?.full_name ?? 'Cliente',
-      plan_name:          plan?.name ?? 'Plan',
-      billing_cycle:      billingLabel,
-      price:              priceLabel,
-      payment_date:       paymentDateLabel,
-      end_date:           endDateLabel,
-      invoice_number:     invoice?.invoice_number ?? '—',
-      payment_reference:  (sub as any).payment_reference ?? '—',
+      client_name:       clientName,
+      plan_name:         planName,
+      billing_cycle:     billingLabel,
+      price:             priceLabel,
+      payment_date:      paymentDateLabel,
+      end_date:          endDateLabel,
+      invoice_number:    invoiceNum,
+      payment_reference: payRef,
+    }
+
+    // ── Generate PDF + XML attachments for plan.purchased ──────────
+    if (event_type === 'plan.purchased') {
+      try {
+        attachments = await buildReceiptAttachments({
+          invoiceNumber:    invoiceNum,
+          gymName,
+          clientName,
+          planName,
+          billingCycle:     billingLabel,
+          price:            priceLabel,
+          currency,
+          amount:           Number(rawAmount),
+          paymentDate:      paymentDateLabel,
+          endDate:          endDateLabel,
+          paymentReference: payRef,
+        })
+      } catch (attachErr) {
+        console.error('Receipt attachment generation failed:', attachErr)
+        // Fall through — email is sent without attachments
+      }
     }
 
     // Fetch admin users for this tenant (for rules with recipients = 'admin' or 'all')
@@ -231,7 +415,6 @@ Deno.serve(async (req: Request) => {
       client_name: profile?.full_name ?? 'Cliente',
     }
 
-    // Admins get a copy if any rule asks for it
     const needsAdmin = rules.some((r) => r.recipients === 'admin' || r.recipients === 'all')
     if (needsAdmin) {
       const { data: adminRole } = await supabase
@@ -296,10 +479,11 @@ Deno.serve(async (req: Request) => {
 
       try {
         await transporter.sendMail({
-          from:    `"${smtp.from_name}" <${smtp.from_email}>`,
-          to:      toEmail,
+          from:        `"${smtp.from_name}" <${smtp.from_email}>`,
+          to:          toEmail,
           subject,
-          html:    bodyHtml,
+          html:        bodyHtml,
+          attachments: attachments.length > 0 ? attachments : undefined,
         })
         processed++
       } catch (err) {
