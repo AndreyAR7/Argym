@@ -1,13 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { createTransport } from 'npm:nodemailer'
 
-// JWT verification is disabled for this function (set in config.toml).
-// Called exclusively from our internal DB trigger.
-
 interface Payload {
-  event_type:     string
-  appointment_id: string
-  tenant_id:      string
+  event_type:       string
+  tenant_id:        string
+  appointment_id?:  string
+  subscription_id?: string
 }
 
 Deno.serve(async (req: Request) => {
@@ -20,8 +18,8 @@ Deno.serve(async (req: Request) => {
     return new Response('Invalid JSON', { status: 400 })
   }
 
-  const { event_type, appointment_id, tenant_id } = payload
-  if (!event_type || !appointment_id || !tenant_id) {
+  const { event_type, tenant_id } = payload
+  if (!event_type || !tenant_id) {
     return new Response('Missing required fields', { status: 400 })
   }
 
@@ -30,7 +28,7 @@ Deno.serve(async (req: Request) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   )
 
-  // ── 1. Find active matching rules (with templates) ──────────────
+  // ── 1. Matching active rules ────────────────────────────────────
   const { data: rules, error: rulesErr } = await supabase
     .from('communication_rules')
     .select('id, recipients, delay_minutes, email_templates(id, subject, body_html)')
@@ -40,7 +38,10 @@ Deno.serve(async (req: Request) => {
     .not('template_id', 'is', null)
 
   if (rulesErr || !rules?.length) {
-    return new Response(JSON.stringify({ processed: 0, reason: rulesErr?.message ?? 'no rules' }), { status: 200 })
+    return new Response(
+      JSON.stringify({ processed: 0, reason: rulesErr?.message ?? 'no rules' }),
+      { status: 200 },
+    )
   }
 
   // ── 2. SMTP config ──────────────────────────────────────────────
@@ -51,66 +52,152 @@ Deno.serve(async (req: Request) => {
     .maybeSingle()
 
   if (!smtp?.host || !smtp.username || !smtp.password) {
-    return new Response(JSON.stringify({ processed: 0, reason: 'no smtp config' }), { status: 200 })
+    return new Response(
+      JSON.stringify({ processed: 0, reason: 'no smtp config' }),
+      { status: 200 },
+    )
   }
 
-  // ── 3. Appointment + profiles ───────────────────────────────────
-  const { data: appt } = await supabase
-    .from('appointments')
-    .select('id, start_time, appointment_type, title, client_id, coach_id')
-    .eq('id', appointment_id)
-    .single()
-
-  if (!appt) {
-    return new Response(JSON.stringify({ processed: 0, reason: 'appointment not found' }), { status: 200 })
-  }
-
-  // Fetch names from profiles
-  const profileIds = [appt.client_id, appt.coach_id].filter(Boolean)
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, full_name')
-    .in('id', profileIds)
-
-  const profileMap = new Map((profiles ?? []).map((p: { id: string; full_name: string }) => [p.id, p.full_name]))
-
-  // Fetch emails via auth.admin (service role required)
-  const getEmail = async (userId: string | null): Promise<string> => {
-    if (!userId) return ''
-    const { data } = await supabase.auth.admin.getUserById(userId)
-    return data?.user?.email ?? ''
-  }
-
-  const [clientEmail, coachEmail] = await Promise.all([
-    getEmail(appt.client_id),
-    getEmail(appt.coach_id),
-  ])
-
-  // ── 4. Tenant name ──────────────────────────────────────────────
+  // ── 3. Tenant ───────────────────────────────────────────────────
   const { data: tenant } = await supabase
     .from('tenants')
     .select('name')
     .eq('id', tenant_id)
     .single()
 
-  // ── 5. Template variables ───────────────────────────────────────
-  const startTime = new Date(appt.start_time)
-  const vars: Record<string, string> = {
-    client_name:      profileMap.get(appt.client_id) ?? 'Cliente',
-    coach_name:       profileMap.get(appt.coach_id)  ?? 'Entrenador',
-    appointment_date: startTime.toLocaleDateString('es-CR', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Costa_Rica',
-    }),
-    appointment_time: startTime.toLocaleTimeString('es-CR', {
-      hour: '2-digit', minute: '2-digit', timeZone: 'America/Costa_Rica',
-    }),
-    plan_name:  appt.appointment_type ?? appt.title ?? 'Entrenamiento',
-    gym_name:   tenant?.name ?? 'ARGYM',
-    login_url:  Deno.env.get('SITE_URL') ?? 'https://argym.app',
+  const gymName  = tenant?.name ?? 'ARGYM'
+  const loginUrl = Deno.env.get('SITE_URL') ?? 'https://argym.app'
+
+  const getEmail = async (userId: string): Promise<string> => {
+    const { data } = await supabase.auth.admin.getUserById(userId)
+    return data?.user?.email ?? ''
   }
 
+  // ── 4. Context data + template vars ────────────────────────────
+  let templateVars: Record<string, string> = { gym_name: gymName, login_url: loginUrl }
+  let clientEmail = ''
+  let coachEmail  = ''
+  let adminEmails: string[] = []
+
+  if (event_type.startsWith('appointment.') && payload.appointment_id) {
+    // ── Appointment event ─────────────────────────────────────────
+    const { data: appt } = await supabase
+      .from('appointments')
+      .select('id, start_time, appointment_type, title, client_id, coach_id')
+      .eq('id', payload.appointment_id)
+      .single()
+
+    if (!appt) {
+      return new Response(
+        JSON.stringify({ processed: 0, reason: 'appointment not found' }),
+        { status: 200 },
+      )
+    }
+
+    const profileIds = [appt.client_id, appt.coach_id].filter(Boolean)
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', profileIds)
+
+    const profileMap = new Map(
+      (profiles ?? []).map((p: { id: string; full_name: string }) => [p.id, p.full_name]),
+    )
+
+    ;[clientEmail, coachEmail] = await Promise.all([
+      appt.client_id ? getEmail(appt.client_id) : Promise.resolve(''),
+      appt.coach_id  ? getEmail(appt.coach_id)  : Promise.resolve(''),
+    ])
+
+    const startTime = new Date(appt.start_time)
+    templateVars = {
+      ...templateVars,
+      client_name:      profileMap.get(appt.client_id) ?? 'Cliente',
+      coach_name:       profileMap.get(appt.coach_id)  ?? 'Entrenador',
+      appointment_date: startTime.toLocaleDateString('es-CR', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+        timeZone: 'America/Costa_Rica',
+      }),
+      appointment_time: startTime.toLocaleTimeString('es-CR', {
+        hour: '2-digit', minute: '2-digit', timeZone: 'America/Costa_Rica',
+      }),
+      plan_name: appt.appointment_type ?? appt.title ?? 'Entrenamiento',
+    }
+  } else if (
+    (event_type.startsWith('plan.') || event_type.startsWith('promotion.')) &&
+    payload.subscription_id
+  ) {
+    // ── Subscription / plan event ─────────────────────────────────
+    const { data: sub } = await supabase
+      .from('user_subscriptions')
+      .select('id, user_id, final_price, plans!plan_id(name, currency, billing_cycle)')
+      .eq('id', payload.subscription_id)
+      .single()
+
+    if (!sub) {
+      return new Response(
+        JSON.stringify({ processed: 0, reason: 'subscription not found' }),
+        { status: 200 },
+      )
+    }
+
+    const plan = sub.plans as { name: string; currency: string; billing_cycle: string } | null
+
+    const billingLabel =
+      plan?.billing_cycle === 'monthly' ? 'Mensual'
+      : plan?.billing_cycle === 'yearly' ? 'Anual'
+      : 'Pago único'
+
+    const priceLabel =
+      plan?.currency && sub.final_price != null
+        ? `${plan.currency} ${Number(sub.final_price).toLocaleString('es-CR')}`
+        : ''
+
+    // Client profile + email
+    const [{ data: clientProfile }, clientEmailResult] = await Promise.all([
+      supabase.from('profiles').select('full_name').eq('id', sub.user_id).single(),
+      getEmail(sub.user_id),
+    ])
+    clientEmail = clientEmailResult
+
+    templateVars = {
+      ...templateVars,
+      client_name:   clientProfile?.full_name ?? 'Cliente',
+      plan_name:     plan?.name ?? 'Plan',
+      billing_cycle: billingLabel,
+      price:         priceLabel,
+    }
+
+    // Fetch admin users for this tenant (for rules with recipients = 'admin')
+    const needsAdmin = rules.some((r) =>
+      r.recipients === 'admin' || r.recipients === 'all',
+    )
+    if (needsAdmin) {
+      const { data: adminRole } = await supabase
+        .from('roles')
+        .select('id')
+        .eq('name', 'admin')
+        .single()
+
+      if (adminRole) {
+        const { data: adminUserRoles } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('tenant_id', tenant_id)
+          .eq('role_id', adminRole.id)
+
+        adminEmails = (
+          await Promise.all(
+            (adminUserRoles ?? []).map((ur: { user_id: string }) => getEmail(ur.user_id)),
+          )
+        ).filter(Boolean)
+      }
+    }
+  }
+
+  // ── 5. Render helper ────────────────────────────────────────────
   const render = (tmpl: string) =>
-    tmpl.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? `{{${k}}}`)
+    tmpl.replace(/\{\{(\w+)\}\}/g, (_, k) => templateVars[k] ?? `{{${k}}}`)
 
   // ── 6. SMTP transporter ─────────────────────────────────────────
   const port = Number(smtp.port)
@@ -123,17 +210,19 @@ Deno.serve(async (req: Request) => {
     tls: { rejectUnauthorized: false },
   })
 
-  // ── 7. Send for each rule ───────────────────────────────────────
+  // ── 7. Send per rule ────────────────────────────────────────────
   let processed = 0
 
   for (const rule of rules) {
-    const tpl = rule.email_templates as { id: string; subject: string; body_html: string } | null
+    const tpl = rule.email_templates as
+      | { id: string; subject: string; body_html: string }
+      | null
     if (!tpl) continue
 
     const subject  = render(tpl.subject)
     const bodyHtml = render(tpl.body_html)
 
-    // Resolve recipient list
+    // Resolve recipient emails for this rule
     const toEmails: string[] = []
     if (['client', 'client_and_coach', 'all'].includes(rule.recipients) && clientEmail) {
       toEmails.push(clientEmail)
@@ -141,9 +230,12 @@ Deno.serve(async (req: Request) => {
     if (['coach', 'client_and_coach', 'all'].includes(rule.recipients) && coachEmail) {
       toEmails.push(coachEmail)
     }
+    if (['admin', 'all'].includes(rule.recipients)) {
+      toEmails.push(...adminEmails)
+    }
 
     for (const toEmail of toEmails) {
-      let status = 'sent'
+      let status   = 'sent'
       let errorMsg: string | null = null
 
       try {
