@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Pencil, Check, Users, ToggleLeft, ToggleRight, Trash2, CalendarClock } from 'lucide-react'
+import Link from 'next/link'
+import { Pencil, Check, Users, ToggleLeft, ToggleRight, Trash2, CalendarClock, Layers } from 'lucide-react'
 import { togglePlanActiveAction, deletePlanAction } from '@/lib/admin/actions'
 import { PlanFormModal } from './plan-form-modal'
 
@@ -171,6 +172,13 @@ export function PlanCard({ plan, branches = [] }: PlanCardProps) {
             </div>
 
             <div className="flex items-center gap-1">
+              <Link
+                href={`/admin/plans/${plan.id}/contenido`}
+                className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors"
+                title="Gestionar contenido"
+              >
+                <Layers size={13} />
+              </Link>
               <button
                 onClick={() => setShowEdit(true)}
                 className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors"

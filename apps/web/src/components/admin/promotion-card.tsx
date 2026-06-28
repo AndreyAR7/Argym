@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Pencil, ToggleLeft, ToggleRight, Percent, Megaphone, Package, Trash2 } from 'lucide-react'
+import Link from 'next/link'
+import { Pencil, ToggleLeft, ToggleRight, Percent, Megaphone, Package, Trash2, Layers } from 'lucide-react'
 import { togglePromotionActiveAction, deletePromotionAction } from '@/lib/admin/content-actions'
 import { PromotionFormModal, type PromotionPlan, type PromotionBranch } from './promotion-form-modal'
 import { formatDate } from '@/lib/utils'
@@ -97,6 +98,13 @@ export function PromotionCard({ promotion, plans = [], branches = [] }: { promot
 
         {/* Actions */}
         <div className="flex items-center gap-1 flex-shrink-0">
+          <Link
+            href={`/admin/promotions/${promotion.id}/contenido`}
+            className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors"
+            title="Gestionar contenido"
+          >
+            <Layers size={13} />
+          </Link>
           <button
             onClick={() => setShowEdit(true)}
             className="w-8 h-8 flex items-center justify-center rounded-md text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors"
