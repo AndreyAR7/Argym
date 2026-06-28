@@ -12,7 +12,7 @@ export default async function CoachProfilePage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, phone, avatar_url, approval_status, created_at')
+    .select('full_name, phone, avatar_url, approval_status, created_at, gender')
     .eq('id', user.id)
     .single()
 
@@ -30,6 +30,7 @@ export default async function CoachProfilePage() {
           phone={profile?.phone ?? null}
           avatarUrl={profile?.avatar_url ?? null}
           createdAt={profile?.created_at ?? null}
+          gender={profile?.gender ?? null}
         />
       </div>
     </div>

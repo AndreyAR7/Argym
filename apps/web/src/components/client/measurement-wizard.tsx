@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { X, ArrowLeft, Save } from 'lucide-react'
 import { BodySilhouette, MeasureZone, Gender } from './body-silhouette'
 import { upsertBodyMeasurementAction } from '@/lib/client/actions'
@@ -90,6 +90,15 @@ export function MeasurementWizard({ open, onClose, existing, gender }: Props) {
     }
     return init
   })
+
+  // Reset wizard to step 0 every time the modal opens
+  useEffect(() => {
+    if (open) {
+      setStep(0)
+      setIsReview(false)
+      setError(null)
+    }
+  }, [open])
 
   if (!open) return null
 

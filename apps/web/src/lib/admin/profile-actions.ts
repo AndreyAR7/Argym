@@ -20,6 +20,7 @@ export async function updateMyProfileAction(data: {
   if (error) return { error: error.message }
   revalidatePath('/admin/profile')
   revalidatePath('/client/profile')
+  revalidatePath('/client/progress')
   return { success: true }
 }
 
