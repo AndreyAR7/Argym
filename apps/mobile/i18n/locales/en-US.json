@@ -95,5 +95,58 @@
     "nutrition": "Nutrition",
     "progress": "Progress",
     "messages": "Messages"
+  },
+  "measurements": {
+    "wizard": {
+      "screenTitle": "BODY MEASUREMENTS",
+      "stepOf": "Step {{current}} of {{total}}",
+      "required": "required",
+      "skip": "Skip",
+      "next": "Next →",
+      "toSummary": "Review summary →",
+      "save": "Save measurement",
+      "editBack": "← Edit",
+      "reviewTitle": "All done! Review your measurements",
+      "reviewSubtitle": "Confirm your data before saving",
+      "summaryLabel": "SUMMARY",
+      "notes": "Notes (optional)",
+      "notesPlaceholder": "E.g.: measured on an empty stomach...",
+      "noDataAlert": "No data",
+      "noDataMessage": "Enter at least one measurement to save."
+    },
+    "steps": {
+      "weight_kg":    { "label": "Weight",        "tip": "Stand on the scale without shoes, ideally on an empty stomach" },
+      "height_cm":    { "label": "Height",         "tip": "Stand straight against the wall, without shoes" },
+      "body_fat_pct": { "label": "Body fat %",     "tip": "Enter from your smart scale or body fat measuring device" },
+      "neck_cm":      { "label": "Neck",           "tip": "Measure just below the larynx (Adam's apple), horizontal tape" },
+      "shoulder_cm":  { "label": "Shoulders",      "tip": "Measure the widest point from shoulder to shoulder, arms relaxed" },
+      "chest_cm":     { "label": "Chest",          "tip": "Measure at armpit level, exhaling gently" },
+      "waist_cm":     { "label": "Waist",          "tip": "Measure the narrowest part of the torso, between ribs and hips" },
+      "abdomen_cm":   { "label": "Abdomen",        "tip": "Measure at navel level, without holding your stomach in" },
+      "hip_cm":       { "label": "Hips",           "tip": "Measure the widest point of your hips and glutes" },
+      "arm_cm":       { "label": "Arm (bicep)",    "tip": "Flexed bicep, midpoint between shoulder and elbow" },
+      "thigh_cm":     { "label": "Thigh",          "tip": "Midpoint of the thigh, standing with weight evenly distributed" },
+      "calf_cm":      { "label": "Calf",           "tip": "At the widest point of the calf, standing" }
+    },
+    "labels": {
+      "weight": "Weight",
+      "height": "Height",
+      "bmi": "BMI",
+      "bodyFat": "Body fat %",
+      "fatMass": "Fat mass",
+      "leanMass": "Lean mass",
+      "leanPct": "Lean mass %",
+      "waist": "Waist",
+      "hip": "Hips",
+      "arm": "Arm",
+      "neck": "Neck",
+      "shoulder": "Shoulders",
+      "abdomen": "Abdomen",
+      "thigh": "Thigh",
+      "calf": "Calf",
+      "kg": "kg",
+      "cm": "cm",
+      "pct": "%"
+    }
   }
 }

@@ -95,5 +95,58 @@
     "nutrition": "Nutrición",
     "progress": "Progreso",
     "messages": "Mensajes"
+  },
+  "measurements": {
+    "wizard": {
+      "screenTitle": "MEDICIÓN CORPORAL",
+      "stepOf": "Paso {{current}} de {{total}}",
+      "required": "requerido",
+      "skip": "Omitir",
+      "next": "Siguiente →",
+      "toSummary": "Ver resumen →",
+      "save": "Guardar medición",
+      "editBack": "← Editar",
+      "reviewTitle": "¡Listo! Revisa tus medidas",
+      "reviewSubtitle": "Confirma los datos antes de guardar",
+      "summaryLabel": "RESUMEN",
+      "notes": "Notas (opcional)",
+      "notesPlaceholder": "Ej: tomé las medidas en ayunas...",
+      "noDataAlert": "Sin datos",
+      "noDataMessage": "Ingresa al menos una medida para guardar."
+    },
+    "steps": {
+      "weight_kg":    { "label": "Peso",           "tip": "Párate en la báscula sin zapatos, en ayunas si es posible" },
+      "height_cm":    { "label": "Estatura",        "tip": "Párate erguido contra la pared, sin zapatos" },
+      "body_fat_pct": { "label": "% Grasa corporal","tip": "Ingrésalo de tu báscula inteligente o medidor de grasa corporal" },
+      "neck_cm":      { "label": "Cuello",          "tip": "Mide justo debajo de la laringe (nuez de Adán), cinta horizontal" },
+      "shoulder_cm":  { "label": "Hombros",         "tip": "Mide el punto más ancho de hombro a hombro, brazos relajados" },
+      "chest_cm":     { "label": "Pecho",           "tip": "Mide a la altura de las axilas, exhalando suavemente" },
+      "waist_cm":     { "label": "Cintura",         "tip": "Mide la parte más estrecha del torso, entre costillas y cadera" },
+      "abdomen_cm":   { "label": "Abdomen",         "tip": "Mide a nivel del ombligo, sin meter la barriga" },
+      "hip_cm":       { "label": "Cadera",          "tip": "Mide el punto más ancho de la cadera y glúteos" },
+      "arm_cm":       { "label": "Brazo (bíceps)",  "tip": "Bíceps contraído, a la mitad entre hombro y codo" },
+      "thigh_cm":     { "label": "Muslo",           "tip": "A la mitad del muslo, de pie, peso distribuido en ambas piernas" },
+      "calf_cm":      { "label": "Pantorrilla",     "tip": "En el punto más ancho de la pantorrilla, de pie" }
+    },
+    "labels": {
+      "weight": "Peso",
+      "height": "Estatura",
+      "bmi": "IMC",
+      "bodyFat": "% Grasa corporal",
+      "fatMass": "Masa grasa",
+      "leanMass": "Masa magra",
+      "leanPct": "% Masa magra",
+      "waist": "Cintura",
+      "hip": "Cadera",
+      "arm": "Brazo",
+      "neck": "Cuello",
+      "shoulder": "Hombros",
+      "abdomen": "Abdomen",
+      "thigh": "Muslo",
+      "calf": "Pantorrilla",
+      "kg": "kg",
+      "cm": "cm",
+      "pct": "%"
+    }
   }
 }

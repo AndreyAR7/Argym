@@ -245,6 +245,67 @@ function CompRow({ label, value, unit, color, T }: {
   );
 }
 
+// ─── Before / After comparison card ──────────────────────────
+function ComparisonCard({ measurements, T }: { measurements: BodyMeasurement[]; T: any }) {
+  if (measurements.length < 2) return null;
+  const latest = measurements[0];
+  const first  = measurements[measurements.length - 1];
+
+  type MetricDef = { label: string; key: keyof BodyMeasurement; unit: string; lowerIsBetter: boolean | null };
+  const metrics: MetricDef[] = [
+    { label: 'Peso',        key: 'weight_kg',    unit: 'kg', lowerIsBetter: true  },
+    { label: '% Grasa',     key: 'body_fat_pct', unit: '%',  lowerIsBetter: true  },
+    { label: 'Masa magra',  key: 'muscle_mass_kg', unit: 'kg', lowerIsBetter: false },
+    { label: 'Cintura',     key: 'waist_cm',     unit: 'cm', lowerIsBetter: true  },
+    { label: 'Abdomen',     key: 'abdomen_cm',   unit: 'cm', lowerIsBetter: true  },
+    { label: 'Cadera',      key: 'hip_cm',       unit: 'cm', lowerIsBetter: null  },
+    { label: 'Brazo',       key: 'arm_cm',       unit: 'cm', lowerIsBetter: false },
+    { label: 'Muslo',       key: 'thigh_cm',     unit: 'cm', lowerIsBetter: false },
+    { label: 'Pantorrilla', key: 'calf_cm',      unit: 'cm', lowerIsBetter: false },
+  ];
+
+  const rows = metrics.filter((m) => first[m.key] != null && latest[m.key] != null);
+  if (!rows.length) return null;
+
+  return (
+    <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border }]}>
+      <Text style={[styles.cardTitle, { color: T.text, marginBottom: 4 }]}>Inicio vs Ahora</Text>
+      <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 12 }}>
+        {new Date(first.measured_at + 'T12:00:00').toLocaleDateString('es-CR', { day: 'numeric', month: 'short', year: 'numeric' })}
+        {' → '}
+        {new Date(latest.measured_at + 'T12:00:00').toLocaleDateString('es-CR', { day: 'numeric', month: 'short', year: 'numeric' })}
+      </Text>
+      {rows.map((m) => {
+        const a = first[m.key] as number;
+        const b = latest[m.key] as number;
+        const delta = b - a;
+        const improved =
+          m.lowerIsBetter === null ? null :
+          m.lowerIsBetter ? delta < 0 : delta > 0;
+        const deltaColor = improved === null ? T.textMuted : improved ? T.green : T.orange;
+        const sign = delta > 0 ? '+' : '';
+        return (
+          <View key={m.key} style={{
+            flexDirection: 'row', alignItems: 'center',
+            paddingVertical: 7, borderBottomWidth: 1, borderColor: T.border + '33',
+          }}>
+            <Text style={{ flex: 1, fontSize: 13, color: T.textSecondary }}>{m.label}</Text>
+            <Text style={{ fontSize: 13, color: T.textMuted, width: 56, textAlign: 'right' }}>
+              {a} {m.unit}
+            </Text>
+            <Text style={{ fontSize: 12, color: deltaColor, fontWeight: '700', width: 54, textAlign: 'right' }}>
+              {sign}{delta.toFixed(1)} {m.unit}
+            </Text>
+            <Text style={{ fontSize: 13, color: T.text, fontWeight: '700', width: 56, textAlign: 'right' }}>
+              {b} {m.unit}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 // ─── Medidas Tab ──────────────────────────────────────────────
 function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
   const { measurements, thisWeekMeasurement } = useProgressStore();
@@ -264,6 +325,12 @@ function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
   const lastWeight = weightHistory[weightHistory.length - 1];
   const weightChange = weightHistory.length >= 2 && firstWeight != null && lastWeight != null
     ? lastWeight - firstWeight : null;
+
+  const hasCircumferences = latest && (
+    latest.neck_cm != null || latest.shoulder_cm != null || latest.abdomen_cm != null ||
+    latest.thigh_cm != null || latest.calf_cm != null ||
+    latest.waist_cm != null || latest.hip_cm != null || latest.arm_cm != null
+  );
 
   return (
     <View style={{ gap: 12 }}>
@@ -312,19 +379,34 @@ function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
             )}
           </View>
 
-          {/* Detailed composition */}
-          {(comp?.fatMassKg != null || comp?.leanMassKg != null || latest.waist_cm != null) && (
+          {/* Body composition */}
+          {(comp?.fatMassKg != null || comp?.leanMassKg != null || latest.body_fat_pct != null) && (
+            <View style={{ marginBottom: hasCircumferences ? 12 : 0 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: T.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>
+                Composición
+              </Text>
+              <CompRow label="Masa grasa"            value={comp?.fatMassKg ?? null}  unit="kg" color={T.orange} T={T} />
+              <CompRow label="% Grasa corporal"      value={comp?.fatPct ?? null}     unit="%" color={T.orange} T={T} />
+              <CompRow label="Masa magra"            value={comp?.leanMassKg ?? null} unit="kg" color={T.green} T={T} />
+              <CompRow label="% Masa magra"          value={comp?.leanPct ?? null}    unit="%" color={T.green} T={T} />
+            </View>
+          )}
+
+          {/* Circumferences */}
+          {hasCircumferences && (
             <View>
               <Text style={{ fontSize: 11, fontWeight: '700', color: T.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>
-                Desglose
+                Circunferencias
               </Text>
-              <CompRow label="Masa grasa" value={comp?.fatMassKg ?? null} unit="kg" color={T.orange} T={T} />
-              <CompRow label="% Grasa corporal" value={comp?.fatPct ?? null} unit="%" color={T.orange} T={T} />
-              <CompRow label="Masa magra (músculos + huesos)" value={comp?.leanMassKg ?? null} unit="kg" color={T.green} T={T} />
-              <CompRow label="% Masa magra" value={comp?.leanPct ?? null} unit="%" color={T.green} T={T} />
-              <CompRow label="Circunferencia de cintura" value={latest.waist_cm} unit="cm" color={T.accent} T={T} />
-              <CompRow label="Circunferencia de cadera" value={latest.hip_cm} unit="cm" color={T.accent} T={T} />
-              <CompRow label="Circunferencia de brazo" value={latest.arm_cm} unit="cm" color={T.accent} T={T} />
+              <CompRow label="Cuello"       value={latest.neck_cm}     unit="cm" color={T.accent} T={T} />
+              <CompRow label="Hombros"      value={latest.shoulder_cm} unit="cm" color={T.accent} T={T} />
+              <CompRow label="Pecho"        value={latest.chest_cm}    unit="cm" color={T.accent} T={T} />
+              <CompRow label="Cintura"      value={latest.waist_cm}    unit="cm" color={T.accent} T={T} />
+              <CompRow label="Abdomen"      value={latest.abdomen_cm}  unit="cm" color={T.accent} T={T} />
+              <CompRow label="Cadera"       value={latest.hip_cm}      unit="cm" color={T.accent} T={T} />
+              <CompRow label="Brazo"        value={latest.arm_cm}      unit="cm" color={T.accent} T={T} />
+              <CompRow label="Muslo"        value={latest.thigh_cm}    unit="cm" color={T.accent} T={T} />
+              <CompRow label="Pantorrilla"  value={latest.calf_cm}     unit="cm" color={T.accent} T={T} />
             </View>
           )}
         </View>
@@ -348,6 +430,9 @@ function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
           </View>
         </View>
       )}
+
+      {/* Before / After comparison */}
+      <ComparisonCard measurements={measurements} T={T} />
 
       {/* Add / Edit button */}
       <TouchableOpacity
@@ -373,30 +458,43 @@ function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
           <Text style={[styles.cardTitle, { color: T.text, marginBottom: 12 }]}>Historial</Text>
           {measurements.slice(0, 12).map((m, idx) => {
             const c = computeBodyComposition(m);
+            const circumStr = [
+              m.waist_cm   ? `Cin: ${m.waist_cm}` : null,
+              m.abdomen_cm ? `Abd: ${m.abdomen_cm}` : null,
+              m.hip_cm     ? `Cad: ${m.hip_cm}` : null,
+              m.arm_cm     ? `Bra: ${m.arm_cm}` : null,
+              m.thigh_cm   ? `Mus: ${m.thigh_cm}` : null,
+              m.calf_cm    ? `Pan: ${m.calf_cm}` : null,
+            ].filter(Boolean).join(' · ');
             return (
               <View key={m.id} style={{
-                flexDirection: 'row', paddingVertical: 10,
+                paddingVertical: 10,
                 borderBottomWidth: idx < Math.min(measurements.length, 12) - 1 ? 1 : 0,
                 borderColor: T.border + '55',
               }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '600', color: T.text }}>
-                    {new Date(m.measured_at + 'T12:00:00').toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric', month: 'short' })}
-                  </Text>
-                  {m.notes ? <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{m.notes}</Text> : null}
-                </View>
-                <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                  {m.weight_kg != null && (
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: T.orange }}>{m.weight_kg} kg</Text>
-                  )}
-                  {c.bmi != null && c.bmiCategory && (
-                    <Text style={{ fontSize: 11, color: c.bmiCategory.color, fontWeight: '600' }}>
-                      IMC {c.bmi} · {c.bmiCategory.label}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: T.text }}>
+                      {new Date(m.measured_at + 'T12:00:00').toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric', month: 'short' })}
                     </Text>
-                  )}
-                  {c.leanMassKg != null && (
-                    <Text style={{ fontSize: 10, color: T.textMuted }}>Magra: {c.leanMassKg} kg</Text>
-                  )}
+                    {m.notes ? <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{m.notes}</Text> : null}
+                    {circumStr ? (
+                      <Text style={{ fontSize: 10, color: T.textMuted, marginTop: 3 }}>{circumStr} cm</Text>
+                    ) : null}
+                  </View>
+                  <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                    {m.weight_kg != null && (
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: T.orange }}>{m.weight_kg} kg</Text>
+                    )}
+                    {c.bmi != null && c.bmiCategory && (
+                      <Text style={{ fontSize: 11, color: c.bmiCategory.color, fontWeight: '600' }}>
+                        IMC {c.bmi} · {c.bmiCategory.label}
+                      </Text>
+                    )}
+                    {m.body_fat_pct != null && (
+                      <Text style={{ fontSize: 10, color: T.textMuted }}>{m.body_fat_pct}% grasa</Text>
+                    )}
+                  </View>
                 </View>
               </View>
             );
