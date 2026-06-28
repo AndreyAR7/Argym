@@ -56,6 +56,8 @@ export async function createNutritionPlanAction(data: {
   carbs_g: number | null
   fat_g: number | null
   goal: string | null
+  status?: string
+  is_template?: boolean
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -77,7 +79,8 @@ export async function createNutritionPlanAction(data: {
     carbs_g: data.carbs_g,
     fat_g: data.fat_g,
     goal: data.goal,
-    status: 'draft',
+    status: data.status ?? 'draft',
+    is_template: data.is_template ?? false,
   })
 
   if (error) return { error: error.message }

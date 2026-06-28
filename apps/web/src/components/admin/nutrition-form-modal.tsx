@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { createNutritionPlanAction } from '@/lib/admin/content-actions'
 import { updateNutritionPlanAction } from '@/lib/admin/nutrition-actions'
@@ -38,6 +39,7 @@ function parseNullableNumber(val: string): number | null {
 
 export function NutritionFormModal({ plan, onClose }: NutritionFormModalProps) {
   const isEdit = plan !== undefined
+  const router = useRouter()
 
   const [name, setName] = useState(plan?.name ?? '')
   const [goal, setGoal] = useState(plan?.goal ?? '')
@@ -94,6 +96,8 @@ export function NutritionFormModal({ plan, onClose }: NutritionFormModalProps) {
           carbs_g: data.carbs_g,
           fat_g: data.fat_g,
           goal: data.goal,
+          status: data.status,
+          is_template: data.is_template,
         })
       }
 
@@ -101,6 +105,7 @@ export function NutritionFormModal({ plan, onClose }: NutritionFormModalProps) {
         setError(result.error)
       } else {
         onClose()
+        router.refresh()
       }
     })
   }

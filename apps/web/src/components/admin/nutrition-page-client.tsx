@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { Plus, Pencil, Trash2, Apple, Flame } from 'lucide-react'
 import { NutritionFormModal } from '@/components/admin/nutrition-form-modal'
 import { NutritionStatusButton } from '@/components/admin/nutrition-status-button'
@@ -31,6 +31,8 @@ export function NutritionPageClient({ plans }: NutritionPageClientProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [localPlans, setLocalPlans] = useState(plans)
+
+  useEffect(() => { setLocalPlans(plans) }, [plans])
 
   function openCreate() {
     setEditingPlan(undefined)
