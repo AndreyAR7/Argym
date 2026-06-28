@@ -33,7 +33,7 @@ export default async function ClientRoutinePage() {
         exercises (id)
       )
     `)
-    .eq('user_id', user.id)
+    .eq('client_id', user.id)
     .order('assigned_at', { ascending: false })
 
   const routines = (assignments ?? [])

@@ -1,9 +1,10 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/shared/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
 import { formatDate } from '@/lib/utils'
-import { Users } from 'lucide-react'
+import { Users, ChevronRight } from 'lucide-react'
 
 export const metadata = { title: 'Mis Clientes' }
 
@@ -77,14 +78,15 @@ export default async function CoachClientsPage({
               <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider hidden md:table-cell">Nivel</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Estado</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider hidden lg:table-cell">Miembro desde</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="bg-[var(--color-card)] divide-y divide-[var(--color-border)]">
             {clients.length > 0 ? (
               clients.map((client) => (
-                <tr key={client.id} className="hover:bg-[var(--color-muted)] transition-colors">
+                <tr key={client.id} className="hover:bg-[var(--color-muted)] transition-colors cursor-pointer">
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
+                    <Link href={`/coach/clients/${client.id}`} className="flex items-center gap-3">
                       <Avatar name={client.full_name ?? '?'} src={client.avatar_url} size="sm" className="bg-[var(--color-client-light)]" />
                       <div>
                         <p className="font-medium text-[var(--color-foreground)]">{client.full_name ?? '—'}</p>
@@ -92,7 +94,7 @@ export default async function CoachClientsPage({
                           <p className="text-xs text-[var(--color-muted-foreground)]">{client.phone}</p>
                         )}
                       </div>
-                    </div>
+                    </Link>
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
                     {client.client_level ? (
@@ -108,6 +110,11 @@ export default async function CoachClientsPage({
                   </td>
                   <td className="px-4 py-3 text-sm text-[var(--color-muted-foreground)] hidden lg:table-cell">
                     {formatDate(client.created_at)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Link href={`/coach/clients/${client.id}`} className="text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]">
+                      <ChevronRight size={16} />
+                    </Link>
                   </td>
                 </tr>
               ))

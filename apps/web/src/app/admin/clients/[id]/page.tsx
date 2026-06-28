@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/shared/page-header'
 import { ClientEditForm } from '@/components/admin/client-edit-form'
 import { SubscriptionHistory } from '@/components/admin/subscription-history'
+import { MeasurementsSummary } from '@/components/shared/measurements-summary'
 import { formatDate } from '@/lib/utils'
 
 export const metadata = { title: 'Perfil de cliente' }
@@ -27,7 +28,7 @@ export default async function ClientDetailPage({
   const session = await getSessionData()
   const { supabase, tenantId } = session!
 
-  const [profileResult, subscriptionsResult, nutritionResult] = await Promise.all([
+  const [profileResult, subscriptionsResult, nutritionResult, measurementsResult] = await Promise.all([
     supabase
       .from('profiles')
       .select('id, full_name, avatar_url, phone, client_level, is_active, approval_status, created_at')
@@ -47,10 +48,19 @@ export default async function ClientDetailPage({
       .select('id, assigned_at, note, nutrition_plans(name, status)')
       .eq('client_id', clientId)
       .eq('tenant_id', tenantId),
+
+    supabase
+      .from('body_measurements')
+      .select('measured_at, weight_kg, height_cm, body_fat_pct, waist_cm, abdomen_cm, hip_cm, arm_cm, thigh_cm, calf_cm, chest_cm, shoulder_cm, neck_cm')
+      .eq('client_id', clientId)
+      .order('measured_at', { ascending: false })
+      .limit(12),
   ])
 
   const profile = profileResult.data
   if (!profile) notFound()
+
+  const measurements = measurementsResult.data ?? []
 
   const subscriptions = (subscriptionsResult.data ?? []) as unknown as {
     id: string
@@ -105,7 +115,7 @@ export default async function ClientDetailPage({
       </div>
 
       {/* Two-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* LEFT — edit form */}
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6">
           <h2 className="text-sm font-semibold text-[var(--color-foreground)] mb-5">
@@ -174,6 +184,11 @@ export default async function ClientDetailPage({
             )}
           </div>
         </div>
+      </div>
+
+      {/* Measurements section */}
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6">
+        <MeasurementsSummary measurements={measurements} />
       </div>
     </div>
   )

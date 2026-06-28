@@ -62,6 +62,19 @@ export default async function ClientPlanesPage() {
     return p.plan_tier === profile.client_level
   })
 
+  // Routine counts per plan (shown in plan cards)
+  const planIds = plans.map((p: any) => p.id as string)
+  const routineCountByPlan = new Map<string, number>()
+  if (planIds.length > 0) {
+    const { data: planRoutines } = await supabase
+      .from('plan_routines')
+      .select('plan_id')
+      .in('plan_id', planIds)
+    for (const pr of planRoutines ?? []) {
+      routineCountByPlan.set(pr.plan_id, (routineCountByPlan.get(pr.plan_id) ?? 0) + 1)
+    }
+  }
+
   // 3. Fetch active promotions — global or matching the client's branch
   let promosQuery = supabase
     .from('promotions')
@@ -155,6 +168,7 @@ export default async function ClientPlanesPage() {
             const promo = promoByPlan.get(plan.id)
             const alreadySubscribed = subscribedPlanIds.has(plan.id)
             const finalPrice = promo ? computeDiscountedPrice(plan.price, promo) : plan.price
+            const routineCount = routineCountByPlan.get(plan.id) ?? 0
             const discountLabel = promo?.discount_percentage
               ? `${promo.discount_percentage}% descuento`
               : promo?.discount_amount
@@ -233,16 +247,20 @@ export default async function ClientPlanesPage() {
                   )}
 
                   {/* Features list */}
-                  {features.length > 0 && (
-                    <ul className="space-y-1.5 flex-1">
-                      {features.map((f: any, i: number) => (
-                        <li key={i} className="flex items-center gap-2 text-sm text-[var(--color-foreground)]">
-                          <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />
-                          {typeof f === 'string' ? f : (f.name ?? JSON.stringify(f))}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  <ul className="space-y-1.5 flex-1">
+                    {routineCount > 0 && (
+                      <li className="flex items-center gap-2 text-sm text-[var(--color-foreground)]">
+                        <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />
+                        {routineCount} rutina{routineCount !== 1 ? 's' : ''} incluida{routineCount !== 1 ? 's' : ''}
+                      </li>
+                    )}
+                    {features.map((f: any, i: number) => (
+                      <li key={i} className="flex items-center gap-2 text-sm text-[var(--color-foreground)]">
+                        <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />
+                        {typeof f === 'string' ? f : (f.name ?? JSON.stringify(f))}
+                      </li>
+                    ))}
+                  </ul>
 
                   {/* Action */}
                   <div className="mt-auto pt-2">

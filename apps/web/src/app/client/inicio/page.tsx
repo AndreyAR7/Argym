@@ -59,7 +59,7 @@ export default async function ClientHomePage() {
     { data: activePromo },
   ] = await Promise.all([
     supabase.from('profiles').select('full_name').eq('id', user.id).single(),
-    supabase.from('routine_assignments').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+    supabase.from('routine_assignments').select('id', { count: 'exact', head: true }).eq('client_id', user.id),
     supabase.from('video_assignments').select('id', { count: 'exact', head: true }).eq('client_id', user.id),
     supabase.from('appointments').select('id', { count: 'exact', head: true }).eq('client_id', user.id).eq('status', 'scheduled'),
     supabase.from('user_subscriptions').select('status, plans(name)').eq('user_id', user.id).eq('status', 'active').limit(1).single(),
