@@ -127,75 +127,31 @@ BEGIN
 
   ON CONFLICT DO NOTHING;
 
-  -- ── PROFILES (fallback if trigger didn't fire) ───────────────
-  INSERT INTO public.profiles (id, tenant_id, full_name, is_active, approval_status)
-  VALUES
-    (u_ana,    v_tid, 'Ana García Rodríguez', FALSE, 'pending'),
-    (u_carlos, v_tid, 'Carlos Martínez Soto', FALSE, 'pending'),
-    (u_maria,  v_tid, 'María Rodríguez Mora',  FALSE, 'pending'),
-    (u_jose,   v_tid, 'José Hernández Castro', FALSE, 'pending'),
-    (u_laura,  v_tid, 'Laura Pérez Vargas',    FALSE, 'pending'),
-    (u_diego,  v_tid, 'Diego Castro Jiménez',  FALSE, 'pending'),
-    (u_sofia,  v_tid, 'Sofía Jiménez Blanco',  FALSE, 'pending'),
-    (u_andres, v_tid, 'Andrés Vargas Solano',  FALSE, 'pending')
-  ON CONFLICT (id) DO NOTHING;
+  -- ── PROFILES ────────────────────────────────────────────────
+  -- The protect_approval_fields trigger fires only on UPDATE, not INSERT.
+  -- Use DELETE + INSERT to seed with correct approval values, bypassing it.
+  -- (Migrations run as postgres = table owner, so ALTER TABLE is allowed.)
+  ALTER TABLE public.profiles DISABLE TRIGGER trg_protect_approval_fields;
 
-  -- ── APPROVE & CONFIGURE CLIENTS ──────────────────────────────
-  UPDATE public.profiles SET
-    is_active = TRUE, approval_status = 'approved',
-    approved_by = v_admin_id, approved_at = NOW() - INTERVAL '55 days',
-    phone = '8800-1001', client_level = 'beginner',
-    full_name = 'Ana García Rodríguez'
-  WHERE id = u_ana AND tenant_id = v_tid;
+  -- Upsert: delete auto-created rows (from handle_new_user trigger) then re-insert
+  -- with all approval fields set correctly in a single INSERT (no UPDATE needed).
+  DELETE FROM public.profiles
+  WHERE id IN (u_ana, u_carlos, u_maria, u_jose, u_laura, u_diego, u_sofia, u_andres);
 
-  UPDATE public.profiles SET
-    is_active = TRUE, approval_status = 'approved',
-    approved_by = v_admin_id, approved_at = NOW() - INTERVAL '40 days',
-    phone = '8800-2002', client_level = 'intermediate',
-    full_name = 'Carlos Martínez Soto'
-  WHERE id = u_carlos AND tenant_id = v_tid;
+  INSERT INTO public.profiles (
+    id, tenant_id, full_name, is_active, approval_status,
+    approved_by, approved_at, phone, client_level
+  ) VALUES
+    (u_ana,    v_tid, 'Ana García Rodríguez', TRUE, 'approved', v_admin_id, NOW() - INTERVAL '55 days',  '8800-1001', 'beginner'),
+    (u_carlos, v_tid, 'Carlos Martínez Soto', TRUE, 'approved', v_admin_id, NOW() - INTERVAL '40 days',  '8800-2002', 'intermediate'),
+    (u_maria,  v_tid, 'María Rodríguez Mora',  TRUE, 'approved', v_admin_id, NOW() - INTERVAL '25 days',  '8800-3003', 'beginner'),
+    (u_jose,   v_tid, 'José Hernández Castro', TRUE, 'approved', v_admin_id, NOW() - INTERVAL '85 days',  '8800-4004', 'advanced'),
+    (u_laura,  v_tid, 'Laura Pérez Vargas',    TRUE, 'approved', v_admin_id, NOW() - INTERVAL '10 days',  '8800-5005', 'intermediate'),
+    (u_diego,  v_tid, 'Diego Castro Jiménez',  TRUE, 'approved', v_admin_id, NOW() - INTERVAL '3 days',   '8800-6006', 'beginner'),
+    (u_sofia,  v_tid, 'Sofía Jiménez Blanco',  TRUE, 'approved', v_admin_id, NOW() - INTERVAL '115 days', '8800-7007', 'advanced'),
+    (u_andres, v_tid, 'Andrés Vargas Solano',  TRUE, 'approved', v_admin_id, NOW() - INTERVAL '15 days',  '8800-8008', 'intermediate');
 
-  UPDATE public.profiles SET
-    is_active = TRUE, approval_status = 'approved',
-    approved_by = v_admin_id, approved_at = NOW() - INTERVAL '25 days',
-    phone = '8800-3003', client_level = 'beginner',
-    full_name = 'María Rodríguez Mora'
-  WHERE id = u_maria AND tenant_id = v_tid;
-
-  UPDATE public.profiles SET
-    is_active = TRUE, approval_status = 'approved',
-    approved_by = v_admin_id, approved_at = NOW() - INTERVAL '85 days',
-    phone = '8800-4004', client_level = 'advanced',
-    full_name = 'José Hernández Castro'
-  WHERE id = u_jose AND tenant_id = v_tid;
-
-  UPDATE public.profiles SET
-    is_active = TRUE, approval_status = 'approved',
-    approved_by = v_admin_id, approved_at = NOW() - INTERVAL '10 days',
-    phone = '8800-5005', client_level = 'intermediate',
-    full_name = 'Laura Pérez Vargas'
-  WHERE id = u_laura AND tenant_id = v_tid;
-
-  UPDATE public.profiles SET
-    is_active = TRUE, approval_status = 'approved',
-    approved_by = v_admin_id, approved_at = NOW() - INTERVAL '3 days',
-    phone = '8800-6006', client_level = 'beginner',
-    full_name = 'Diego Castro Jiménez'
-  WHERE id = u_diego AND tenant_id = v_tid;
-
-  UPDATE public.profiles SET
-    is_active = TRUE, approval_status = 'approved',
-    approved_by = v_admin_id, approved_at = NOW() - INTERVAL '115 days',
-    phone = '8800-7007', client_level = 'advanced',
-    full_name = 'Sofía Jiménez Blanco'
-  WHERE id = u_sofia AND tenant_id = v_tid;
-
-  UPDATE public.profiles SET
-    is_active = TRUE, approval_status = 'approved',
-    approved_by = v_admin_id, approved_at = NOW() - INTERVAL '15 days',
-    phone = '8800-8008', client_level = 'intermediate',
-    full_name = 'Andrés Vargas Solano'
-  WHERE id = u_andres AND tenant_id = v_tid;
+  ALTER TABLE public.profiles ENABLE TRIGGER trg_protect_approval_fields;
 
   -- ── CLIENT ROLE ASSIGNMENT ───────────────────────────────────
   INSERT INTO public.user_roles (user_id, tenant_id, role_id, assigned_by)
@@ -225,14 +181,14 @@ BEGIN
    'Domina la sentadilla correcta desde cero. Aprende postura, respiración y profundidad para trabajar glúteos y cuádriceps de forma segura y efectiva.',
    cat_fuerza, 'beginner', 'published', '#C0392B',
    1245, TRUE, TRUE,
-   ARRAY['beginner','intermediate','advanced'], v_admin_id, 342),
+   ARRAY['beginner','intermediate','advanced']::video_level[], v_admin_id, 342),
 
   (v_tid,
    'Flexiones desde cero: empuje sin equipamiento',
    'Domina las flexiones en todas sus variantes, desde las rodillas hasta las estrictas. Construye fuerza de empuje sin necesidad de gimnasio.',
    cat_fuerza, 'beginner', 'published', '#E74C3C',
    980, TRUE, FALSE,
-   ARRAY['beginner'], v_admin_id, 189),
+   ARRAY['beginner']::video_level[], v_admin_id, 189),
 
   -- ═══ FUERZA — Intermediate ═══
   (v_tid,
@@ -240,14 +196,14 @@ BEGIN
    'Agarre, posición escapular, arco dorsal y trayectoria de la barra. Todo lo que necesitas para progresar de forma segura en el press de banca.',
    cat_fuerza, 'intermediate', 'published', '#922B21',
    1560, FALSE, FALSE,
-   ARRAY['intermediate','advanced'], v_admin_id, 234),
+   ARRAY['intermediate','advanced']::video_level[], v_admin_id, 234),
 
   (v_tid,
    'Peso muerto: el rey de los ejercicios compuestos',
    'El peso muerto activa más de 300 músculos simultáneamente. Aprende las variantes convencional, sumo y rumana y cuándo usar cada una.',
    cat_fuerza, 'intermediate', 'published', '#7B241C',
    1820, FALSE, TRUE,
-   ARRAY['intermediate','advanced'], v_admin_id, 512),
+   ARRAY['intermediate','advanced']::video_level[], v_admin_id, 512),
 
   -- ═══ FUERZA — Advanced ═══
   (v_tid,
@@ -255,7 +211,7 @@ BEGIN
    'Sentadilla de alta bar, press de banca con pausa y peso muerto convencional. Entrenamiento de alta intensidad para atletas experimentados.',
    cat_fuerza, 'advanced', 'published', '#4A235A',
    2400, FALSE, FALSE,
-   ARRAY['advanced'], v_admin_id, 98),
+   ARRAY['advanced']::video_level[], v_admin_id, 98),
 
   -- ═══ CARDIO — Beginner ═══
   (v_tid,
@@ -263,14 +219,14 @@ BEGIN
    'Rutina de bajo impacto diseñada para quienes empiezan o tienen problemas articulares. Sin saltos, sin impacto, máxima activación cardiovascular.',
    cat_cardio, 'beginner', 'published', '#2E86C1',
    1200, TRUE, FALSE,
-   ARRAY['beginner','intermediate'], v_admin_id, 445),
+   ARRAY['beginner','intermediate']::video_level[], v_admin_id, 445),
 
   (v_tid,
    'Caminata activa: cardio en tu día a día',
    'Las técnicas de caminata activa para maximizar el gasto calórico. Pasos, postura, ritmo y variantes para mantener la intensidad.',
    cat_cardio, 'beginner', 'published', '#1A5276',
    900, TRUE, FALSE,
-   ARRAY['beginner'], v_admin_id, 267),
+   ARRAY['beginner']::video_level[], v_admin_id, 267),
 
   -- ═══ CARDIO — Intermediate ═══
   (v_tid,
@@ -278,7 +234,7 @@ BEGIN
    'Intervalos de alta intensidad diseñados para maximizar el EPOC (quema de calorías post-ejercicio). Combina sprints, saltos y trabajo de core.',
    cat_cardio, 'intermediate', 'published', '#1F618D',
    1800, FALSE, TRUE,
-   ARRAY['intermediate','advanced'], v_admin_id, 731),
+   ARRAY['intermediate','advanced']::video_level[], v_admin_id, 731),
 
   -- ═══ CARDIO — Advanced ═══
   (v_tid,
@@ -286,7 +242,7 @@ BEGIN
    '20 segundos de esfuerzo máximo, 10 segundos de descanso, 8 rondas. El protocolo Tabata original para atletas con base cardiovascular sólida.',
    cat_cardio, 'advanced', 'published', '#154360',
    1440, FALSE, FALSE,
-   ARRAY['advanced'], v_admin_id, 156),
+   ARRAY['advanced']::video_level[], v_admin_id, 156),
 
   -- ═══ FLEXIBILIDAD — Beginner ═══
   (v_tid,
@@ -294,7 +250,7 @@ BEGIN
    'Rutina completa de estiramientos dinámicos y estáticos para iniciar el día con el cuerpo activado, la mente clara y las tensiones disueltas.',
    cat_flex, 'beginner', 'published', '#1E8449',
    600, TRUE, FALSE,
-   ARRAY['beginner','intermediate','advanced'], v_admin_id, 388),
+   ARRAY['beginner','intermediate','advanced']::video_level[], v_admin_id, 388),
 
   -- ═══ FLEXIBILIDAD — Intermediate ═══
   (v_tid,
@@ -302,7 +258,7 @@ BEGIN
    'Posiciones de yoga aplicadas al rendimiento deportivo. Trabaja cadena posterior, hombros y cadera para reducir lesiones y mejorar la recuperación.',
    cat_flex, 'intermediate', 'published', '#196F3D',
    2100, FALSE, FALSE,
-   ARRAY['intermediate','advanced'], v_admin_id, 211),
+   ARRAY['intermediate','advanced']::video_level[], v_admin_id, 211),
 
   -- ═══ FLEXIBILIDAD — Advanced ═══
   (v_tid,
@@ -310,7 +266,7 @@ BEGIN
    'Protocolo de movilidad articular para atletas avanzados. CARs (Controlled Articular Rotations), PAILS y RAILS para maximizar el rango funcional.',
    cat_flex, 'advanced', 'published', '#145A32',
    1680, FALSE, FALSE,
-   ARRAY['advanced'], v_admin_id, 89),
+   ARRAY['advanced']::video_level[], v_admin_id, 89),
 
   -- ═══ NUTRICIÓN ═══
   (v_tid,
@@ -318,7 +274,7 @@ BEGIN
    'Paso a paso: cálculo de TDEE, distribución de macronutrientes según tu objetivo (déficit, mantenimiento o superávit) y cómo ajustar según resultados.',
    cat_nutricion, 'beginner', 'published', '#7D6608',
    1320, TRUE, FALSE,
-   ARRAY['beginner','intermediate','advanced'], v_admin_id, 623),
+   ARRAY['beginner','intermediate','advanced']::video_level[], v_admin_id, 623),
 
   -- ═══ MOTIVACIÓN ═══
   (v_tid,
@@ -326,21 +282,21 @@ BEGIN
    'Los atletas de élite comparten patrones mentales específicos. Aprende visualización, diálogo interno, gestión del fracaso y rutinas de alto rendimiento.',
    cat_motivacion, 'beginner', 'published', '#6C3483',
    960, TRUE, FALSE,
-   ARRAY['beginner','intermediate','advanced'], v_admin_id, 895),
+   ARRAY['beginner','intermediate','advanced']::video_level[], v_admin_id, 895),
 
   (v_tid,
    'Consistencia sobre intensidad: el método que funciona',
    'Por qué la constancia supera a la motivación. Estrategias basadas en psicología del comportamiento para construir hábitos de ejercicio que duran.',
    cat_motivacion, 'beginner', 'published', '#5B2C6F',
    720, TRUE, TRUE,
-   ARRAY['beginner','intermediate','advanced'], v_admin_id, 1204)
+   ARRAY['beginner','intermediate','advanced']::video_level[], v_admin_id, 1204)
 
   ON CONFLICT DO NOTHING;
 
   -- ── ASSIGN SOME CONTENT TO DEMO CLIENTS ─────────────────────
   -- Assign the first 3 nutrition plans from seed 000077 to clients
   -- (only if those plans exist)
-  INSERT INTO public.nutrition_assignments (tenant_id, client_id, nutrition_plan_id, assigned_by, notes)
+  INSERT INTO public.nutrition_assignments (tenant_id, client_id, nutrition_plan_id, assigned_by, note)
   SELECT
     v_tid,
     unnested.client_id,
