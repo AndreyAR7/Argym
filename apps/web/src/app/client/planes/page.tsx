@@ -33,13 +33,21 @@ export default async function ClientPlanesPage() {
 
   if (!profile) redirect('/login')
 
-  // 2. Fetch active plans
-  const { data: allPlans } = await supabase
+  // 2. Fetch active plans — global (branch_id IS NULL) or matching the client's branch
+  let plansQuery = supabase
     .from('plans')
-    .select('id, name, description, price, currency, billing_cycle, features, plan_tier')
+    .select('id, name, description, price, currency, billing_cycle, features, plan_tier, branch_id')
     .eq('is_active', true)
     .eq('tenant_id', profile.tenant_id)
     .order('price', { ascending: true })
+
+  if (profile.branch_id) {
+    plansQuery = plansQuery.or(`branch_id.is.null,branch_id.eq.${profile.branch_id}`)
+  } else {
+    plansQuery = plansQuery.is('branch_id', null)
+  }
+
+  const { data: allPlans } = await plansQuery
 
   // Filter by client level: show plans with no tier or matching tier
   const plans = (allPlans ?? []).filter((p: any) => {
@@ -48,12 +56,20 @@ export default async function ClientPlanesPage() {
     return p.plan_tier === profile.client_level
   })
 
-  // 3. Fetch active promotions (real column names: title, discount_percentage, discount_amount)
-  const { data: promotions } = await supabase
+  // 3. Fetch active promotions — global or matching the client's branch
+  let promosQuery = supabase
     .from('promotions')
     .select('id, title, discount_percentage, discount_amount, applies_to_plan_id')
     .eq('is_active', true)
     .eq('tenant_id', profile.tenant_id)
+
+  if (profile.branch_id) {
+    promosQuery = promosQuery.or(`branch_id.is.null,branch_id.eq.${profile.branch_id}`)
+  } else {
+    promosQuery = promosQuery.is('branch_id', null)
+  }
+
+  const { data: promotions } = await promosQuery
 
   // 4. Fetch client's active subscriptions
   const { data: subscriptions } = await supabase

@@ -10,6 +10,11 @@ export interface PromotionPlan {
   expiry_date: string | null
 }
 
+export interface PromotionBranch {
+  id: string
+  name: string
+}
+
 interface Promotion {
   id: string
   title: string
@@ -20,11 +25,13 @@ interface Promotion {
   start_date: string
   end_date: string | null
   applies_to_plan_id?: string | null
+  branch_id?: string | null
 }
 
 interface PromotionFormModalProps {
   promotion?: Promotion | null
   plans?: PromotionPlan[]
+  branches?: PromotionBranch[]
   onClose: () => void
 }
 
@@ -34,7 +41,7 @@ const TYPE_LABELS: Record<string, string> = {
   bundle:       'Paquete',
 }
 
-export function PromotionFormModal({ promotion, plans = [], onClose }: PromotionFormModalProps) {
+export function PromotionFormModal({ promotion, plans = [], branches = [], onClose }: PromotionFormModalProps) {
   const [title, setTitle] = useState(promotion?.title ?? '')
   const [description, setDescription] = useState(promotion?.description ?? '')
   const [type, setType] = useState<'discount' | 'announcement' | 'bundle'>(
@@ -49,6 +56,7 @@ export function PromotionFormModal({ promotion, plans = [], onClose }: Promotion
     promotion?.end_date ? promotion.end_date.slice(0, 10) : ''
   )
   const [appliesTo, setAppliesTo] = useState(promotion?.applies_to_plan_id ?? '')
+  const [branchId, setBranchId] = useState(promotion?.branch_id ?? '')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -78,6 +86,7 @@ export function PromotionFormModal({ promotion, plans = [], onClose }: Promotion
         start_date: startDate,
         end_date: endDate || null,
         applies_to_plan_id: appliesTo || null,
+        branch_id: branchId || null,
       }
 
       const result = promotion
@@ -209,6 +218,26 @@ export function PromotionFormModal({ promotion, plans = [], onClose }: Promotion
                   Este plan vence el {selectedPlan.expiry_date.slice(0, 10)}. La fecha de fin de la promoción no debe ser anterior a esa fecha.
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Branch */}
+          {branches.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-foreground)] mb-1.5">
+                Sucursal
+                <span className="text-[var(--color-muted-foreground)] font-normal ml-1">(vacío = todas)</span>
+              </label>
+              <select
+                value={branchId}
+                onChange={(e) => setBranchId(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-[var(--color-input)] bg-[var(--color-muted)] text-[var(--color-foreground)] outline-none focus:border-[var(--color-admin)] focus:ring-2 focus:ring-[var(--color-admin)]/15 transition-all"
+              >
+                <option value="">Todas las sucursales</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
             </div>
           )}
 

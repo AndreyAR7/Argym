@@ -17,6 +17,12 @@ interface Plan {
   subscriber_count: number
   expiry_date?: string | null
   plan_tier?: string | null
+  branch_id?: string | null
+}
+
+interface Branch {
+  id: string
+  name: string
 }
 
 const TIER_LABELS: Record<string, string> = {
@@ -27,6 +33,7 @@ const TIER_LABELS: Record<string, string> = {
 
 interface PlanCardProps {
   plan: Plan
+  branches?: Branch[]
 }
 
 const CYCLE_LABELS: Record<string, string> = {
@@ -41,7 +48,7 @@ const CYCLE_BADGE: Record<string, string> = {
   one_time: 'Pago único',
 }
 
-export function PlanCard({ plan }: PlanCardProps) {
+export function PlanCard({ plan, branches = [] }: PlanCardProps) {
   const [showEdit, setShowEdit] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -66,6 +73,7 @@ export function PlanCard({ plan }: PlanCardProps) {
   }
 
   const currencySymbol = plan.currency === 'USD' ? '$' : '₡'
+  const branchName = plan.branch_id ? (branches.find((b) => b.id === plan.branch_id)?.name ?? null) : null
 
   const expiryInfo = (() => {
     if (!plan.expiry_date) return null
@@ -110,6 +118,11 @@ export function PlanCard({ plan }: PlanCardProps) {
               {plan.plan_tier && (
                 <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-[var(--color-muted)] text-[var(--color-muted-foreground)]">
                   {TIER_LABELS[plan.plan_tier] ?? plan.plan_tier}
+                </span>
+              )}
+              {branchName && (
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-[var(--color-muted)] text-[var(--color-muted-foreground)]">
+                  {branchName}
                 </span>
               )}
             </div>
@@ -191,7 +204,7 @@ export function PlanCard({ plan }: PlanCardProps) {
       </div>
 
       {showEdit && (
-        <PlanFormModal plan={plan} onClose={() => setShowEdit(false)} />
+        <PlanFormModal plan={plan} branches={branches} onClose={() => setShowEdit(false)} />
       )}
 
       {confirmDelete && (

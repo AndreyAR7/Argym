@@ -37,10 +37,10 @@ export default async function PromotionsPage() {
   const session = await getSessionData()
   const { supabase, tenantId } = session!
 
-  const [{ data: promotions }, { data: plans }] = await Promise.all([
+  const [{ data: promotions }, { data: plans }, { data: branches }] = await Promise.all([
     supabase
       .from('promotions')
-      .select('id, title, description, type, discount_percentage, discount_amount, start_date, end_date, is_active, applies_to_plan_id, created_at')
+      .select('id, title, description, type, discount_percentage, discount_amount, start_date, end_date, is_active, applies_to_plan_id, branch_id, created_at')
       .eq('tenant_id', tenantId)
       .order('is_active', { ascending: false })
       .order('created_at', { ascending: false }),
@@ -49,10 +49,17 @@ export default async function PromotionsPage() {
       .select('id, name, expiry_date')
       .eq('tenant_id', tenantId)
       .order('name', { ascending: true }),
+    supabase
+      .from('branches')
+      .select('id, name')
+      .eq('tenant_id', tenantId)
+      .eq('is_active', true)
+      .order('name'),
   ])
 
   const all = promotions ?? []
   const plansList = plans ?? []
+  const branchesList = branches ?? []
   const activeCount = all.filter((p) => p.is_active).length
 
   return (
@@ -61,7 +68,7 @@ export default async function PromotionsPage() {
         title="Promociones"
         subtitle={`${activeCount} activa${activeCount !== 1 ? 's' : ''} · ${all.length} en total`}
       >
-        <NewPromotionButton plans={plansList} />
+        <NewPromotionButton plans={plansList} branches={branchesList} />
       </PageHeader>
 
       {all.length === 0 ? (
@@ -71,7 +78,7 @@ export default async function PromotionsPage() {
           </div>
           <p className="text-sm font-medium text-[var(--color-foreground)]">No hay promociones</p>
           <p className="text-xs text-[var(--color-muted-foreground)]">Crea tu primera promoción para tus clientes.</p>
-          <NewPromotionButton plans={plansList} />
+          <NewPromotionButton plans={plansList} branches={branchesList} />
         </div>
       ) : (
         <div className="mt-8 space-y-10">
@@ -97,7 +104,7 @@ export default async function PromotionsPage() {
                 <div className="space-y-2.5">
                   {items.map((p) => (
                     <div key={p.id} className={p.is_active ? '' : 'opacity-55'}>
-                      <PromotionCard promotion={p} plans={plansList} />
+                      <PromotionCard promotion={p} plans={plansList} branches={branchesList} />
                     </div>
                   ))}
                 </div>

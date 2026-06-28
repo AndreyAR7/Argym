@@ -115,6 +115,7 @@ export async function createPromotionAction(data: {
   start_date: string
   end_date: string | null
   applies_to_plan_id?: string | null
+  branch_id?: string | null
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -141,6 +142,7 @@ export async function createPromotionAction(data: {
     start_date: data.start_date,
     end_date: data.end_date || null,
     is_active: true,
+    branch_id: data.branch_id || null,
   })
 
   if (error) return { error: error.message }
@@ -158,6 +160,7 @@ export async function updatePromotionAction(
     start_date: string
     end_date: string | null
     applies_to_plan_id?: string | null
+    branch_id?: string | null
   },
 ) {
   const supabase = await createClient()
@@ -175,6 +178,7 @@ export async function updatePromotionAction(
       applies_to_plan_id: data.applies_to_plan_id ?? null,
       start_date: data.start_date,
       end_date: data.end_date || null,
+      branch_id: data.branch_id || null,
     })
     .eq('id', promoId)
 

@@ -2,9 +2,14 @@
 
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import { PromotionFormModal, type PromotionPlan } from './promotion-form-modal'
+import { PromotionFormModal, type PromotionPlan, type PromotionBranch } from './promotion-form-modal'
 
-export function NewPromotionButton({ plans = [] }: { plans?: PromotionPlan[] }) {
+interface Props {
+  plans?: PromotionPlan[]
+  branches?: PromotionBranch[]
+}
+
+export function NewPromotionButton({ plans = [], branches = [] }: Props) {
   const [show, setShow] = useState(false)
   return (
     <>
@@ -15,7 +20,7 @@ export function NewPromotionButton({ plans = [] }: { plans?: PromotionPlan[] }) 
         <Plus size={14} />
         Nueva promoción
       </button>
-      {show && <PromotionFormModal plans={plans} onClose={() => setShow(false)} />}
+      {show && <PromotionFormModal plans={plans} branches={branches} onClose={() => setShow(false)} />}
     </>
   )
 }

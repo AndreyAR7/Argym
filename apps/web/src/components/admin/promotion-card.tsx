@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Pencil, ToggleLeft, ToggleRight, Percent, Megaphone, Package, Trash2 } from 'lucide-react'
 import { togglePromotionActiveAction, deletePromotionAction } from '@/lib/admin/content-actions'
-import { PromotionFormModal, type PromotionPlan } from './promotion-form-modal'
+import { PromotionFormModal, type PromotionPlan, type PromotionBranch } from './promotion-form-modal'
 import { formatDate } from '@/lib/utils'
 
 interface Promotion {
@@ -17,6 +17,7 @@ interface Promotion {
   end_date: string | null
   is_active: boolean
   applies_to_plan_id?: string | null
+  branch_id?: string | null
 }
 
 const TYPE_CONFIG = {
@@ -25,7 +26,7 @@ const TYPE_CONFIG = {
   bundle:       { icon: Package,    label: 'Paquete',    color: 'text-violet-700 bg-violet-50 border-violet-200' },
 }
 
-export function PromotionCard({ promotion, plans = [] }: { promotion: Promotion; plans?: PromotionPlan[] }) {
+export function PromotionCard({ promotion, plans = [], branches = [] }: { promotion: Promotion; plans?: PromotionPlan[]; branches?: PromotionBranch[] }) {
   const [showEdit, setShowEdit] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -52,6 +53,8 @@ export function PromotionCard({ promotion, plans = [] }: { promotion: Promotion;
     })
   }
 
+  const branchName = promotion.branch_id ? (branches.find((b) => b.id === promotion.branch_id)?.name ?? null) : null
+
   const discountText = promotion.type === 'discount'
     ? promotion.discount_percentage
       ? `${promotion.discount_percentage}% de descuento`
@@ -76,9 +79,14 @@ export function PromotionCard({ promotion, plans = [] }: { promotion: Promotion;
               {config.label}
             </span>
           </div>
-          <div className="flex items-center gap-3 mt-0.5">
+          <div className="flex items-center gap-3 mt-0.5 flex-wrap">
             {discountText && (
               <span className="text-xs font-semibold text-emerald-700">{discountText}</span>
+            )}
+            {branchName && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[var(--color-muted)] text-[var(--color-muted-foreground)]">
+                {branchName}
+              </span>
             )}
             <span className="text-xs text-[var(--color-muted-foreground)]">
               {formatDate(promotion.start_date)}
@@ -115,7 +123,7 @@ export function PromotionCard({ promotion, plans = [] }: { promotion: Promotion;
       </div>
 
       {showEdit && (
-        <PromotionFormModal promotion={promotion} plans={plans} onClose={() => setShowEdit(false)} />
+        <PromotionFormModal promotion={promotion} plans={plans} branches={branches} onClose={() => setShowEdit(false)} />
       )}
 
       {confirmDelete && (

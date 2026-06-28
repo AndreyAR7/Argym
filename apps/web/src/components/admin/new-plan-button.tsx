@@ -4,7 +4,12 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { PlanFormModal } from './plan-form-modal'
 
-export function NewPlanButton() {
+interface Branch {
+  id: string
+  name: string
+}
+
+export function NewPlanButton({ branches = [] }: { branches?: Branch[] }) {
   const [showModal, setShowModal] = useState(false)
 
   return (
@@ -18,7 +23,7 @@ export function NewPlanButton() {
       </button>
 
       {showModal && (
-        <PlanFormModal onClose={() => setShowModal(false)} />
+        <PlanFormModal branches={branches} onClose={() => setShowModal(false)} />
       )}
     </>
   )

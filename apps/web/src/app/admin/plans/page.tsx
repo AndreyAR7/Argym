@@ -10,13 +10,21 @@ export default async function PlansPage() {
   const session = await getSessionData()
   const { supabase, tenantId } = session!
 
-  // Fetch all plans (active + inactive) with subscriber counts
-  const { data: plans } = await supabase
-    .from('plans')
-    .select('id, name, description, price, currency, billing_cycle, features, is_active, sort_order, expiry_date, plan_tier')
-    .eq('tenant_id', tenantId)
-    .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: true })
+  // Fetch branches and plans in parallel
+  const [{ data: branches }, { data: plans }] = await Promise.all([
+    supabase
+      .from('branches')
+      .select('id, name')
+      .eq('tenant_id', tenantId)
+      .eq('is_active', true)
+      .order('name'),
+    supabase
+      .from('plans')
+      .select('id, name, description, price, currency, billing_cycle, features, is_active, sort_order, expiry_date, plan_tier, branch_id')
+      .eq('tenant_id', tenantId)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true }),
+  ])
 
   // Get subscriber counts per plan
   const { data: subCounts } = await supabase
@@ -45,7 +53,7 @@ export default async function PlansPage() {
         title="Planes de suscripción"
         subtitle={`${activePlans.length} activo${activePlans.length !== 1 ? 's' : ''} · ${plansWithCounts.reduce((s, p) => s + p.subscriber_count, 0)} suscriptores totales`}
       >
-        <NewPlanButton />
+        <NewPlanButton branches={branches ?? []} />
       </PageHeader>
 
       {plansWithCounts.length === 0 ? (
@@ -59,7 +67,7 @@ export default async function PlansPage() {
               Crea tu primer plan de suscripción para asignarlo a los clientes.
             </p>
           </div>
-          <NewPlanButton />
+          <NewPlanButton branches={branches ?? []} />
         </div>
       ) : (
         <>
@@ -71,7 +79,7 @@ export default async function PlansPage() {
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {activePlans.map((plan) => (
-                  <PlanCard key={plan.id} plan={plan} />
+                  <PlanCard key={plan.id} plan={plan} branches={branches ?? []} />
                 ))}
               </div>
             </div>
@@ -85,7 +93,7 @@ export default async function PlansPage() {
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {inactivePlans.map((plan) => (
-                  <PlanCard key={plan.id} plan={plan} />
+                  <PlanCard key={plan.id} plan={plan} branches={branches ?? []} />
                 ))}
               </div>
             </div>
