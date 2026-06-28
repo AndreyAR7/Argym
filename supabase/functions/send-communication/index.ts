@@ -130,7 +130,7 @@ Deno.serve(async (req: Request) => {
     // ── Subscription / plan event ─────────────────────────────────
     const { data: sub } = await supabase
       .from('user_subscriptions')
-      .select('id, user_id, final_price, plans!plan_id(name, currency, billing_cycle)')
+      .select('id, user_id, final_price, start_date, end_date, payment_reference, plans!plan_id(name, currency, billing_cycle)')
       .eq('id', payload.subscription_id)
       .single()
 
@@ -153,6 +153,26 @@ Deno.serve(async (req: Request) => {
         ? `${plan.currency} ${Number(sub.final_price).toLocaleString('es-CR')}`
         : ''
 
+    const fmtDate = (d: string | null) =>
+      d
+        ? new Date(d).toLocaleDateString('es-CR', {
+            day: '2-digit', month: 'long', year: 'numeric',
+            timeZone: 'America/Costa_Rica',
+          })
+        : 'Sin vencimiento'
+
+    const endDateLabel =
+      (sub as any).end_date ? fmtDate((sub as any).end_date) : 'Sin vencimiento'
+
+    const paymentDateLabel = fmtDate((sub as any).start_date ?? new Date().toISOString())
+
+    // Fetch the invoice generated for this subscription
+    const { data: invoice } = await supabase
+      .from('invoices')
+      .select('invoice_number')
+      .eq('subscription_id', payload.subscription_id)
+      .maybeSingle()
+
     // Client profile + email
     const [{ data: clientProfile }, clientEmailResult] = await Promise.all([
       supabase.from('profiles').select('full_name').eq('id', sub.user_id).single(),
@@ -162,10 +182,14 @@ Deno.serve(async (req: Request) => {
 
     templateVars = {
       ...templateVars,
-      client_name:   clientProfile?.full_name ?? 'Cliente',
-      plan_name:     plan?.name ?? 'Plan',
-      billing_cycle: billingLabel,
-      price:         priceLabel,
+      client_name:        clientProfile?.full_name ?? 'Cliente',
+      plan_name:          plan?.name ?? 'Plan',
+      billing_cycle:      billingLabel,
+      price:              priceLabel,
+      payment_date:       paymentDateLabel,
+      end_date:           endDateLabel,
+      invoice_number:     invoice?.invoice_number ?? '—',
+      payment_reference:  (sub as any).payment_reference ?? '—',
     }
 
     // Fetch admin users for this tenant (for rules with recipients = 'admin')
