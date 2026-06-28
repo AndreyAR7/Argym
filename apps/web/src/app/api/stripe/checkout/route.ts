@@ -21,6 +21,22 @@ export async function POST(req: NextRequest) {
 
     if (planErr || !plan) return NextResponse.json({ error: 'Plan not found' }, { status: 404 })
 
+    // Guard: block if user already has an active subscription for this plan
+    const { data: existingSub } = await supabase
+      .from('user_subscriptions')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('plan_id', planId)
+      .in('status', ['active', 'trial'])
+      .maybeSingle()
+
+    if (existingSub) {
+      return NextResponse.json(
+        { error: 'Ya tienes una suscripción activa para este plan.' },
+        { status: 409 },
+      )
+    }
+
     // Fetch promotion if provided
     let finalPrice: number = Number(plan.price)
     let appliedPromoId: string | null = null

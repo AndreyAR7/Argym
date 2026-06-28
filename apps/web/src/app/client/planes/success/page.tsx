@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react'
-import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe'
 
@@ -47,9 +46,7 @@ async function activateSubscription(sessionId: string): Promise<ActivationResult
     }
 
     if (existing) {
-      console.log('[success] subscription already exists, created by webhook:', existing.id)
-      revalidatePath('/client/planes')
-      revalidatePath('/client/subscription')
+      console.log('[success] subscription already exists:', existing.id)
       return { ok: true }
     }
 
@@ -70,8 +67,6 @@ async function activateSubscription(sessionId: string): Promise<ActivationResult
     }
 
     console.log('[success] subscription created via fallback for session:', sessionId)
-    revalidatePath('/client/planes')
-    revalidatePath('/client/subscription')
     return { ok: true }
 
   } catch (err) {

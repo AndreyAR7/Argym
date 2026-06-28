@@ -77,17 +77,16 @@ export default async function ClientPlanesPage() {
 
   const { data: promotions } = await promosQuery
 
-  // 4. Fetch client's active subscriptions
-  const { data: subscriptions, error: subErr } = await supabase
+  // 4. Fetch ALL client subscriptions (filter by status in JS for visibility)
+  const { data: allSubscriptions, error: subErr } = await supabase
     .from('user_subscriptions')
     .select('id, status, plan_id')
     .eq('user_id', user.id)
-    .in('status', ['active', 'trial'])
 
   if (subErr) console.error('[planes] subscription query error:', subErr.message)
-  console.log('[planes] subscriptions found:', subscriptions?.length ?? 0, 'for user:', user.id)
+  console.log('[planes] all subscriptions:', allSubscriptions?.map((s: any) => ({ plan_id: s.plan_id, status: s.status })))
 
-  const activeSubscriptions = subscriptions ?? []
+  const activeSubscriptions = (allSubscriptions ?? []).filter((s: any) => ['active', 'trial'].includes(s.status))
   const hasActiveSubscription = activeSubscriptions.length > 0
   const subscribedPlanIds = new Set(activeSubscriptions.map((s: any) => s.plan_id))
 
