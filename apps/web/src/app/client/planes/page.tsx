@@ -13,6 +13,12 @@ const CYCLE_LABELS: Record<string, string> = {
   one_time: 'único',
 }
 
+const CYCLE_BADGE: Record<string, string> = {
+  monthly: 'Pago mensual',
+  yearly: 'Pago anual',
+  one_time: 'Pago único',
+}
+
 const LEVEL_LABELS: Record<string, string> = {
   beginner: 'Principiante',
   intermediate: 'Intermedio',
@@ -174,9 +180,17 @@ export default async function ClientPlanesPage() {
                 <div className="flex flex-col flex-1 p-5 gap-4">
                   {/* Plan name & description */}
                   <div>
-                    <p className="font-semibold text-[var(--color-foreground)] pr-20">{plan.name}</p>
+                    <div className="flex items-start justify-between gap-2 pr-20">
+                      <p className="font-semibold text-[var(--color-foreground)]">{plan.name}</p>
+                    </div>
+                    {/* Billing cycle badge */}
+                    {plan.billing_cycle && (
+                      <span className="inline-block mt-1.5 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[var(--color-client-light)] text-[var(--color-client)]">
+                        {CYCLE_BADGE[plan.billing_cycle] ?? plan.billing_cycle}
+                      </span>
+                    )}
                     {plan.description && (
-                      <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">{plan.description}</p>
+                      <p className="mt-1.5 text-sm text-[var(--color-muted-foreground)]">{plan.description}</p>
                     )}
                   </div>
 
