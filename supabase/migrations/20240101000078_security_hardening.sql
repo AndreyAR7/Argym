@@ -28,7 +28,8 @@ $$ LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path = public, auth;
 
 -- ── 2. Harden has_permission() ───────────────────────────────
-CREATE OR REPLACE FUNCTION public.has_permission(p_permission_name TEXT)
+-- NOTE: parameter name must match the existing function signature (permission_code)
+CREATE OR REPLACE FUNCTION public.has_permission(permission_code TEXT)
 RETURNS BOOLEAN AS $$
 DECLARE
   v_uid UUID;
@@ -43,7 +44,7 @@ BEGIN
     JOIN public.role_permissions rp ON rp.role_id = ur.role_id
     JOIN public.permissions p ON p.id = rp.permission_id
     WHERE ur.user_id = v_uid
-      AND p.name = p_permission_name
+      AND p.name = permission_code
   );
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER
