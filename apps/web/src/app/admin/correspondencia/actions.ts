@@ -138,29 +138,45 @@ const DEFAULT_TEMPLATES: { name: string; subject: string; variables: string[]; b
   },
   {
     name:      'Plan por vencer',
-    subject:   '{{gym_name}}: Tu plan vence pronto',
-    variables: ['client_name', 'plan_name', 'gym_name', 'login_url'],
+    subject:   '{{gym_name}}: Tu plan {{plan_name}} vence en 7 días',
+    variables: ['client_name', 'plan_name', 'billing_cycle', 'end_date', 'gym_name', 'login_url'],
     body_html: emailWrap(`    <p style="margin:0 0 8px;font-size:15px;color:#374151">Hola <strong>{{client_name}}</strong>,</p>
-    <p style="margin:0 0 4px;font-size:15px;color:#374151">Tu plan en <strong>{{gym_name}}</strong> está próximo a vencer. Te recomendamos renovarlo para no interrumpir tu progreso.</p>
-    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:18px 20px;margin:20px 0">
-      <p style="margin:0;font-size:15px;font-weight:700;color:#92400e">⚠️ {{plan_name}}</p>
-      <p style="margin:6px 0 0;font-size:13px;color:#78350f">Vence pronto — renueva para continuar</p>
+    <p style="margin:0 0 20px;font-size:15px;color:#374151">Tu plan en <strong>{{gym_name}}</strong> está próximo a vencer. Renuévalo para no interrumpir tu progreso.</p>
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;overflow:hidden;margin:0 0 24px">
+      <div style="background:#f59e0b;padding:14px 20px">
+        <p style="margin:0;font-size:11px;font-weight:700;color:rgba(255,255,255,0.85);text-transform:uppercase;letter-spacing:0.8px">Aviso de vencimiento</p>
+      </div>
+      <div style="padding:16px 20px;background:#ffffff">
+        <p style="margin:0;font-size:17px;font-weight:700;color:#111827">{{plan_name}}</p>
+        <p style="margin:4px 0 0;font-size:13px;color:#6b7280">{{billing_cycle}}</p>
+      </div>
+      <div style="padding:12px 20px;background:#fffbeb;border-top:1px solid #fde68a">
+        <p style="margin:0;font-size:13px;color:#92400e">⚠️ &nbsp;Vence el <strong>{{end_date}}</strong></p>
+      </div>
     </div>
     ${ctaButton('Renovar mi plan')}
     <p style="margin:20px 0 0;font-size:13px;color:#6b7280">Si ya realizaste el pago, ignora este mensaje. Gracias por ser parte de {{gym_name}}.</p>`),
   },
   {
     name:      'Plan vencido',
-    subject:   '{{gym_name}}: Tu plan ha vencido',
-    variables: ['client_name', 'plan_name', 'gym_name', 'login_url'],
+    subject:   '{{gym_name}}: Tu plan {{plan_name}} ha vencido',
+    variables: ['client_name', 'plan_name', 'billing_cycle', 'end_date', 'gym_name', 'login_url'],
     body_html: emailWrap(`    <p style="margin:0 0 8px;font-size:15px;color:#374151">Hola <strong>{{client_name}}</strong>,</p>
-    <p style="margin:0 0 4px;font-size:15px;color:#374151">Tu plan <strong>{{plan_name}}</strong> en {{gym_name}} ha vencido. Renuévalo para seguir entrenando sin interrupciones.</p>
-    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:18px 20px;margin:20px 0">
-      <p style="margin:0;font-size:15px;font-weight:700;color:#991b1b">❌ {{plan_name}}</p>
-      <p style="margin:6px 0 0;font-size:13px;color:#7f1d1d">Plan vencido — acceso suspendido</p>
+    <p style="margin:0 0 20px;font-size:15px;color:#374151">Tu plan en <strong>{{gym_name}}</strong> ha vencido. Renuévalo para seguir entrenando sin interrupciones.</p>
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;overflow:hidden;margin:0 0 24px">
+      <div style="background:#dc2626;padding:14px 20px">
+        <p style="margin:0;font-size:11px;font-weight:700;color:rgba(255,255,255,0.85);text-transform:uppercase;letter-spacing:0.8px">Plan vencido</p>
+      </div>
+      <div style="padding:16px 20px;background:#ffffff">
+        <p style="margin:0;font-size:17px;font-weight:700;color:#111827">{{plan_name}}</p>
+        <p style="margin:4px 0 0;font-size:13px;color:#6b7280">{{billing_cycle}}</p>
+      </div>
+      <div style="padding:12px 20px;background:#fef2f2;border-top:1px solid #fecaca">
+        <p style="margin:0;font-size:13px;color:#991b1b">❌ &nbsp;Venció el <strong>{{end_date}}</strong> — acceso suspendido</p>
+      </div>
     </div>
     ${ctaButton('Renovar ahora')}
-    <p style="margin:20px 0 0;font-size:13px;color:#6b7280">¡Esperamos verte de regreso pronto! Cualquier consulta, estamos disponibles para ayudarte.</p>`),
+    <p style="margin:20px 0 0;font-size:13px;color:#6b7280">¡Esperamos verte de regreso pronto! El equipo de {{gym_name}} está aquí para ayudarte.</p>`),
   },
   {
     name:      'Promoción aplicada',
@@ -177,32 +193,40 @@ const DEFAULT_TEMPLATES: { name: string; subject: string; variables: string[]; b
   },
   {
     name:      'Cuenta aprobada',
-    subject:   '{{gym_name}}: ¡Tu cuenta ha sido aprobada!',
+    subject:   '{{gym_name}}: ¡Tu acceso ha sido aprobado!',
     variables: ['client_name', 'gym_name', 'login_url'],
     body_html: emailWrap(`    <p style="margin:0 0 8px;font-size:15px;color:#374151">Hola <strong>{{client_name}}</strong>,</p>
-    <p style="margin:0 0 4px;font-size:15px;color:#374151">¡Excelentes noticias! Tu solicitud de acceso a <strong>{{gym_name}}</strong> ha sido aprobada. Ya puedes ingresar a la plataforma.</p>
-    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:18px 20px;margin:20px 0">
-      <p style="margin:0;font-size:15px;font-weight:700;color:#15803d">✅ Acceso aprobado</p>
-      <p style="margin:6px 0 0;font-size:13px;color:#166534">Ya puedes iniciar sesión en {{gym_name}}</p>
+    <p style="margin:0 0 20px;font-size:15px;color:#374151">¡Excelentes noticias! Tu solicitud de acceso a <strong>{{gym_name}}</strong> ha sido revisada y aprobada. Ya puedes ingresar a la plataforma.</p>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;overflow:hidden;margin:0 0 24px">
+      <div style="background:#16a34a;padding:14px 20px">
+        <p style="margin:0;font-size:11px;font-weight:700;color:rgba(255,255,255,0.85);text-transform:uppercase;letter-spacing:0.8px">Acceso aprobado</p>
+      </div>
+      <div style="padding:16px 20px;background:#ffffff">
+        <p style="margin:0;font-size:15px;color:#374151">Tu cuenta en <strong>{{gym_name}}</strong> está activa y lista para usar.</p>
+        <p style="margin:8px 0 0;font-size:13px;color:#6b7280">Puedes iniciar sesión con el correo con el que te registraste.</p>
+      </div>
     </div>
     ${ctaButton('Ingresar ahora')}
-    <p style="margin:20px 0 0;font-size:13px;color:#6b7280">Si tienes alguna pregunta, no dudes en contactar al equipo de {{gym_name}}.</p>`),
+    <p style="margin:20px 0 0;font-size:13px;color:#6b7280">Si tienes alguna pregunta, no dudes en contactar al equipo de {{gym_name}}. ¡Estamos aquí para ayudarte!</p>`),
   },
   {
     name:      'Bienvenida al cliente',
-    subject:   '¡Bienvenido(a) a {{gym_name}}!',
+    subject:   '¡Bienvenido(a) a {{gym_name}}! 🎉',
     variables: ['client_name', 'gym_name', 'login_url'],
     body_html: emailWrap(`    <p style="margin:0 0 8px;font-size:15px;color:#374151">Hola <strong>{{client_name}}</strong>,</p>
-    <p style="margin:0 0 4px;font-size:15px;color:#374151">¡Bienvenido(a) a <strong>{{gym_name}}</strong>! Estamos muy contentos de tenerte con nosotros. Aquí comenzará tu transformación.</p>
-    <div style="background:#f9fafb;border-radius:8px;padding:18px 20px;margin:20px 0">
-      <p style="margin:0 0 10px;font-size:13px;font-weight:700;color:#374151">¿Qué puedes hacer desde la aplicación?</p>
-      <p style="margin:0 0 6px;font-size:13px;color:#6b7280">📅 Ver y confirmar tus citas</p>
-      <p style="margin:0 0 6px;font-size:13px;color:#6b7280">📋 Acceder a tus rutinas de entrenamiento</p>
-      <p style="margin:0 0 6px;font-size:13px;color:#6b7280">🥗 Revisar tu plan nutricional</p>
-      <p style="margin:0;font-size:13px;color:#6b7280">📈 Seguir tu progreso</p>
+    <p style="margin:0 0 4px;font-size:15px;color:#374151">¡Bienvenido(a) a <strong>{{gym_name}}</strong>! Estamos muy contentos de que formes parte de nuestra comunidad. Aquí empieza tu transformación.</p>
+    <div style="background:#f9fafb;border-radius:10px;padding:20px;margin:20px 0">
+      <p style="margin:0 0 14px;font-size:13px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.5px">¿Qué puedes hacer desde la app?</p>
+      <table style="width:100%;border-collapse:collapse">
+        <tr><td style="padding:5px 0;font-size:13px;color:#374151">📅</td><td style="padding:5px 0;font-size:13px;color:#374151">Ver y confirmar tus <strong>citas</strong> con tu coach</td></tr>
+        <tr><td style="padding:5px 0;font-size:13px;color:#374151">💪</td><td style="padding:5px 0;font-size:13px;color:#374151">Acceder a tus <strong>rutinas</strong> de entrenamiento</td></tr>
+        <tr><td style="padding:5px 0;font-size:13px;color:#374151">🥗</td><td style="padding:5px 0;font-size:13px;color:#374151">Revisar tu <strong>plan nutricional</strong></td></tr>
+        <tr><td style="padding:5px 0;font-size:13px;color:#374151">📈</td><td style="padding:5px 0;font-size:13px;color:#374151">Registrar y visualizar tu <strong>progreso</strong></td></tr>
+        <tr><td style="padding:5px 0;font-size:13px;color:#374151">🎯</td><td style="padding:5px 0;font-size:13px;color:#374151">Ver tus <strong>planes y suscripciones</strong> disponibles</td></tr>
+      </table>
     </div>
-    ${ctaButton('Ir a la aplicación')}
-    <p style="margin:20px 0 0;font-size:13px;color:#6b7280">¡Mucho éxito en tu proceso! El equipo de {{gym_name}} estará acompañándote en cada paso.</p>`),
+    ${ctaButton('Comenzar ahora')}
+    <p style="margin:20px 0 0;font-size:13px;color:#6b7280">¡Mucho éxito en tu proceso! El equipo de <strong>{{gym_name}}</strong> estará acompañándote en cada paso del camino.</p>`),
   },
 ]
 

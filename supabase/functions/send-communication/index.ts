@@ -6,6 +6,7 @@ interface Payload {
   tenant_id:        string
   appointment_id?:  string
   subscription_id?: string
+  user_id?:         string
 }
 
 Deno.serve(async (req: Request) => {
@@ -192,7 +193,7 @@ Deno.serve(async (req: Request) => {
       payment_reference:  (sub as any).payment_reference ?? '—',
     }
 
-    // Fetch admin users for this tenant (for rules with recipients = 'admin')
+    // Fetch admin users for this tenant (for rules with recipients = 'admin' or 'all')
     const needsAdmin = rules.some((r) =>
       r.recipients === 'admin' || r.recipients === 'all',
     )
@@ -209,6 +210,37 @@ Deno.serve(async (req: Request) => {
           .select('user_id')
           .eq('tenant_id', tenant_id)
           .eq('role_id', adminRole.id)
+
+        adminEmails = (
+          await Promise.all(
+            (adminUserRoles ?? []).map((ur: { user_id: string }) => getEmail(ur.user_id)),
+          )
+        ).filter(Boolean)
+      }
+    }
+  } else if (event_type.startsWith('client.') && payload.user_id) {
+    // ── Client account events (approved, welcome) ─────────────────
+    const [{ data: profile }, userEmail] = await Promise.all([
+      supabase.from('profiles').select('full_name').eq('id', payload.user_id).single(),
+      getEmail(payload.user_id),
+    ])
+    clientEmail = userEmail
+
+    templateVars = {
+      ...templateVars,
+      client_name: profile?.full_name ?? 'Cliente',
+    }
+
+    // Admins get a copy if any rule asks for it
+    const needsAdmin = rules.some((r) => r.recipients === 'admin' || r.recipients === 'all')
+    if (needsAdmin) {
+      const { data: adminRole } = await supabase
+        .from('roles').select('id').eq('name', 'admin').single()
+
+      if (adminRole) {
+        const { data: adminUserRoles } = await supabase
+          .from('user_roles').select('user_id')
+          .eq('tenant_id', tenant_id).eq('role_id', adminRole.id)
 
         adminEmails = (
           await Promise.all(
