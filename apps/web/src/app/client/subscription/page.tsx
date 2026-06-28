@@ -27,7 +27,7 @@ function SubscriptionCard({ sub, compact = false }: { sub: any; compact?: boolea
   const plan = sub.plans
   const promo = sub.promotions
   const features: any[] = Array.isArray(plan?.features) ? plan.features : []
-  const isActive = ['active', 'trial'].includes(sub.status)
+  const isActive = sub.status === 'active'
 
   if (compact) {
     return (

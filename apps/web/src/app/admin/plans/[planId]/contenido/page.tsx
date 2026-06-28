@@ -4,13 +4,12 @@ import { getSessionData } from '@/lib/auth/session'
 import { ArrowLeft, LayoutGrid } from 'lucide-react'
 import { ContentManager } from '@/components/admin/content-manager'
 import {
-  addVideoToPlanAction,
-  removeVideoFromPlanAction,
-  addNutritionToPlanAction,
-  removeNutritionFromPlanAction,
+  addVideoToPlanAction, removeVideoFromPlanAction,
+  addNutritionToPlanAction, removeNutritionFromPlanAction,
+  addRoutineToPlanAction, removeRoutineFromPlanAction,
 } from '@/lib/admin/plan-content-actions'
 
-export async function generateMetadata({ params }: { params: Promise<{ planId: string }> }) {
+export async function generateMetadata() {
   return { title: 'Contenido del plan' }
 }
 
@@ -32,31 +31,34 @@ export default async function PlanContenidoPage({ params }: { params: Promise<{ 
   const [
     { data: allVideos },
     { data: allNutritions },
+    { data: allRoutines },
     { data: planVideoRows },
     { data: planNutritionRows },
+    { data: planRoutineRows },
   ] = await Promise.all([
     supabase.from('videos').select('id, title, status').eq('tenant_id', tenantId).order('title'),
     supabase.from('nutrition_plans').select('id, name, status').eq('tenant_id', tenantId).order('name'),
+    supabase.from('routines').select('id, name, status').eq('tenant_id', tenantId).order('name'),
     supabase.from('plan_videos').select('video_id').eq('plan_id', planId),
     supabase.from('plan_nutritions').select('nutrition_plan_id').eq('plan_id', planId),
+    supabase.from('plan_routines').select('routine_id').eq('plan_id', planId),
   ])
 
   const assignedVideoIds = new Set((planVideoRows ?? []).map((r: any) => r.video_id))
   const assignedNutritionIds = new Set((planNutritionRows ?? []).map((r: any) => r.nutrition_plan_id))
+  const assignedRoutineIds = new Set((planRoutineRows ?? []).map((r: any) => r.routine_id))
 
   const assignedVideos = (allVideos ?? []).filter((v: any) => assignedVideoIds.has(v.id))
   const availableVideos = (allVideos ?? []).filter((v: any) => !assignedVideoIds.has(v.id))
   const assignedNutritions = (allNutritions ?? []).filter((n: any) => assignedNutritionIds.has(n.id))
   const availableNutritions = (allNutritions ?? []).filter((n: any) => !assignedNutritionIds.has(n.id))
+  const assignedRoutines = (allRoutines ?? []).filter((r: any) => assignedRoutineIds.has(r.id))
+  const availableRoutines = (allRoutines ?? []).filter((r: any) => !assignedRoutineIds.has(r.id))
 
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto">
-      {/* Breadcrumb */}
       <div className="flex items-center gap-2 mb-6 text-sm">
-        <Link
-          href="/admin/plans"
-          className="flex items-center gap-1 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors"
-        >
+        <Link href="/admin/plans" className="flex items-center gap-1 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors">
           <ArrowLeft size={14} />
           Planes
         </Link>
@@ -73,7 +75,7 @@ export default async function PlanContenidoPage({ params }: { params: Promise<{ 
         <div>
           <h1 className="text-xl font-semibold text-[var(--color-foreground)]">Contenido del plan</h1>
           <p className="text-sm text-[var(--color-muted-foreground)] mt-0.5">
-            Videos y planes nutricionales incluidos en <strong>{plan.name}</strong>. Todos los suscriptores activos tendrán acceso automático.
+            Videos, rutinas y planes nutricionales incluidos en <strong>{plan.name}</strong>. Todos los suscriptores activos tendrán acceso automático.
           </p>
         </div>
       </div>
@@ -84,10 +86,14 @@ export default async function PlanContenidoPage({ params }: { params: Promise<{ 
         availableVideos={availableVideos}
         assignedNutritions={assignedNutritions}
         availableNutritions={availableNutritions}
+        assignedRoutines={assignedRoutines}
+        availableRoutines={availableRoutines}
         addVideoAction={addVideoToPlanAction}
         removeVideoAction={removeVideoFromPlanAction}
         addNutritionAction={addNutritionToPlanAction}
         removeNutritionAction={removeNutritionFromPlanAction}
+        addRoutineAction={addRoutineToPlanAction}
+        removeRoutineAction={removeRoutineFromPlanAction}
       />
     </div>
   )

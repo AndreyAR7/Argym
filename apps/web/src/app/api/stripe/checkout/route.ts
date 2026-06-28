@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       .select('id')
       .eq('user_id', user.id)
       .eq('plan_id', planId)
-      .in('status', ['active', 'trial'])
+      .eq('status', 'active')
       .maybeSingle()
 
     if (existingSub) {

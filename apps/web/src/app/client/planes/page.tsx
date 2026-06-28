@@ -86,7 +86,7 @@ export default async function ClientPlanesPage() {
   if (subErr) console.error('[planes] subscription query error:', subErr.message)
   console.log('[planes] all subscriptions:', allSubscriptions?.map((s: any) => ({ plan_id: s.plan_id, status: s.status })))
 
-  const activeSubscriptions = (allSubscriptions ?? []).filter((s: any) => ['active', 'trial'].includes(s.status))
+  const activeSubscriptions = (allSubscriptions ?? []).filter((s: any) => s.status === 'active')
   const hasActiveSubscription = activeSubscriptions.length > 0
   const subscribedPlanIds = new Set(activeSubscriptions.map((s: any) => s.plan_id))
 

@@ -49,10 +49,16 @@ export async function POST(req: NextRequest) {
         p_payment_ref:   session.id,
         p_billing_cycle: billing_cycle ?? 'one_time',
       })
-      if (error) console.error('[webhook] create_client_subscription error:', error)
-      else console.log('[webhook] Subscription created for user', user_id)
+      if (error) {
+        console.error('[webhook] create_client_subscription error:', error)
+        // Return 500 so Stripe retries — success page is the fallback
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+      console.log('[webhook] Subscription created for user', user_id)
     } catch (err) {
       console.error('[webhook] Error creating subscription:', err)
+      // SUPABASE_SERVICE_ROLE_KEY missing on Render → add it to env vars
+      return NextResponse.json({ error: String(err) }, { status: 500 })
     }
   }
 

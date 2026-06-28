@@ -4,10 +4,9 @@ import { getSessionData } from '@/lib/auth/session'
 import { ArrowLeft, Package } from 'lucide-react'
 import { ContentManager } from '@/components/admin/content-manager'
 import {
-  addVideoToPromotionAction,
-  removeVideoFromPromotionAction,
-  addNutritionToPromotionAction,
-  removeNutritionFromPromotionAction,
+  addVideoToPromotionAction, removeVideoFromPromotionAction,
+  addNutritionToPromotionAction, removeNutritionFromPromotionAction,
+  addRoutineToPromotionAction, removeRoutineFromPromotionAction,
 } from '@/lib/admin/plan-content-actions'
 
 export async function generateMetadata() {
@@ -32,31 +31,34 @@ export default async function PromotionContenidoPage({ params }: { params: Promi
   const [
     { data: allVideos },
     { data: allNutritions },
+    { data: allRoutines },
     { data: promoVideoRows },
     { data: promoNutritionRows },
+    { data: promoRoutineRows },
   ] = await Promise.all([
     supabase.from('videos').select('id, title, status').eq('tenant_id', tenantId).order('title'),
     supabase.from('nutrition_plans').select('id, name, status').eq('tenant_id', tenantId).order('name'),
+    supabase.from('routines').select('id, name, status').eq('tenant_id', tenantId).order('name'),
     supabase.from('promotion_videos').select('video_id').eq('promotion_id', promotionId),
     supabase.from('promotion_nutritions').select('nutrition_plan_id').eq('promotion_id', promotionId),
+    supabase.from('promotion_routines').select('routine_id').eq('promotion_id', promotionId),
   ])
 
   const assignedVideoIds = new Set((promoVideoRows ?? []).map((r: any) => r.video_id))
   const assignedNutritionIds = new Set((promoNutritionRows ?? []).map((r: any) => r.nutrition_plan_id))
+  const assignedRoutineIds = new Set((promoRoutineRows ?? []).map((r: any) => r.routine_id))
 
   const assignedVideos = (allVideos ?? []).filter((v: any) => assignedVideoIds.has(v.id))
   const availableVideos = (allVideos ?? []).filter((v: any) => !assignedVideoIds.has(v.id))
   const assignedNutritions = (allNutritions ?? []).filter((n: any) => assignedNutritionIds.has(n.id))
   const availableNutritions = (allNutritions ?? []).filter((n: any) => !assignedNutritionIds.has(n.id))
+  const assignedRoutines = (allRoutines ?? []).filter((r: any) => assignedRoutineIds.has(r.id))
+  const availableRoutines = (allRoutines ?? []).filter((r: any) => !assignedRoutineIds.has(r.id))
 
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto">
-      {/* Breadcrumb */}
       <div className="flex items-center gap-2 mb-6 text-sm">
-        <Link
-          href="/admin/promotions"
-          className="flex items-center gap-1 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors"
-        >
+        <Link href="/admin/promotions" className="flex items-center gap-1 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors">
           <ArrowLeft size={14} />
           Promociones
         </Link>
@@ -73,7 +75,7 @@ export default async function PromotionContenidoPage({ params }: { params: Promi
         <div>
           <h1 className="text-xl font-semibold text-[var(--color-foreground)]">Contenido de la promoción</h1>
           <p className="text-sm text-[var(--color-muted-foreground)] mt-0.5">
-            Videos y planes nutricionales adicionales incluidos en <strong>{promotion.title}</strong>. Los suscriptores que usaron esta promoción tendrán acceso.
+            Videos, rutinas y planes nutricionales adicionales en <strong>{promotion.title}</strong>. Los suscriptores que usaron esta promoción tendrán acceso.
           </p>
         </div>
       </div>
@@ -84,10 +86,14 @@ export default async function PromotionContenidoPage({ params }: { params: Promi
         availableVideos={availableVideos}
         assignedNutritions={assignedNutritions}
         availableNutritions={availableNutritions}
+        assignedRoutines={assignedRoutines}
+        availableRoutines={availableRoutines}
         addVideoAction={addVideoToPromotionAction}
         removeVideoAction={removeVideoFromPromotionAction}
         addNutritionAction={addNutritionToPromotionAction}
         removeNutritionAction={removeNutritionFromPromotionAction}
+        addRoutineAction={addRoutineToPromotionAction}
+        removeRoutineAction={removeRoutineFromPromotionAction}
       />
     </div>
   )

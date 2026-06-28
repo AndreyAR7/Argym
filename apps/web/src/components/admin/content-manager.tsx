@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Video, Apple, Plus, X, Loader2 } from 'lucide-react'
+import { Video, Apple, Dumbbell, Plus, X, Loader2 } from 'lucide-react'
 
 export interface ContentItem {
   id: string
@@ -130,78 +130,71 @@ function ContentSection({
   )
 }
 
-interface PlanContentManagerProps {
-  planId: string
+type Action = (entityId: string, itemId: string) => Promise<{ error?: string; ok?: boolean }>
+
+interface ContentManagerProps {
+  entityId: string
   assignedVideos: ContentItem[]
   assignedNutritions: ContentItem[]
+  assignedRoutines: ContentItem[]
   availableVideos: ContentItem[]
   availableNutritions: ContentItem[]
-  addVideoAction: (planId: string, videoId: string) => Promise<{ error?: string; ok?: boolean }>
-  removeVideoAction: (planId: string, videoId: string) => Promise<{ error?: string; ok?: boolean }>
-  addNutritionAction: (planId: string, nutritionId: string) => Promise<{ error?: string; ok?: boolean }>
-  removeNutritionAction: (planId: string, nutritionId: string) => Promise<{ error?: string; ok?: boolean }>
-  entityId: string
+  availableRoutines: ContentItem[]
+  addVideoAction: Action
+  removeVideoAction: Action
+  addNutritionAction: Action
+  removeNutritionAction: Action
+  addRoutineAction: Action
+  removeRoutineAction: Action
 }
 
 export function ContentManager({
   entityId,
-  assignedVideos,
-  assignedNutritions,
-  availableVideos,
-  availableNutritions,
-  addVideoAction,
-  removeVideoAction,
-  addNutritionAction,
-  removeNutritionAction,
-}: PlanContentManagerProps) {
+  assignedVideos, assignedNutritions, assignedRoutines,
+  availableVideos, availableNutritions, availableRoutines,
+  addVideoAction, removeVideoAction,
+  addNutritionAction, removeNutritionAction,
+  addRoutineAction, removeRoutineAction,
+}: ContentManagerProps) {
   const [videos, setVideos] = useState({ assigned: assignedVideos, available: availableVideos })
   const [nutritions, setNutritions] = useState({ assigned: assignedNutritions, available: availableNutritions })
+  const [routines, setRoutines] = useState({ assigned: assignedRoutines, available: availableRoutines })
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  function addVideo(video: ContentItem) {
-    setVideos(prev => ({ assigned: [...prev.assigned, video], available: prev.available.filter(v => v.id !== video.id) }))
-    startTransition(async () => {
-      const res = await addVideoAction(entityId, video.id)
-      if (res?.error) {
-        setError(res.error)
-        setVideos(prev => ({ assigned: prev.assigned.filter(v => v.id !== video.id), available: [...prev.available, video] }))
-      }
-    })
+  function makeHandlers(
+    state: { assigned: ContentItem[]; available: ContentItem[] },
+    setState: React.Dispatch<React.SetStateAction<{ assigned: ContentItem[]; available: ContentItem[] }>>,
+    addAction: Action,
+    removeAction: Action,
+  ) {
+    return {
+      add(item: ContentItem) {
+        setState(prev => ({ assigned: [...prev.assigned, item], available: prev.available.filter(x => x.id !== item.id) }))
+        startTransition(async () => {
+          const res = await addAction(entityId, item.id)
+          if (res?.error) {
+            setError(res.error)
+            setState(prev => ({ assigned: prev.assigned.filter(x => x.id !== item.id), available: [...prev.available, item] }))
+          }
+        })
+      },
+      remove(item: ContentItem) {
+        setState(prev => ({ assigned: prev.assigned.filter(x => x.id !== item.id), available: [...prev.available, item] }))
+        startTransition(async () => {
+          const res = await removeAction(entityId, item.id)
+          if (res?.error) {
+            setError(res.error)
+            setState(prev => ({ assigned: [...prev.assigned, item], available: prev.available.filter(x => x.id !== item.id) }))
+          }
+        })
+      },
+    }
   }
 
-  function removeVideo(video: ContentItem) {
-    setVideos(prev => ({ assigned: prev.assigned.filter(v => v.id !== video.id), available: [...prev.available, video] }))
-    startTransition(async () => {
-      const res = await removeVideoAction(entityId, video.id)
-      if (res?.error) {
-        setError(res.error)
-        setVideos(prev => ({ assigned: [...prev.assigned, video], available: prev.available.filter(v => v.id !== video.id) }))
-      }
-    })
-  }
-
-  function addNutrition(nutrition: ContentItem) {
-    setNutritions(prev => ({ assigned: [...prev.assigned, nutrition], available: prev.available.filter(n => n.id !== nutrition.id) }))
-    startTransition(async () => {
-      const res = await addNutritionAction(entityId, nutrition.id)
-      if (res?.error) {
-        setError(res.error)
-        setNutritions(prev => ({ assigned: prev.assigned.filter(n => n.id !== nutrition.id), available: [...prev.available, nutrition] }))
-      }
-    })
-  }
-
-  function removeNutrition(nutrition: ContentItem) {
-    setNutritions(prev => ({ assigned: prev.assigned.filter(n => n.id !== nutrition.id), available: [...prev.available, nutrition] }))
-    startTransition(async () => {
-      const res = await removeNutritionAction(entityId, nutrition.id)
-      if (res?.error) {
-        setError(res.error)
-        setNutritions(prev => ({ assigned: [...prev.assigned, nutrition], available: prev.available.filter(n => n.id !== nutrition.id) }))
-      }
-    })
-  }
+  const videoH = makeHandlers(videos, setVideos, addVideoAction, removeVideoAction)
+  const nutritionH = makeHandlers(nutritions, setNutritions, addNutritionAction, removeNutritionAction)
+  const routineH = makeHandlers(routines, setRoutines, addRoutineAction, removeRoutineAction)
 
   return (
     <div className="space-y-6">
@@ -217,12 +210,26 @@ export function ContentManager({
         iconColor="text-blue-600"
         assigned={videos.assigned}
         available={videos.available}
-        onAdd={addVideo}
-        onRemove={removeVideo}
+        onAdd={videoH.add}
+        onRemove={videoH.remove}
         isPending={isPending}
         emptyAssigned="No hay videos asignados."
-        emptyAvailable="No hay videos disponibles para agregar."
+        emptyAvailable="No hay videos disponibles."
         addLabel="Agregar video"
+      />
+
+      <ContentSection
+        title="Rutinas"
+        icon={Dumbbell}
+        iconColor="text-orange-600"
+        assigned={routines.assigned}
+        available={routines.available}
+        onAdd={routineH.add}
+        onRemove={routineH.remove}
+        isPending={isPending}
+        emptyAssigned="No hay rutinas asignadas."
+        emptyAvailable="No hay rutinas disponibles."
+        addLabel="Agregar rutina"
       />
 
       <ContentSection
@@ -231,8 +238,8 @@ export function ContentManager({
         iconColor="text-emerald-600"
         assigned={nutritions.assigned}
         available={nutritions.available}
-        onAdd={addNutrition}
-        onRemove={removeNutrition}
+        onAdd={nutritionH.add}
+        onRemove={nutritionH.remove}
         isPending={isPending}
         emptyAssigned="No hay planes nutricionales asignados."
         emptyAvailable="No hay planes nutricionales disponibles."

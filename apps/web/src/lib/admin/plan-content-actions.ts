@@ -74,3 +74,39 @@ export async function removeNutritionFromPromotionAction(promotionId: string, nu
   revalidatePath(`/admin/promotions/${promotionId}/contenido`)
   return { ok: true }
 }
+
+export async function addRoutineToPlanAction(planId: string, routineId: string) {
+  const session = await getSessionData()
+  if (!session) return { error: 'No autorizado' }
+  const { error } = await session.supabase.from('plan_routines').insert({ plan_id: planId, routine_id: routineId })
+  if (error) return { error: error.message }
+  revalidatePath(`/admin/plans/${planId}/contenido`)
+  return { ok: true }
+}
+
+export async function removeRoutineFromPlanAction(planId: string, routineId: string) {
+  const session = await getSessionData()
+  if (!session) return { error: 'No autorizado' }
+  const { error } = await session.supabase.from('plan_routines').delete().eq('plan_id', planId).eq('routine_id', routineId)
+  if (error) return { error: error.message }
+  revalidatePath(`/admin/plans/${planId}/contenido`)
+  return { ok: true }
+}
+
+export async function addRoutineToPromotionAction(promotionId: string, routineId: string) {
+  const session = await getSessionData()
+  if (!session) return { error: 'No autorizado' }
+  const { error } = await session.supabase.from('promotion_routines').insert({ promotion_id: promotionId, routine_id: routineId })
+  if (error) return { error: error.message }
+  revalidatePath(`/admin/promotions/${promotionId}/contenido`)
+  return { ok: true }
+}
+
+export async function removeRoutineFromPromotionAction(promotionId: string, routineId: string) {
+  const session = await getSessionData()
+  if (!session) return { error: 'No autorizado' }
+  const { error } = await session.supabase.from('promotion_routines').delete().eq('promotion_id', promotionId).eq('routine_id', routineId)
+  if (error) return { error: error.message }
+  revalidatePath(`/admin/promotions/${promotionId}/contenido`)
+  return { ok: true }
+}
