@@ -13,6 +13,12 @@ const CYCLE_LABELS: Record<string, string> = {
   one_time: 'único',
 }
 
+const LEVEL_LABELS: Record<string, string> = {
+  beginner: 'Principiante',
+  intermediate: 'Intermedio',
+  advanced: 'Avanzado',
+}
+
 export default async function ClientPlanesPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -27,26 +33,25 @@ export default async function ClientPlanesPage() {
 
   if (!profile) redirect('/login')
 
-  // 2. Fetch active plans filtered by plan_tier matching client_level
-  const plansQuery = supabase
+  // 2. Fetch active plans
+  const { data: allPlans } = await supabase
     .from('plans')
-    .select('id, name, description, price, currency, billing_cycle, features, plan_tier, is_featured')
+    .select('id, name, description, price, currency, billing_cycle, features, plan_tier')
     .eq('is_active', true)
     .eq('tenant_id', profile.tenant_id)
     .order('price', { ascending: true })
 
-  const { data: allPlans } = await plansQuery
-
+  // Filter by client level: show plans with no tier or matching tier
   const plans = (allPlans ?? []).filter((p: any) => {
     if (!p.plan_tier) return true
     if (!profile.client_level) return true
     return p.plan_tier === profile.client_level
   })
 
-  // 3. Fetch active promotions
+  // 3. Fetch active promotions (real column names: title, discount_percentage, discount_amount)
   const { data: promotions } = await supabase
     .from('promotions')
-    .select('id, name, discount_type, discount_value, applies_to_plan_id, code')
+    .select('id, title, discount_percentage, discount_amount, applies_to_plan_id')
     .eq('is_active', true)
     .eq('tenant_id', profile.tenant_id)
 
@@ -71,18 +76,16 @@ export default async function ClientPlanesPage() {
 
   function computeDiscountedPrice(price: number, promo: any): number {
     if (!promo) return price
-    if (promo.discount_type === 'percentage') {
-      return Math.max(0, price - (price * promo.discount_value) / 100)
+    if (promo.discount_percentage) {
+      return Math.max(0, price - (price * Number(promo.discount_percentage)) / 100)
     }
-    if (promo.discount_type === 'fixed') {
-      return Math.max(0, price - promo.discount_value)
+    if (promo.discount_amount) {
+      return Math.max(0, price - Number(promo.discount_amount))
     }
     return price
   }
 
-  const clientLevelLabel = profile.client_level
-    ? profile.client_level.charAt(0).toUpperCase() + profile.client_level.slice(1)
-    : null
+  const clientLevelLabel = profile.client_level ? LEVEL_LABELS[profile.client_level] ?? profile.client_level : null
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
@@ -128,12 +131,11 @@ export default async function ClientPlanesPage() {
             const promo = promoByPlan.get(plan.id)
             const alreadySubscribed = subscribedPlanIds.has(plan.id)
             const finalPrice = promo ? computeDiscountedPrice(plan.price, promo) : plan.price
-            const discountLabel =
-              promo?.discount_type === 'percentage'
-                ? `${promo.discount_value}% descuento`
-                : promo?.discount_type === 'fixed'
-                ? `-${plan.currency ?? ''} ${promo.discount_value} descuento`
-                : null
+            const discountLabel = promo?.discount_percentage
+              ? `${promo.discount_percentage}% descuento`
+              : promo?.discount_amount
+              ? `-${plan.currency ?? ''} ${promo.discount_amount} descuento`
+              : null
 
             const features: any[] = Array.isArray(plan.features) ? plan.features : []
 
@@ -167,11 +169,9 @@ export default async function ClientPlanesPage() {
                     <div className="flex flex-col gap-0.5">
                       {promo && finalPrice !== plan.price ? (
                         <>
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-xs text-[var(--color-muted-foreground)] line-through">
-                              {plan.currency ?? ''} {plan.price.toLocaleString('es-CR')}
-                            </span>
-                          </div>
+                          <span className="text-xs text-[var(--color-muted-foreground)] line-through">
+                            {plan.currency ?? ''} {Number(plan.price).toLocaleString('es-CR')}
+                          </span>
                           <div className="flex items-baseline gap-1">
                             <span className="text-xs text-[var(--color-muted-foreground)]">{plan.currency ?? ''}</span>
                             <span className="text-3xl font-bold text-[var(--color-foreground)]">
@@ -188,7 +188,7 @@ export default async function ClientPlanesPage() {
                         <div className="flex items-baseline gap-1">
                           <span className="text-xs text-[var(--color-muted-foreground)]">{plan.currency ?? ''}</span>
                           <span className="text-3xl font-bold text-[var(--color-foreground)]">
-                            {plan.price.toLocaleString('es-CR')}
+                            {Number(plan.price).toLocaleString('es-CR')}
                           </span>
                           {plan.billing_cycle && plan.billing_cycle !== 'one_time' && (
                             <span className="text-sm text-[var(--color-muted-foreground)]">
