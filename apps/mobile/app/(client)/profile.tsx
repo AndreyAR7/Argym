@@ -15,6 +15,7 @@ import { ThemeSelector } from '@/components/shared/ThemeSelector';
 import { ToastManager } from '@/components/shared/Toast';
 import { DatePickerField } from '@/components/shared/DatePickerField';
 import { supabase } from '@/lib/supabase';
+import type { Gender } from '@/lib/types';
 
 // ─── Shared SettingRow ────────────────────────────────────────
 function SettingRow({ icon, label, value, onPress, danger }: {
@@ -34,6 +35,13 @@ function SettingRow({ icon, label, value, onPress, danger }: {
   );
 }
 
+type GenderOption = { value: 'male' | 'female' | 'other'; label: string; icon: string };
+const GENDER_OPTIONS: GenderOption[] = [
+  { value: 'male',   label: 'Hombre', icon: '♂' },
+  { value: 'female', label: 'Mujer',  icon: '♀' },
+  { value: 'other',  label: 'Prefiero no indicar', icon: '○' },
+];
+
 // ─── Personal Info Modal ──────────────────────────────────────
 function PersonalInfoModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const T = useTheme();
@@ -41,6 +49,7 @@ function PersonalInfoModal({ visible, onClose }: { visible: boolean; onClose: ()
   const [fullName, setFullName] = useState(user?.full_name ?? '');
   const [phone, setPhone] = useState((user as any)?.phone ?? '');
   const [dob, setDob] = useState((user as any)?.date_of_birth ?? '');
+  const [gender, setGender] = useState<Gender | null>((user as any)?.gender ?? null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -48,6 +57,7 @@ function PersonalInfoModal({ visible, onClose }: { visible: boolean; onClose: ()
       setFullName(user?.full_name ?? '');
       setPhone((user as any)?.phone ?? '');
       setDob((user as any)?.date_of_birth ?? '');
+      setGender((user as any)?.gender ?? null);
     }
   }, [visible]);
 
@@ -57,7 +67,12 @@ function PersonalInfoModal({ visible, onClose }: { visible: boolean; onClose: ()
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ full_name: fullName.trim(), phone: phone.trim() || null, date_of_birth: dob.trim() || null })
+        .update({
+          full_name: fullName.trim(),
+          phone: phone.trim() || null,
+          date_of_birth: dob.trim() || null,
+          gender: gender || null,
+        })
         .eq('id', user!.id);
       if (error) throw error;
       useAuthStore.setState((s) => ({
@@ -66,6 +81,7 @@ function PersonalInfoModal({ visible, onClose }: { visible: boolean; onClose: ()
           full_name: fullName.trim(),
           phone: phone.trim() || null,
           date_of_birth: dob.trim() || null,
+          gender: gender || null,
         } : s.user,
       }));
       ToastManager.show({ message: 'Perfil actualizado', type: 'success' });
@@ -96,6 +112,32 @@ function PersonalInfoModal({ visible, onClose }: { visible: boolean; onClose: ()
                 placeholder="Seleccionar fecha"
                 maxDate={new Date()}
               />
+              {/* Gender selector */}
+              <Text style={[styles.label, { color: T.textSecondary, marginTop: 4 }]}>Género</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
+                {GENDER_OPTIONS.map((opt) => {
+                  const active = gender === opt.value;
+                  return (
+                    <TouchableOpacity
+                      key={opt.value}
+                      onPress={() => setGender(active ? null : opt.value as Gender)}
+                      style={[
+                        styles.genderPill,
+                        {
+                          borderColor: active ? T.accent : T.border,
+                          backgroundColor: active ? T.accentGlow : T.bg,
+                          flex: opt.value === 'other' ? 2 : 1,
+                        },
+                      ]}
+                    >
+                      <Text style={{ fontSize: 16, color: active ? T.accent : T.textMuted }}>{opt.icon}</Text>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: active ? T.accent : T.textMuted, marginTop: 2 }}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
               <View style={styles.modalActions}>
                 <TouchableOpacity onPress={onClose} style={[styles.modalBtn, { borderColor: T.border, borderWidth: 1 }]}>
                   <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
@@ -418,4 +460,9 @@ const styles = StyleSheet.create({
   modalBtn: { flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
   termsSection: { fontSize: 14, fontWeight: '700', marginTop: 16, marginBottom: 6 },
   termsText: { fontSize: 13, lineHeight: 20 },
+  genderPill: {
+    borderWidth: 1.5, borderRadius: 12,
+    paddingVertical: 10, paddingHorizontal: 8,
+    alignItems: 'center', justifyContent: 'center',
+  },
 });

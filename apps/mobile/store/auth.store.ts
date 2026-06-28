@@ -51,6 +51,7 @@ interface RawProfile {
   approval_status: ApprovalStatus;
   rejection_reason: string | null;
   date_of_birth: string | null;
+  gender: string | null;
   client_level: string | null;
   created_at: string;
   updated_at: string;

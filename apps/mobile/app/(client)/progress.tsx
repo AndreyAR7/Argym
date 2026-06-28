@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar,
-  Alert, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, Dimensions,
+  ActivityIndicator, Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
@@ -9,7 +9,9 @@ import { ClientTopBar } from '@/components/client/ClientTopBar';
 import { useAuthStore } from '@/store/auth.store';
 import { useProgressStore } from '@/store/progress.store';
 import { computeBodyComposition, getCurrentWeekRange } from '@/services/progress.service';
+import { MeasurementWizard } from '@/components/measurements/MeasurementWizard';
 import type { BodyMeasurement } from '@/types/progress';
+import type { Gender } from '@/lib/types';
 
 const SCREEN_W = Dimensions.get('window').width;
 const CHART_W = SCREEN_W - 64; // 16 scroll + 16 card * 2
@@ -176,135 +178,6 @@ function StreakCalendar({ activeDates, T }: { activeDates: string[]; T: any }) {
         <Text style={{ fontSize: 11, color: T.textMuted }}>Sin actividad</Text>
       </View>
     </View>
-  );
-}
-
-// ─── Add / Edit Measurement Modal ────────────────────────────
-function AddMeasurementModal({ visible, onClose, onSave, lastHeight, existing, T }: {
-  visible: boolean;
-  onClose: () => void;
-  onSave: (m: Partial<BodyMeasurement>) => Promise<void>;
-  lastHeight: string;
-  existing: BodyMeasurement | null;
-  T: any;
-}) {
-  const [weight, setWeight] = useState('');
-  const [height, setHeight] = useState(lastHeight);
-  const [bodyFat, setBodyFat] = useState('');
-  const [waist, setWaist] = useState('');
-  const [notes, setNotes] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (visible) {
-      setWeight(existing?.weight_kg?.toString() ?? '');
-      setHeight(existing?.height_cm?.toString() ?? lastHeight);
-      setBodyFat(existing?.body_fat_pct?.toString() ?? '');
-      setWaist(existing?.waist_cm?.toString() ?? '');
-      setNotes(existing?.notes ?? '');
-    }
-  }, [visible, existing, lastHeight]);
-
-  const handleSave = async () => {
-    if (!weight) { Alert.alert('Error', 'El peso es requerido'); return; }
-    setSaving(true);
-    try {
-      await onSave({
-        weight_kg: parseFloat(weight),
-        height_cm: height ? parseFloat(height) : null,
-        body_fat_pct: bodyFat ? parseFloat(bodyFat) : null,
-        waist_cm: waist ? parseFloat(waist) : null,
-        notes: notes || null,
-      });
-      setWeight(''); setBodyFat(''); setWaist(''); setNotes('');
-      onClose();
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: '#00000088' }}>
-          <View style={{ backgroundColor: T.bgCard, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 }}>
-            <Text style={{ fontSize: 18, fontWeight: '800', color: T.text, marginBottom: 20 }}>
-              {existing ? '✏️ Editar medición semanal' : '📏 Nueva medición'}
-            </Text>
-
-            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.inputLabel, { color: T.textMuted }]}>Peso (kg) *</Text>
-                <TextInput
-                  value={weight} onChangeText={setWeight}
-                  keyboardType="decimal-pad"
-                  style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                  placeholder="75.5" placeholderTextColor={T.textMuted}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.inputLabel, { color: T.textMuted }]}>Altura (cm)</Text>
-                <TextInput
-                  value={height} onChangeText={setHeight}
-                  keyboardType="decimal-pad"
-                  style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                  placeholder="170" placeholderTextColor={T.textMuted}
-                />
-              </View>
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.inputLabel, { color: T.textMuted }]}>% Grasa corporal</Text>
-                <TextInput
-                  value={bodyFat} onChangeText={setBodyFat}
-                  keyboardType="decimal-pad"
-                  style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                  placeholder="18.0" placeholderTextColor={T.textMuted}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.inputLabel, { color: T.textMuted }]}>Cintura (cm)</Text>
-                <TextInput
-                  value={waist} onChangeText={setWaist}
-                  keyboardType="decimal-pad"
-                  style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                  placeholder="80" placeholderTextColor={T.textMuted}
-                />
-              </View>
-            </View>
-
-            <View style={{ marginBottom: 20 }}>
-              <Text style={[styles.inputLabel, { color: T.textMuted }]}>Notas</Text>
-              <TextInput
-                value={notes} onChangeText={setNotes}
-                style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                placeholder="Opcional..." placeholderTextColor={T.textMuted}
-              />
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <TouchableOpacity
-                onPress={onClose}
-                style={{ flex: 1, padding: 14, borderRadius: 10, borderWidth: 1, borderColor: T.border, alignItems: 'center' }}
-              >
-                <Text style={{ color: T.textMuted, fontWeight: '600' }}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleSave} disabled={saving}
-                style={{ flex: 1, padding: 14, borderRadius: 10, backgroundColor: T.orange, alignItems: 'center' }}
-              >
-                {saving
-                  ? <ActivityIndicator color="#fff" size="small" />
-                  : <Text style={{ color: '#fff', fontWeight: '700' }}>Guardar</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
   );
 }
 
@@ -612,7 +485,7 @@ export default function ProgressScreen() {
 
   const lastHeight = measurements.find((m) => m.height_cm != null)?.height_cm?.toString() ?? '';
 
-  const handleAddMeasurement = async (m: Partial<BodyMeasurement>) => {
+  const handleAddMeasurement = async (m: Partial<BodyMeasurement> & { notes?: string | null }) => {
     if (!user?.id || !user?.tenant_id) return;
     await addMeasurement({
       client_id: user.id,
@@ -621,11 +494,16 @@ export default function ProgressScreen() {
       weight_kg: m.weight_kg ?? null,
       height_cm: m.height_cm ?? null,
       body_fat_pct: m.body_fat_pct ?? null,
-      muscle_mass_kg: null,
+      muscle_mass_kg: m.muscle_mass_kg ?? null,
+      neck_cm: m.neck_cm ?? null,
+      shoulder_cm: m.shoulder_cm ?? null,
+      chest_cm: m.chest_cm ?? null,
       waist_cm: m.waist_cm ?? null,
-      chest_cm: null,
-      hip_cm: null,
-      arm_cm: null,
+      abdomen_cm: m.abdomen_cm ?? null,
+      hip_cm: m.hip_cm ?? null,
+      arm_cm: m.arm_cm ?? null,
+      thigh_cm: m.thigh_cm ?? null,
+      calf_cm: m.calf_cm ?? null,
       notes: m.notes ?? null,
     });
   };
@@ -675,13 +553,12 @@ export default function ProgressScreen() {
         </ScrollView>
       )}
 
-      <AddMeasurementModal
+      <MeasurementWizard
         visible={showAddMeasure}
         onClose={() => setShowAddMeasure(false)}
         onSave={handleAddMeasurement}
-        lastHeight={lastHeight}
+        gender={(user as any)?.gender as Gender | null}
         existing={thisWeekMeasurement}
-        T={T}
       />
     </SafeAreaView>
   );
@@ -697,6 +574,4 @@ const styles = StyleSheet.create({
   statMini: { flex: 1, borderWidth: 1, borderRadius: 12, padding: 12, alignItems: 'center' },
   measureBadge: { borderWidth: 1, borderRadius: 10, padding: 10, alignItems: 'center', minWidth: 64 },
   calCell: { width: 28, height: 28, borderRadius: 6, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
-  inputLabel: { fontSize: 12, marginBottom: 4 },
-  input: { borderWidth: 1, borderRadius: 8, padding: 10 },
 });

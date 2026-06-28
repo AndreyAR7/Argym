@@ -29,6 +29,7 @@ export interface TenantModule {
 export type UserTheme = 'system' | 'light' | 'dark';
 export type PrimaryRole = 'admin' | 'coach' | 'client';
 export type FitnessLevel = 'beginner' | 'intermediate' | 'advanced';
+export type Gender = 'male' | 'female' | 'other';
 
 export interface Profile {
   id: string;
@@ -37,6 +38,7 @@ export interface Profile {
   avatar_url: string | null;
   phone: string | null;
   date_of_birth: string | null;
+  gender: Gender | null;
   locale: string;
   theme: UserTheme;
   client_level: FitnessLevel | null;
