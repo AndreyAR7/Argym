@@ -25,14 +25,13 @@ export default async function CoachClientsPage({
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Get unique client IDs from this coach's appointments
-  const { data: aptRows } = await supabase
-    .from('appointments')
+  // Get assigned client IDs from coach_client_assignments
+  const { data: assignmentRows } = await supabase
+    .from('coach_client_assignments')
     .select('client_id')
     .eq('coach_id', user!.id)
-    .not('client_id', 'is', null)
 
-  const clientIds = [...new Set((aptRows ?? []).map((a: any) => a.client_id as string))]
+  const clientIds = (assignmentRows ?? []).map((a: any) => a.client_id as string)
 
   let clients: any[] = []
   let total = 0
@@ -55,7 +54,7 @@ export default async function CoachClientsPage({
     <div className="p-4 md:p-8">
       <PageHeader
         title="Mis Clientes"
-        subtitle={`${total} cliente${total !== 1 ? 's' : ''} con citas contigo`}
+        subtitle={`${total} cliente${total !== 1 ? 's' : ''} asignado${total !== 1 ? 's' : ''}`}
       />
 
       {/* Search */}
@@ -126,7 +125,7 @@ export default async function CoachClientsPage({
                     <p className="text-sm text-[var(--color-muted-foreground)]">
                       {search
                         ? `Sin resultados para "${search}"`
-                        : 'Aún no tienes clientes con citas programadas'}
+                        : 'Aún no tienes clientes asignados. Contacta al administrador.'}
                     </p>
                   </div>
                 </td>

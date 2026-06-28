@@ -5,6 +5,8 @@ import { Plus, Pencil, Trash2, Dumbbell, Play } from 'lucide-react'
 import { ExerciseForm } from '@/components/admin/exercise-form'
 import { VideoPlayerModal } from '@/components/admin/video-player-modal'
 import { deleteExerciseAction } from '@/lib/admin/exercise-actions'
+import { useConfirm } from '@/context/confirm-context'
+import { useToast } from '@/context/toast-context'
 
 interface Exercise {
   id: string
@@ -39,6 +41,8 @@ export function RoutineDetailClient({ routineId, exercises, availableVideos }: P
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [localExercises, setLocalExercises] = useState(exercises)
   const [playingVideo, setPlayingVideo] = useState<{ path: string; bucket: string; title: string } | null>(null)
+  const { confirm } = useConfirm()
+  const { showToast } = useToast()
 
   useEffect(() => {
     setLocalExercises(exercises)
@@ -60,12 +64,23 @@ export function RoutineDetailClient({ routineId, exercises, availableVideos }: P
   }
 
   function handleDelete(ex: Exercise) {
-    if (!window.confirm(`¿Eliminar "${ex.name}"?`)) return
-    setDeletingId(ex.id)
-    setLocalExercises((prev) => prev.filter((e) => e.id !== ex.id))
     startTransition(async () => {
+      const ok = await confirm({
+        title: 'Eliminar ejercicio',
+        message: `¿Eliminar "${ex.name}"? Esta acción no se puede deshacer.`,
+        confirmLabel: 'Eliminar',
+        variant: 'danger',
+      })
+      if (!ok) return
+      setDeletingId(ex.id)
+      setLocalExercises((prev) => prev.filter((e) => e.id !== ex.id))
       const result = await deleteExerciseAction(ex.id, routineId)
-      if (result?.error) setLocalExercises(exercises)
+      if (result?.error) {
+        setLocalExercises(exercises)
+        showToast('error', `No se pudo eliminar: ${result.error}`)
+      } else {
+        showToast('success', `Ejercicio "${ex.name}" eliminado`)
+      }
       setDeletingId(null)
     })
   }

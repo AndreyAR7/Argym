@@ -3,6 +3,8 @@
 import { useTransition } from 'react'
 import { Trash2 } from 'lucide-react'
 import { deleteRoutineAction } from '@/lib/admin/exercise-actions'
+import { useConfirm } from '@/context/confirm-context'
+import { useToast } from '@/context/toast-context'
 
 interface Props {
   routineId: string
@@ -11,14 +13,22 @@ interface Props {
 
 export function RoutineDeleteButton({ routineId, routineName }: Props) {
   const [isPending, startTransition] = useTransition()
+  const { confirm } = useConfirm()
+  const { showToast } = useToast()
 
   function handleDelete() {
-    if (!window.confirm(`Eliminar la rutina "${routineName}"? Esta accion no se puede deshacer.`)) return
-
     startTransition(async () => {
+      const ok = await confirm({
+        title: 'Eliminar rutina',
+        message: `¿Eliminar "${routineName}"? Esta acción no se puede deshacer.`,
+        confirmLabel: 'Eliminar',
+        variant: 'danger',
+      })
+      if (!ok) return
+
       const result = await deleteRoutineAction(routineId)
       if (result?.error) {
-        window.alert(`No se pudo eliminar la rutina: ${result.error}`)
+        showToast('error', `No se pudo eliminar la rutina: ${result.error}`)
       }
     })
   }

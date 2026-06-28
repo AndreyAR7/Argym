@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Mail, Zap, FileText, Plus, ToggleLeft, ToggleRight, Trash2, Edit3, Send, CheckCircle2, Eye, EyeOff, Server, FlaskConical, AlertCircle, Download, Loader2 } from 'lucide-react'
+import { useConfirm } from '@/context/confirm-context'
+import { useToast } from '@/context/toast-context'
 import { createClient } from '@/lib/supabase/client'
 import { testSmtpAction, seedDefaultTemplatesAction, seedDefaultRulesAction, updateTemplateAction, deleteTemplateAction } from '@/app/admin/correspondencia/actions'
 
@@ -73,6 +75,8 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
   const [seedStatus,        setSeedStatus]        = useState<string | null>(null)
   const [rulesSeedStatus,   setRulesSeedStatus]   = useState<string | null>(null)
   const [isPending,         startTransition]      = useTransition()
+  const { confirm } = useConfirm()
+  const { showToast } = useToast()
 
   const supabase = createClient()
 
@@ -114,9 +118,20 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
   }
 
   async function handleDeleteTemplate(id: string) {
-    if (!confirm('¿Eliminar esta plantilla? Las reglas que la usan quedarán sin plantilla.')) return
+    const ok = await confirm({
+      title: 'Eliminar plantilla',
+      message: '¿Eliminar esta plantilla? Las reglas que la usan quedarán sin plantilla.',
+      confirmLabel: 'Eliminar',
+      variant: 'danger',
+    })
+    if (!ok) return
     const res = await deleteTemplateAction(id)
-    if (!res.error) setTemplates(prev => prev.filter(t => t.id !== id))
+    if (!res.error) {
+      setTemplates(prev => prev.filter(t => t.id !== id))
+      showToast('success', 'Plantilla eliminada')
+    } else {
+      showToast('error', res.error)
+    }
   }
 
   async function toggleRule(id: string, current: boolean) {
@@ -125,9 +140,20 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
   }
 
   async function deleteRule(id: string) {
-    if (!confirm('¿Eliminar esta regla?')) return
+    const ok = await confirm({
+      title: 'Eliminar regla',
+      message: '¿Eliminar esta regla de automatización?',
+      confirmLabel: 'Eliminar',
+      variant: 'danger',
+    })
+    if (!ok) return
     const { error } = await supabase.from('communication_rules').delete().eq('id', id)
-    if (!error) setRules(prev => prev.filter(r => r.id !== id))
+    if (!error) {
+      setRules(prev => prev.filter(r => r.id !== id))
+      showToast('success', 'Regla eliminada')
+    } else {
+      showToast('error', 'No se pudo eliminar la regla')
+    }
   }
 
   async function saveSmtp(e: React.FormEvent<HTMLFormElement>) {

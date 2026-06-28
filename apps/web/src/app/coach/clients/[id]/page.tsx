@@ -27,16 +27,15 @@ export default async function CoachClientDetailPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) notFound()
 
-  // Verify this coach has at least one appointment with this client
-  const { data: apt } = await supabase
-    .from('appointments')
-    .select('id')
+  // Verify this coach has this client assigned
+  const { data: assignment } = await supabase
+    .from('coach_client_assignments')
+    .select('coach_id')
     .eq('coach_id', user.id)
     .eq('client_id', clientId)
-    .limit(1)
     .maybeSingle()
 
-  if (!apt) notFound()
+  if (!assignment) notFound()
 
   const [profileResult, measurementsResult] = await Promise.all([
     supabase

@@ -4,6 +4,8 @@ import { useState, useTransition } from 'react'
 import { Building2, Plus, Pencil, Trash2, MapPin, Phone, Mail, CheckCircle, XCircle } from 'lucide-react'
 import { BranchFormModal } from './branch-form-modal'
 import { deleteBranchAction } from '@/lib/admin/branch-actions'
+import { useConfirm } from '@/context/confirm-context'
+import { useToast } from '@/context/toast-context'
 
 interface Branch {
   id: string
@@ -24,16 +26,26 @@ export function BranchesTable({ branches }: Props) {
   const [editing, setEditing] = useState<Branch | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
-  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const { confirm } = useConfirm()
+  const { showToast } = useToast()
 
   function handleDelete(branch: Branch) {
-    if (!confirm(`¿Eliminar la sucursal "${branch.name}"? Los clientes asignados quedarán sin sucursal.`)) return
-    setDeleteError(null)
-    setDeletingId(branch.id)
     startTransition(async () => {
+      const ok = await confirm({
+        title: 'Eliminar sucursal',
+        message: `¿Eliminar "${branch.name}"? Los clientes asignados quedarán sin sucursal.`,
+        confirmLabel: 'Eliminar',
+        variant: 'danger',
+      })
+      if (!ok) return
+      setDeletingId(branch.id)
       const result = await deleteBranchAction(branch.id)
       setDeletingId(null)
-      if (result?.error) setDeleteError(result.error)
+      if (result?.error) {
+        showToast('error', result.error)
+      } else {
+        showToast('success', `Sucursal "${branch.name}" eliminada`)
+      }
     })
   }
 
@@ -53,12 +65,6 @@ export function BranchesTable({ branches }: Props) {
           Nueva sucursal
         </button>
       </div>
-
-      {deleteError && (
-        <div className="mb-4 rounded-lg border px-4 py-3 text-sm" style={{ borderColor: 'var(--color-destructive)', color: 'var(--color-destructive)', backgroundColor: 'color-mix(in srgb, var(--color-destructive) 8%, transparent)' }}>
-          {deleteError}
-        </div>
-      )}
 
       {branches.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-16 text-center" style={{ borderColor: 'var(--color-border)' }}>

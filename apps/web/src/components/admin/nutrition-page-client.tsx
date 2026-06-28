@@ -6,6 +6,8 @@ import { NutritionFormModal } from '@/components/admin/nutrition-form-modal'
 import { NutritionStatusButton } from '@/components/admin/nutrition-status-button'
 import { Badge } from '@/components/ui/badge'
 import { deleteNutritionPlanAction } from '@/lib/admin/nutrition-actions'
+import { useConfirm } from '@/context/confirm-context'
+import { useToast } from '@/context/toast-context'
 
 interface NutritionPlan {
   id: string
@@ -31,6 +33,8 @@ export function NutritionPageClient({ plans }: NutritionPageClientProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [localPlans, setLocalPlans] = useState(plans)
+  const { confirm } = useConfirm()
+  const { showToast } = useToast()
 
   useEffect(() => { setLocalPlans(plans) }, [plans])
 
@@ -50,16 +54,24 @@ export function NutritionPageClient({ plans }: NutritionPageClientProps) {
   }
 
   function handleDelete(plan: NutritionPlan) {
-    const confirmed = window.confirm(
-      `¿Eliminar el plan "${plan.name}"? Esta acción no se puede deshacer.`,
-    )
-    if (!confirmed) return
-
-    setDeletingId(plan.id)
-    setLocalPlans((prev) => prev.filter((p) => p.id !== plan.id))
     startTransition(async () => {
+      const ok = await confirm({
+        title: 'Eliminar plan nutricional',
+        message: `¿Eliminar "${plan.name}"? Esta acción no se puede deshacer.`,
+        confirmLabel: 'Eliminar',
+        variant: 'danger',
+      })
+      if (!ok) return
+
+      setDeletingId(plan.id)
+      setLocalPlans((prev) => prev.filter((p) => p.id !== plan.id))
       const result = await deleteNutritionPlanAction(plan.id)
-      if (result?.error) setLocalPlans(plans)
+      if (result?.error) {
+        setLocalPlans(plans)
+        showToast('error', `No se pudo eliminar: ${result.error}`)
+      } else {
+        showToast('success', `Plan "${plan.name}" eliminado`)
+      }
       setDeletingId(null)
     })
   }

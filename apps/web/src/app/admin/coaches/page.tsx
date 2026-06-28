@@ -4,6 +4,7 @@ import { Avatar } from '@/components/ui/avatar'
 import { PageHeader } from '@/components/shared/page-header'
 import { ClientRowActions } from '@/components/admin/client-row-actions'
 import { CoachFilters } from '@/components/admin/coach-filters'
+import { ManageCoachClientsButton } from '@/components/admin/manage-coach-clients-button'
 import { formatDate } from '@/lib/utils'
 import { UserPlus, Users2 } from 'lucide-react'
 import Link from 'next/link'
@@ -107,17 +108,22 @@ export default async function CoachesPage({
                   <td className="px-4 py-3 text-sm text-[var(--color-muted-foreground)] hidden lg:table-cell">
                     {formatDate(coach.created_at)}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <ClientRowActions
-                      clientId={coach.id}
-                      clientName={coach.full_name ?? ''}
-                      isActive={coach.is_active !== false}
-                      clientLevel={null}
-                      plans={[]}
-                      tenantId={tenantId}
-                      branchId={(coach as any).branch_id ?? null}
-                      branches={branches ?? []}
-                    />
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <ManageCoachClientsButton
+                        coach={{ id: coach.id, full_name: coach.full_name }}
+                      />
+                      <ClientRowActions
+                        clientId={coach.id}
+                        clientName={coach.full_name ?? ''}
+                        isActive={coach.is_active !== false}
+                        clientLevel={null}
+                        plans={[]}
+                        tenantId={tenantId}
+                        branchId={(coach as any).branch_id ?? null}
+                        branches={branches ?? []}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))
