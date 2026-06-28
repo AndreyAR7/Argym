@@ -78,11 +78,14 @@ export default async function ClientPlanesPage() {
   const { data: promotions } = await promosQuery
 
   // 4. Fetch client's active subscriptions
-  const { data: subscriptions } = await supabase
+  const { data: subscriptions, error: subErr } = await supabase
     .from('user_subscriptions')
     .select('id, status, plan_id')
     .eq('user_id', user.id)
     .in('status', ['active', 'trial'])
+
+  if (subErr) console.error('[planes] subscription query error:', subErr.message)
+  console.log('[planes] subscriptions found:', subscriptions?.length ?? 0, 'for user:', user.id)
 
   const activeSubscriptions = subscriptions ?? []
   const hasActiveSubscription = activeSubscriptions.length > 0

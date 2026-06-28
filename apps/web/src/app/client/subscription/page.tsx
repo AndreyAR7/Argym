@@ -19,11 +19,13 @@ export default async function ClientSubscriptionPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: subscriptions } = await supabase
+  const { data: subscriptions, error: subErr } = await supabase
     .from('user_subscriptions')
-    .select('id, status, starts_at, ends_at, trial_ends_at, plans(name, description, price, currency, billing_cycle, features)')
+    .select('id, status, start_date, end_date, plans(name, description, price, currency, billing_cycle, features)')
     .eq('user_id', user.id)
-    .order('starts_at', { ascending: false })
+    .order('start_date', { ascending: false })
+
+  if (subErr) console.error('[subscription page]', subErr.message)
 
   const active = (subscriptions ?? []).find((s: any) => ['active', 'trial'].includes(s.status))
   const history = (subscriptions ?? []).filter((s: any) => !['active', 'trial'].includes(s.status))
@@ -80,16 +82,16 @@ export default async function ClientSubscriptionPage() {
             )}
 
             <div className="mt-3 flex flex-wrap gap-4 text-xs text-[var(--color-muted-foreground)]">
-              {active.starts_at && (
+              {(active as any).start_date && (
                 <span className="flex items-center gap-1">
                   <Calendar size={11} />
-                  Inicio: {formatDate(active.starts_at)}
+                  Inicio: {formatDate((active as any).start_date)}
                 </span>
               )}
-              {active.ends_at && (
+              {(active as any).end_date && (
                 <span className="flex items-center gap-1">
                   <Calendar size={11} />
-                  Vence: {formatDate(active.ends_at)}
+                  Vence: {formatDate((active as any).end_date)}
                 </span>
               )}
             </div>
