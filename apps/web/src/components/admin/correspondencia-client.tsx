@@ -6,7 +6,7 @@ import { Mail, Zap, FileText, Plus, ToggleLeft, ToggleRight, Trash2, Edit3, Send
 import { useConfirm } from '@/context/confirm-context'
 import { useToast } from '@/context/toast-context'
 import { createClient } from '@/lib/supabase/client'
-import { testSmtpAction, seedDefaultTemplatesAction, seedDefaultRulesAction, updateTemplateAction, deleteTemplateAction } from '@/app/admin/correspondencia/actions'
+import { testSmtpAction, seedDefaultTemplatesAction, seedDefaultRulesAction, updateTemplateAction, deleteTemplateAction, saveSmtpAction } from '@/app/admin/correspondencia/actions'
 
 // ── Types ──────────────────────────────────────────────────────
 interface Rule {
@@ -160,27 +160,24 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
     const payload = {
-      tenant_id:  tenantId,
-      host:       fd.get('host') as string,
+      host:       (fd.get('host') as string).trim(),
       port:       parseInt(fd.get('port') as string) || 587,
-      username:   fd.get('username') as string,
-      password:   (fd.get('password') as string) || smtp.password,
-      from_email: fd.get('from_email') as string,
-      from_name:  fd.get('from_name') as string,
+      username:   (fd.get('username') as string).trim(),
+      password:   (fd.get('password') as string) || null,
+      from_email: (fd.get('from_email') as string).trim(),
+      from_name:  (fd.get('from_name') as string).trim(),
       use_tls:    fd.get('use_tls') === 'true',
-      is_active:  true,
     }
 
     startTransition(async () => {
-      let error
-      if (smtp.id) {
-        ;({ error } = await supabase.from('smtp_configs').update(payload).eq('id', smtp.id))
+      const result = await saveSmtpAction(payload)
+      if (result.ok) {
+        setSmtpSaved(true)
+        setTimeout(() => setSmtpSaved(false), 3000)
+        showToast('success', 'Configuración SMTP guardada correctamente')
       } else {
-        const res = await supabase.from('smtp_configs').insert(payload).select().single()
-        error = res.error
-        if (!error && res.data) setSmtp({ ...payload, id: res.data.id })
+        showToast('error', `Error al guardar: ${result.error}`)
       }
-      if (!error) { setSmtpSaved(true); setTimeout(() => setSmtpSaved(false), 3000) }
     })
   }
 
@@ -474,9 +471,13 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
             </form>
           </div>
 
-          <div className="mt-4 rounded-xl border px-4 py-3 text-sm"
+          <div className="mt-4 rounded-xl border px-4 py-3 text-sm space-y-1.5"
             style={{ backgroundColor: 'color-mix(in srgb, var(--color-admin) 6%, transparent)', borderColor: 'color-mix(in srgb, var(--color-admin) 20%, transparent)', color: 'var(--color-muted-foreground)' }}>
-            <strong style={{ color: 'var(--color-foreground)' }}>Nota:</strong> El envío de emails se activará automáticamente cuando configures el SMTP y crees reglas activas. Recomendamos Gmail App Passwords o SendGrid para mayor confiabilidad.
+            <p><strong style={{ color: 'var(--color-foreground)' }}>Guía rápida de configuración:</strong></p>
+            <p>• <strong style={{ color: 'var(--color-foreground)' }}>Gmail:</strong> Activa verificación en 2 pasos → Seguridad → Contraseñas de aplicaciones. Usa los 16 caracteres sin espacios. El "Email remitente" debe ser el mismo correo Gmail.</p>
+            <p>• <strong style={{ color: 'var(--color-foreground)' }}>Outlook / Hotmail:</strong> Host: <code>smtp-mail.outlook.com</code>, Puerto: 587, TLS: Sí.</p>
+            <p>• <strong style={{ color: 'var(--color-foreground)' }}>SendGrid / Mailgun:</strong> Usa la API key como contraseña. Permite usar cualquier email remitente verificado.</p>
+            <p>• El email remitente debe coincidir con la cuenta SMTP o estar verificado en el dominio para evitar spam.</p>
           </div>
 
           <SmtpTester />
@@ -751,19 +752,28 @@ function SmtpTester() {
         </div>
 
         {status && (
-          <div className="mt-3 flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm"
-            style={{
-              backgroundColor: status.ok
-                ? 'color-mix(in srgb, var(--color-coach) 10%, transparent)'
-                : 'color-mix(in srgb, var(--color-destructive) 10%, transparent)',
-              color: status.ok ? 'var(--color-coach)' : 'var(--color-destructive)',
-              border: `1px solid ${status.ok ? 'color-mix(in srgb, var(--color-coach) 25%, transparent)' : 'color-mix(in srgb, var(--color-destructive) 25%, transparent)'}`,
-            }}>
-            {status.ok
-              ? <CheckCircle2 size={15} className="shrink-0 mt-0.5" />
-              : <AlertCircle  size={15} className="shrink-0 mt-0.5" />
-            }
-            <span>{status.message}</span>
+          <div className="mt-3 flex flex-col gap-2">
+            <div className="flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm"
+              style={{
+                backgroundColor: status.ok
+                  ? 'color-mix(in srgb, var(--color-coach) 10%, transparent)'
+                  : 'color-mix(in srgb, var(--color-destructive) 10%, transparent)',
+                color: status.ok ? 'var(--color-coach)' : 'var(--color-destructive)',
+                border: `1px solid ${status.ok ? 'color-mix(in srgb, var(--color-coach) 25%, transparent)' : 'color-mix(in srgb, var(--color-destructive) 25%, transparent)'}`,
+              }}>
+              {status.ok
+                ? <CheckCircle2 size={15} className="shrink-0 mt-0.5" />
+                : <AlertCircle  size={15} className="shrink-0 mt-0.5" />
+              }
+              <span>{status.message}</span>
+            </div>
+            {status.ok && (
+              <p className="text-xs px-1" style={{ color: 'var(--color-muted-foreground)' }}>
+                ⚠️ Si no ves el email en bandeja de entrada, revisa la carpeta de <strong>spam/correo no deseado</strong>.
+                Los emails enviados desde servidores de hosting suelen marcarse como spam la primera vez.
+                Usa Gmail App Password o un servicio como SendGrid para mejor entregabilidad.
+              </p>
+            )}
           </div>
         )}
       </div>

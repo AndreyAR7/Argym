@@ -319,6 +319,39 @@ export async function deleteTemplateAction(id: string): Promise<{ error?: string
   return {}
 }
 
+export async function saveSmtpAction(payload: {
+  host: string
+  port: number
+  username: string
+  password: string | null
+  from_email: string
+  from_name: string
+  use_tls: boolean
+}): Promise<{ ok: boolean; error?: string }> {
+  const session = await getSessionData()
+  if (!session) return { ok: false, error: 'No autenticado' }
+  const { supabase, tenantId } = session
+
+  // Check if a config already exists for this tenant
+  const { data: existing } = await supabase
+    .from('smtp_configs')
+    .select('id, password')
+    .maybeSingle()
+
+  const password = payload.password || existing?.password || ''
+  const row = { ...payload, password, tenant_id: tenantId, is_active: true }
+
+  let error
+  if (existing?.id) {
+    ;({ error } = await supabase.from('smtp_configs').update(row).eq('id', existing.id))
+  } else {
+    ;({ error } = await supabase.from('smtp_configs').insert(row))
+  }
+
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}
+
 export async function testSmtpAction(toEmail: string): Promise<{ ok: boolean; message: string }> {
   const session = await getSessionData()
   if (!session) return { ok: false, message: 'No autenticado' }
