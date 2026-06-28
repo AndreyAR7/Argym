@@ -9,6 +9,9 @@
 -- Demo emails: ana.garcia@demo.argym.io, carlos.martinez@demo.argym.io, etc.
 -- ============================================================
 
+-- pgcrypto required for crypt() / gen_salt() password hashing
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 DO $$
 DECLARE
   v_tid             UUID;
