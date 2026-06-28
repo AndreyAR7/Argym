@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Mail, Zap, FileText, Plus, ToggleLeft, ToggleRight, Trash2, Edit3, Send, CheckCircle2, Eye, EyeOff, Server, FlaskConical, AlertCircle, Download, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { testSmtpAction, seedDefaultTemplatesAction, updateTemplateAction, deleteTemplateAction } from '@/app/admin/correspondencia/actions'
+import { testSmtpAction, seedDefaultTemplatesAction, seedDefaultRulesAction, updateTemplateAction, deleteTemplateAction } from '@/app/admin/correspondencia/actions'
 
 // ── Types ──────────────────────────────────────────────────────
 interface Rule {
@@ -71,6 +71,7 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
   const [smtpSaved,         setSmtpSaved]         = useState(false)
   const [showPassword,      setShowPassword]      = useState(false)
   const [seedStatus,        setSeedStatus]        = useState<string | null>(null)
+  const [rulesSeedStatus,   setRulesSeedStatus]   = useState<string | null>(null)
   const [isPending,         startTransition]      = useTransition()
 
   const supabase = createClient()
@@ -88,10 +89,27 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
       if (res.error) {
         setSeedStatus(`Error: ${res.error}`)
       } else {
-        setSeedStatus(`✓ ${res.inserted} plantillas importadas`)
+        setSeedStatus(`✓ ${res.inserted} plantillas actualizadas`)
         router.refresh()
       }
-      setTimeout(() => setSeedStatus(null), 4000)
+      setTimeout(() => setSeedStatus(null), 5000)
+    })
+  }
+
+  async function handleSeedRules() {
+    setRulesSeedStatus('loading')
+    startTransition(async () => {
+      const res = await seedDefaultRulesAction()
+      if (res.error) {
+        setRulesSeedStatus(`Error: ${res.error}`)
+      } else if (res.created === 0 && res.skipped > 0) {
+        setRulesSeedStatus(`✓ Todas las reglas ya existen (${res.skipped} existentes)`)
+        router.refresh()
+      } else {
+        setRulesSeedStatus(`✓ ${res.created} reglas creadas${res.skipped ? `, ${res.skipped} ya existían` : ''}`)
+        router.refresh()
+      }
+      setTimeout(() => setRulesSeedStatus(null), 5000)
     })
   }
 
@@ -164,24 +182,50 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
       {/* ── RULES TAB ─────────────────────────────────────────── */}
       {tab === 'rules' && (
         <div>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
               Las reglas envían emails automáticamente cuando ocurre un evento en el sistema.
             </p>
-            <button onClick={() => setShowRuleModal(true)}
-              className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium shrink-0"
-              style={{ backgroundColor: 'var(--color-admin)', color: 'white' }}>
-              <Plus size={15} />Nueva regla
-            </button>
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={handleSeedRules}
+                disabled={isPending || rulesSeedStatus === 'loading'}
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium border disabled:opacity-60 transition-colors"
+                style={{ borderColor: 'var(--color-border)', color: 'var(--color-foreground)', backgroundColor: 'var(--color-muted)' }}
+              >
+                {rulesSeedStatus === 'loading'
+                  ? <><Loader2 size={13} className="animate-spin" />Configurando…</>
+                  : <><Zap size={13} />Configurar automáticamente</>
+                }
+              </button>
+              <button onClick={() => setShowRuleModal(true)}
+                className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium shrink-0"
+                style={{ backgroundColor: 'var(--color-admin)', color: 'white' }}>
+                <Plus size={15} />Nueva regla
+              </button>
+            </div>
           </div>
+
+          {rulesSeedStatus && rulesSeedStatus !== 'loading' && (
+            <div className="mb-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+              style={{
+                backgroundColor: rulesSeedStatus.startsWith('Error')
+                  ? 'color-mix(in srgb, var(--color-destructive) 8%, transparent)'
+                  : 'color-mix(in srgb, var(--color-coach) 8%, transparent)',
+                color: rulesSeedStatus.startsWith('Error') ? 'var(--color-destructive)' : 'var(--color-coach)',
+                border: `1px solid ${rulesSeedStatus.startsWith('Error') ? 'color-mix(in srgb, var(--color-destructive) 25%, transparent)' : 'color-mix(in srgb, var(--color-coach) 25%, transparent)'}`,
+              }}>
+              {rulesSeedStatus}
+            </div>
+          )}
 
           {rules.length === 0 ? (
             <EmptyState
               Icon={Zap}
               title="Sin reglas configuradas"
-              desc="Crea reglas para enviar emails automáticamente cuando ocurra un evento."
-              action="Nueva regla"
-              onAction={() => setShowRuleModal(true)}
+              desc='Haz clic en "Configurar automáticamente" para crear las reglas predeterminadas, o crea una manualmente.'
+              action="Configurar automáticamente"
+              onAction={handleSeedRules}
             />
           ) : (
             <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>

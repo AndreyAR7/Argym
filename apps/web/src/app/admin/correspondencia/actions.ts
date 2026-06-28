@@ -236,9 +236,66 @@ export async function seedDefaultTemplatesAction(): Promise<{ inserted: number; 
   const { supabase, tenantId } = session
 
   const rows = DEFAULT_TEMPLATES.map(t => ({ ...t, tenant_id: tenantId }))
-  const { data, error } = await supabase.from('email_templates').insert(rows).select('id')
+  const { data, error } = await supabase
+    .from('email_templates')
+    .upsert(rows, { onConflict: 'tenant_id,name', ignoreDuplicates: false })
+    .select('id')
   if (error) return { inserted: 0, error: error.message }
   return { inserted: (data ?? []).length }
+}
+
+// Default rules: one per event_type, linked to the corresponding template
+const DEFAULT_RULES: { name: string; event_type: string; template_name: string; recipients: string }[] = [
+  { name: 'Notificación de cita creada',     event_type: 'appointment.created',   template_name: 'Cita creada — pendiente de confirmación', recipients: 'client_and_coach' },
+  { name: 'Notificación de cita confirmada', event_type: 'appointment.confirmed', template_name: 'Cita confirmada',                          recipients: 'client_and_coach' },
+  { name: 'Notificación de cita cancelada',  event_type: 'appointment.cancelled', template_name: 'Cita cancelada',                           recipients: 'client_and_coach' },
+  { name: 'Recordatorio de cita 30 min',     event_type: 'appointment.reminder',  template_name: 'Recordatorio de cita',                     recipients: 'client' },
+  { name: 'Comprobante de plan adquirido',   event_type: 'plan.purchased',        template_name: 'Plan adquirido',                           recipients: 'client' },
+  { name: 'Aviso de plan por vencer',        event_type: 'plan.expiring',         template_name: 'Plan por vencer',                          recipients: 'client' },
+  { name: 'Notificación de plan vencido',    event_type: 'plan.expired',          template_name: 'Plan vencido',                             recipients: 'client' },
+  { name: 'Cuenta aprobada',                 event_type: 'client.approved',       template_name: 'Cuenta aprobada',                          recipients: 'client' },
+  { name: 'Email de bienvenida',             event_type: 'client.welcome',        template_name: 'Bienvenida al cliente',                    recipients: 'client' },
+]
+
+export async function seedDefaultRulesAction(): Promise<{ created: number; skipped: number; error?: string }> {
+  const session = await getSessionData()
+  if (!session) return { created: 0, skipped: 0, error: 'No autenticado' }
+  const { supabase, tenantId } = session
+
+  // Fetch all templates for this tenant
+  const { data: templates, error: tmplErr } = await supabase
+    .from('email_templates')
+    .select('id, name')
+    .eq('tenant_id', tenantId)
+  if (tmplErr) return { created: 0, skipped: 0, error: tmplErr.message }
+
+  const tmplMap = new Map((templates ?? []).map((t: { id: string; name: string }) => [t.name, t.id]))
+
+  // Fetch existing rules to avoid duplicates per event_type
+  const { data: existingRules } = await supabase
+    .from('communication_rules')
+    .select('event_type')
+    .eq('tenant_id', tenantId)
+  const existingEvents = new Set((existingRules ?? []).map((r: { event_type: string }) => r.event_type))
+
+  const toInsert = DEFAULT_RULES
+    .filter(r => !existingEvents.has(r.event_type) && tmplMap.has(r.template_name))
+    .map(r => ({
+      tenant_id:   tenantId,
+      name:        r.name,
+      event_type:  r.event_type,
+      template_id: tmplMap.get(r.template_name)!,
+      recipients:  r.recipients,
+      is_active:   true,
+    }))
+
+  const skipped = DEFAULT_RULES.length - toInsert.length
+
+  if (!toInsert.length) return { created: 0, skipped }
+
+  const { data, error } = await supabase.from('communication_rules').insert(toInsert).select('id')
+  if (error) return { created: 0, skipped, error: error.message }
+  return { created: (data ?? []).length, skipped }
 }
 
 export async function updateTemplateAction(
