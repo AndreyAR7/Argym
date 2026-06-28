@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react'
-import { createAdminClient } from '@/lib/supabase/server-admin'
+import { createClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe'
 
 export const metadata = { title: 'Pago exitoso' }
@@ -31,7 +31,7 @@ async function activateSubscription(sessionId: string): Promise<ActivationResult
       return { ok: false, reason }
     }
 
-    const supabase = await createAdminClient()
+    const supabase = await createClient()
 
     // Check if subscription already exists (webhook may have already created it)
     const { data: existing, error: lookupErr } = await supabase
