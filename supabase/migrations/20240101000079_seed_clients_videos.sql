@@ -9,8 +9,8 @@
 -- Demo emails: ana.garcia@demo.argym.io, carlos.martinez@demo.argym.io, etc.
 -- ============================================================
 
--- pgcrypto required for crypt() / gen_salt() password hashing
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- pgcrypto is pre-installed in Supabase under the 'extensions' schema
+-- Use fully-qualified extensions.crypt() / extensions.gen_salt()
 
 DO $$
 DECLARE
@@ -71,56 +71,56 @@ BEGIN
 
     ('00000000-0000-0000-0000-000000000000', u_ana, 'authenticated', 'authenticated',
      'ana.garcia@demo.argym.io',
-     crypt('GymDemo2024!', gen_salt('bf')), NOW(),
+     extensions.crypt('GymDemo2024!', extensions.gen_salt('bf')), NOW(),
      '{"provider":"email","providers":["email"]}',
      jsonb_build_object('tenant_id', v_tid, 'full_name', 'Ana García Rodríguez', 'requested_role', 'client'),
      NOW() - INTERVAL '60 days', NOW(), FALSE),
 
     ('00000000-0000-0000-0000-000000000000', u_carlos, 'authenticated', 'authenticated',
      'carlos.martinez@demo.argym.io',
-     crypt('GymDemo2024!', gen_salt('bf')), NOW(),
+     extensions.crypt('GymDemo2024!', extensions.gen_salt('bf')), NOW(),
      '{"provider":"email","providers":["email"]}',
      jsonb_build_object('tenant_id', v_tid, 'full_name', 'Carlos Martínez Soto', 'requested_role', 'client'),
      NOW() - INTERVAL '45 days', NOW(), FALSE),
 
     ('00000000-0000-0000-0000-000000000000', u_maria, 'authenticated', 'authenticated',
      'maria.rodriguez@demo.argym.io',
-     crypt('GymDemo2024!', gen_salt('bf')), NOW(),
+     extensions.crypt('GymDemo2024!', extensions.gen_salt('bf')), NOW(),
      '{"provider":"email","providers":["email"]}',
      jsonb_build_object('tenant_id', v_tid, 'full_name', 'María Rodríguez Mora', 'requested_role', 'client'),
      NOW() - INTERVAL '30 days', NOW(), FALSE),
 
     ('00000000-0000-0000-0000-000000000000', u_jose, 'authenticated', 'authenticated',
      'jose.hernandez@demo.argym.io',
-     crypt('GymDemo2024!', gen_salt('bf')), NOW(),
+     extensions.crypt('GymDemo2024!', extensions.gen_salt('bf')), NOW(),
      '{"provider":"email","providers":["email"]}',
      jsonb_build_object('tenant_id', v_tid, 'full_name', 'José Hernández Castro', 'requested_role', 'client'),
      NOW() - INTERVAL '90 days', NOW(), FALSE),
 
     ('00000000-0000-0000-0000-000000000000', u_laura, 'authenticated', 'authenticated',
      'laura.perez@demo.argym.io',
-     crypt('GymDemo2024!', gen_salt('bf')), NOW(),
+     extensions.crypt('GymDemo2024!', extensions.gen_salt('bf')), NOW(),
      '{"provider":"email","providers":["email"]}',
      jsonb_build_object('tenant_id', v_tid, 'full_name', 'Laura Pérez Vargas', 'requested_role', 'client'),
      NOW() - INTERVAL '15 days', NOW(), FALSE),
 
     ('00000000-0000-0000-0000-000000000000', u_diego, 'authenticated', 'authenticated',
      'diego.castro@demo.argym.io',
-     crypt('GymDemo2024!', gen_salt('bf')), NOW(),
+     extensions.crypt('GymDemo2024!', extensions.gen_salt('bf')), NOW(),
      '{"provider":"email","providers":["email"]}',
      jsonb_build_object('tenant_id', v_tid, 'full_name', 'Diego Castro Jiménez', 'requested_role', 'client'),
      NOW() - INTERVAL '7 days', NOW(), FALSE),
 
     ('00000000-0000-0000-0000-000000000000', u_sofia, 'authenticated', 'authenticated',
      'sofia.jimenez@demo.argym.io',
-     crypt('GymDemo2024!', gen_salt('bf')), NOW(),
+     extensions.crypt('GymDemo2024!', extensions.gen_salt('bf')), NOW(),
      '{"provider":"email","providers":["email"]}',
      jsonb_build_object('tenant_id', v_tid, 'full_name', 'Sofía Jiménez Blanco', 'requested_role', 'client'),
      NOW() - INTERVAL '120 days', NOW(), FALSE),
 
     ('00000000-0000-0000-0000-000000000000', u_andres, 'authenticated', 'authenticated',
      'andres.vargas@demo.argym.io',
-     crypt('GymDemo2024!', gen_salt('bf')), NOW(),
+     extensions.crypt('GymDemo2024!', extensions.gen_salt('bf')), NOW(),
      '{"provider":"email","providers":["email"]}',
      jsonb_build_object('tenant_id', v_tid, 'full_name', 'Andrés Vargas Solano', 'requested_role', 'client'),
      NOW() - INTERVAL '20 days', NOW(), FALSE)
