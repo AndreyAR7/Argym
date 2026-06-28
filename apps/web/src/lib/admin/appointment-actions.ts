@@ -3,15 +3,28 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
+async function getCallerTenantId(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' as const, tenantId: null }
+  const { data: profile } = await supabase
+    .from('profiles').select('tenant_id').eq('id', user.id).single()
+  if (!profile) return { error: 'Perfil no encontrado' as const, tenantId: null }
+  return { error: null, tenantId: profile.tenant_id }
+}
+
 export async function updateAppointmentStatusAction(
   appointmentId: string,
   status: 'pending_confirmation' | 'scheduled' | 'confirmed' | 'completed' | 'no_show' | 'cancelled' | 'postpone_requested',
 ) {
   const supabase = await createClient()
+  const { error: authErr, tenantId } = await getCallerTenantId(supabase)
+  if (authErr) return { error: authErr }
+
   const { error } = await supabase
     .from('appointments')
     .update({ status })
     .eq('id', appointmentId)
+    .eq('tenant_id', tenantId!)
 
   if (error) return { error: error.message }
   return { success: true }
@@ -75,10 +88,14 @@ export async function updateAppointmentAction(
   },
 ) {
   const supabase = await createClient()
+  const { error: authErr, tenantId } = await getCallerTenantId(supabase)
+  if (authErr) return { error: authErr }
+
   const { error } = await supabase
     .from('appointments')
     .update(data)
     .eq('id', id)
+    .eq('tenant_id', tenantId!)
 
   if (error) return { error: error.message }
   revalidatePath('/admin/appointments')
@@ -87,10 +104,14 @@ export async function updateAppointmentAction(
 
 export async function deleteAppointmentAction(id: string) {
   const supabase = await createClient()
+  const { error: authErr, tenantId } = await getCallerTenantId(supabase)
+  if (authErr) return { error: authErr }
+
   const { error } = await supabase
     .from('appointments')
     .delete()
     .eq('id', id)
+    .eq('tenant_id', tenantId!)
 
   if (error) return { error: error.message }
   revalidatePath('/admin/appointments')

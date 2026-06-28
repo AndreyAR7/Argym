@@ -5,15 +5,28 @@ import { createClient } from '@/lib/supabase/server'
 
 // ── Videos ────────────────────────────────────────────────────
 
+async function getCallerTenantId(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' as const, tenantId: null }
+  const { data: profile } = await supabase
+    .from('profiles').select('tenant_id').eq('id', user.id).single()
+  if (!profile) return { error: 'Perfil no encontrado' as const, tenantId: null }
+  return { error: null, tenantId: profile.tenant_id }
+}
+
 export async function updateVideoStatusAction(
   videoId: string,
   status: 'published' | 'archived' | 'draft',
 ) {
   const supabase = await createClient()
+  const { error: authErr, tenantId } = await getCallerTenantId(supabase)
+  if (authErr) return { error: authErr }
+
   const { error } = await supabase
     .from('videos')
     .update({ status })
     .eq('id', videoId)
+    .eq('tenant_id', tenantId!)
 
   if (error) return { error: error.message }
   return { success: true }
@@ -23,10 +36,14 @@ export async function updateVideoStatusAction(
 
 export async function toggleRoutineActiveAction(routineId: string, isActive: boolean) {
   const supabase = await createClient()
+  const { error: authErr, tenantId } = await getCallerTenantId(supabase)
+  if (authErr) return { error: authErr }
+
   const { error } = await supabase
     .from('routines')
     .update({ is_active: isActive })
     .eq('id', routineId)
+    .eq('tenant_id', tenantId!)
 
   if (error) return { error: error.message }
   return { success: true }
@@ -39,10 +56,14 @@ export async function updateNutritionStatusAction(
   status: 'draft' | 'published' | 'archived',
 ) {
   const supabase = await createClient()
+  const { error: authErr, tenantId } = await getCallerTenantId(supabase)
+  if (authErr) return { error: authErr }
+
   const { error } = await supabase
     .from('nutrition_plans')
     .update({ status })
     .eq('id', planId)
+    .eq('tenant_id', tenantId!)
 
   if (error) return { error: error.message }
   return { success: true }
@@ -171,6 +192,9 @@ export async function updatePromotionAction(
   const validationError = await validatePromoEndDate(supabase, data.applies_to_plan_id, data.end_date)
   if (validationError) return { error: validationError }
 
+  const { error: authErr, tenantId } = await getCallerTenantId(supabase)
+  if (authErr) return { error: authErr }
+
   const { error } = await supabase
     .from('promotions')
     .update({
@@ -184,6 +208,7 @@ export async function updatePromotionAction(
       branch_id: data.branch_id || null,
     })
     .eq('id', promoId)
+    .eq('tenant_id', tenantId!)
 
   if (error) return { error: error.message }
   revalidatePath('/admin/promotions')
@@ -192,10 +217,14 @@ export async function updatePromotionAction(
 
 export async function togglePromotionActiveAction(promoId: string, isActive: boolean) {
   const supabase = await createClient()
+  const { error: authErr, tenantId } = await getCallerTenantId(supabase)
+  if (authErr) return { error: authErr }
+
   const { error } = await supabase
     .from('promotions')
     .update({ is_active: isActive })
     .eq('id', promoId)
+    .eq('tenant_id', tenantId!)
 
   if (error) return { error: error.message }
   return { success: true }

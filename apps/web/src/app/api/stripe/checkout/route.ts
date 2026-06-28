@@ -21,6 +21,17 @@ export async function POST(req: NextRequest) {
 
     if (planErr || !plan) return NextResponse.json({ error: 'Plan not found' }, { status: 404 })
 
+    // Verify the plan belongs to the user's tenant (cross-tenant checkout guard)
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('tenant_id')
+      .eq('id', user.id)
+      .single()
+
+    if (!userProfile || plan.tenant_id !== userProfile.tenant_id) {
+      return NextResponse.json({ error: 'Plan no disponible' }, { status: 403 })
+    }
+
     // Guard: block if user already has an active subscription for this plan
     const { data: existingSub } = await supabase
       .from('user_subscriptions')
@@ -86,7 +97,7 @@ export async function POST(req: NextRequest) {
         .eq('id', user.id)
     }
 
-    const baseUrl = req.headers.get('origin') ?? process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
 
     const session = await getStripe().checkout.sessions.create({
       customer: customerId,

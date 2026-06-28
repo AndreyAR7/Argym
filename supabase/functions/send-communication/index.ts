@@ -167,6 +167,22 @@ async function buildReceiptAttachments(d: ReceiptData): Promise<Attachment[]> {
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 })
 
+  // ── Validate caller identity ────────────────────────────────────
+  const authHeader = req.headers.get('Authorization')
+  if (!authHeader?.startsWith('Bearer ')) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
+  const callerClient = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: authHeader } } },
+  )
+  const { data: { user: callerUser } } = await callerClient.auth.getUser()
+  if (!callerUser) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
   let payload: Payload
   try {
     payload = await req.json()
@@ -179,6 +195,18 @@ Deno.serve(async (req: Request) => {
     return new Response('Missing required fields', { status: 400 })
   }
 
+  // Validate the caller's tenant matches the requested tenant
+  const { data: callerProfile } = await callerClient
+    .from('profiles')
+    .select('tenant_id')
+    .eq('id', callerUser.id)
+    .single()
+
+  if (!callerProfile || callerProfile.tenant_id !== tenant_id) {
+    return new Response('Forbidden', { status: 403 })
+  }
+
+  // Service client for privileged DB operations (emails, SMTP config, etc.)
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,

@@ -57,7 +57,7 @@ export async function middleware(request: NextRequest) {
     }
 
     if (jwtValid) {
-      console.log(`[MW] FAST (cached JWT+cookies): ${Date.now() - t0}ms | ${pathname}`)
+      if (process.env.NODE_ENV !== 'production') console.log(`[MW] FAST: ${Date.now() - t0}ms`)
       // Set as REQUEST headers so headers() in server components can read them
       const reqHeaders = new Headers(request.headers)
       reqHeaders.set('x-tenant-id', cachedTenantId)
@@ -88,7 +88,7 @@ export async function middleware(request: NextRequest) {
 
   const t1 = Date.now()
   const { data: { user } } = await supabase.auth.getUser()
-  console.log(`[MW] getUser (slow path): ${Date.now() - t1}ms | ${pathname}`)
+  if (process.env.NODE_ENV !== 'production') console.log(`[MW] getUser: ${Date.now() - t1}ms`)
 
   if (!user && !isPublicPath) {
     const loginUrl = request.nextUrl.clone()
@@ -118,7 +118,7 @@ export async function middleware(request: NextRequest) {
           .limit(1)
           .single(),
       ])
-      console.log(`[MW] DB profile+role (cache MISS): ${Date.now() - t2}ms`)
+      if (process.env.NODE_ENV !== 'production') console.log(`[MW] DB profile+role: ${Date.now() - t2}ms`)
 
       const tenantId = profileRes.data?.tenant_id
       const role = (roleRes.data?.roles as any)?.name as string | undefined
@@ -162,7 +162,7 @@ export async function middleware(request: NextRequest) {
     for (const sc of setCookies) {
       freshResponse.headers.append('set-cookie', sc)
     }
-    console.log(`[MW] TOTAL (slow path): ${Date.now() - t0}ms | ${pathname}`)
+    if (process.env.NODE_ENV !== 'production') console.log(`[MW] TOTAL: ${Date.now() - t0}ms`)
     return freshResponse
   }
 

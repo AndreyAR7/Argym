@@ -12,20 +12,16 @@ export async function POST(req: NextRequest) {
 
   let event: Stripe.Event
 
-  if (webhookSecret && sig) {
-    try {
-      event = getStripe().webhooks.constructEvent(body, sig, webhookSecret)
-    } catch (err: unknown) {
-      console.error('[webhook] Signature verification failed:', err)
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
-    }
-  } else {
-    // In dev without webhook secret, parse directly (NOT for production)
-    try {
-      event = JSON.parse(body) as Stripe.Event
-    } catch {
-      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
-    }
+  if (!webhookSecret || !sig) {
+    console.error('[webhook] Missing STRIPE_WEBHOOK_SECRET or stripe-signature header')
+    return NextResponse.json({ error: 'Webhook signature required' }, { status: 400 })
+  }
+
+  try {
+    event = getStripe().webhooks.constructEvent(body, sig, webhookSecret)
+  } catch (err: unknown) {
+    console.error('[webhook] Signature verification failed:', err)
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
   if (event.type === 'checkout.session.completed') {
@@ -57,8 +53,7 @@ export async function POST(req: NextRequest) {
       console.log('[webhook] Subscription created for user', user_id)
     } catch (err) {
       console.error('[webhook] Error creating subscription:', err)
-      // SUPABASE_SERVICE_ROLE_KEY missing on Render → add it to env vars
-      return NextResponse.json({ error: String(err) }, { status: 500 })
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
   }
 
