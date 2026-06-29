@@ -77,7 +77,8 @@ export default async function GamificacionPage() {
   const session = await getSessionData()
   if (!session) redirect('/login')
 
-  const { supabase, tenantId, userId } = session as any
+  const { supabase, tenantId, user } = session
+  const userId = user.id
 
   // Today's window for check-in count
   const todayStart = new Date()

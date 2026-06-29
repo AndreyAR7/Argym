@@ -155,7 +155,8 @@ export default async function RetosPage() {
   const session = await getSessionData()
   if (!session) redirect('/login')
 
-  const { supabase, tenantId, userId } = session as any
+  const { supabase, tenantId, user } = session
+  const userId = user.id
 
   const { data, error } = await supabase.rpc('get_user_challenges', {
     p_user_id: userId,
