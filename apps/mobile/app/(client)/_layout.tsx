@@ -26,6 +26,10 @@ export default function ClientLayout() {
         <Stack.Screen name="client-appointments" />
         <Stack.Screen name="appointment/[id]" />
         <Stack.Screen name="video-player" />
+        <Stack.Screen name="gamification" />
+        <Stack.Screen name="leaderboard" />
+        <Stack.Screen name="achievements" />
+        <Stack.Screen name="challenges" />
       </Stack>
       <ClientSidebar />
     </View>

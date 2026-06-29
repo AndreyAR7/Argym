@@ -44,6 +44,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'videos',              label: 'Videos',        icon: '🎬', route: '/(client)/videos',               accentKey: 'blue' },
   { id: 'plans',               label: 'Planes',        icon: '💳', route: '/(client)/plans',                accentKey: 'gold' },
   { id: 'promotions',          label: 'Promociones',   icon: '🎁', route: '/(client)/promotions',           accentKey: 'accent' },
+  { id: 'gamification',        label: 'Gamificación',  icon: '🏆', route: '/(client)/gamification',         accentKey: 'gold' },
   { id: 'profile',             label: 'Mi Perfil',     icon: '👤', route: '/(client)/profile',              accentKey: 'accentSoft' },
 ];
 
