@@ -2,11 +2,12 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Mail, Zap, FileText, Plus, ToggleLeft, ToggleRight, Trash2, Edit3, Send, CheckCircle2, Eye, EyeOff, Server, FlaskConical, AlertCircle, Download, Loader2 } from 'lucide-react'
+import { Mail, Zap, FileText, Plus, ToggleLeft, ToggleRight, Trash2, Edit3, Send, CheckCircle2, Eye, EyeOff, Server, FlaskConical, AlertCircle, Download, Loader2, RefreshCw, Inbox, RotateCcw } from 'lucide-react'
 import { useConfirm } from '@/context/confirm-context'
 import { useToast } from '@/context/toast-context'
 import { createClient } from '@/lib/supabase/client'
-import { testSmtpAction, seedDefaultTemplatesAction, seedDefaultRulesAction, updateTemplateAction, deleteTemplateAction, saveSmtpAction } from '@/app/admin/correspondencia/actions'
+import { testSmtpAction, seedDefaultTemplatesAction, seedDefaultRulesAction, updateTemplateAction, deleteTemplateAction, saveSmtpAction, getEmailLogsAction, retryEmailAction, bulkRetryFailedAction } from '@/app/admin/correspondencia/actions'
+import type { EmailLog } from '@/app/admin/correspondencia/actions'
 
 // ── Types ──────────────────────────────────────────────────────
 interface Rule {
@@ -59,7 +60,9 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
   rules: Rule[]; templates: Template[]; smtpConfig: SmtpConfig | null; tenantId: string
 }) {
   const router = useRouter()
-  const [tab, setTab] = useState<'rules' | 'templates' | 'smtp'>('rules')
+  const [tab, setTab] = useState<'rules' | 'templates' | 'smtp' | 'logs'>('rules')
+  const [emailLogs, setEmailLogs] = useState<EmailLog[] | null>(null)
+  const [logsLoading, setLogsLoading] = useState(false)
   const [rules, setRules]         = useState<Rule[]>(initialRules)
   const [templates, setTemplates] = useState<Template[]>(initialTemplates)
   const [smtp, setSmtp]       = useState<SmtpConfig>(initialSmtp ?? {
@@ -181,10 +184,56 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
     })
   }
 
+  async function loadEmailLogs() {
+    setLogsLoading(true)
+    const res = await getEmailLogsAction(100)
+    setEmailLogs(res.logs ?? [])
+    setLogsLoading(false)
+  }
+
+  async function handleTabChange(id: 'rules' | 'templates' | 'smtp' | 'logs') {
+    setTab(id)
+    if (id === 'logs' && emailLogs === null) {
+      await loadEmailLogs()
+    }
+  }
+
+  async function handleRetry(logId: string) {
+    startTransition(async () => {
+      const res = await retryEmailAction(logId)
+      if (res.ok) {
+        showToast('success', 'Email reenviado correctamente')
+        await loadEmailLogs()
+      } else {
+        showToast('error', res.error ?? 'Error al reenviar')
+      }
+    })
+  }
+
+  async function handleBulkRetry() {
+    const ok = await confirm({
+      title: 'Reenviar todos los fallidos',
+      message: '¿Reenviar hasta 50 emails con estado "fallido"? Los que no tengan cuerpo almacenado serán omitidos.',
+      confirmLabel: 'Reenviar',
+      variant: 'default',
+    })
+    if (!ok) return
+    startTransition(async () => {
+      const res = await bulkRetryFailedAction()
+      if (res.ok) {
+        showToast('success', `Enviados: ${res.sent} · Fallidos: ${res.failed}`)
+        await loadEmailLogs()
+      } else {
+        showToast('error', res.error ?? 'Error en reenvío masivo')
+      }
+    })
+  }
+
   const tabs = [
     { id: 'rules'     as const, label: 'Reglas',    Icon: Zap      },
     { id: 'templates' as const, label: 'Plantillas', Icon: FileText },
     { id: 'smtp'      as const, label: 'SMTP',       Icon: Server   },
+    { id: 'logs'      as const, label: 'Historial',  Icon: Inbox    },
   ]
 
   return (
@@ -192,7 +241,7 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
       {/* Tab bar */}
       <div className="flex gap-1 p-1 rounded-xl w-fit mb-6" style={{ backgroundColor: 'var(--color-muted)' }}>
         {tabs.map(({ id, label, Icon }) => (
-          <button key={id} onClick={() => setTab(id)}
+          <button key={id} onClick={() => handleTabChange(id)}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all"
             style={tab === id
               ? { backgroundColor: 'var(--color-card)', color: 'var(--color-foreground)', boxShadow: '0 1px 3px rgba(0,0,0,.1)' }
@@ -481,6 +530,119 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
           </div>
 
           <SmtpTester />
+        </div>
+      )}
+
+      {/* ── LOGS TAB ──────────────────────────────────────────── */}
+      {tab === 'logs' && (
+        <div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
+              Historial de emails enviados por las reglas automáticas. Los emails nuevos almacenan el cuerpo para reenvío.
+            </p>
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={loadEmailLogs}
+                disabled={logsLoading}
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium border disabled:opacity-60 transition-colors"
+                style={{ borderColor: 'var(--color-border)', color: 'var(--color-foreground)', backgroundColor: 'var(--color-muted)' }}
+              >
+                {logsLoading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                Actualizar
+              </button>
+              <button
+                onClick={handleBulkRetry}
+                disabled={isPending || logsLoading}
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium border disabled:opacity-60 transition-colors"
+                style={{ borderColor: 'var(--color-border)', color: 'var(--color-foreground)', backgroundColor: 'var(--color-muted)' }}
+              >
+                <RotateCcw size={13} />
+                Reenviar fallidos
+              </button>
+            </div>
+          </div>
+
+          {logsLoading ? (
+            <div className="flex items-center justify-center py-16 gap-2 text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
+              <Loader2 size={16} className="animate-spin" />Cargando historial…
+            </div>
+          ) : !emailLogs || emailLogs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 rounded-xl border"
+              style={{ borderColor: 'var(--color-border)', borderStyle: 'dashed' }}>
+              <Inbox size={24} style={{ color: 'var(--color-muted-foreground)' }} />
+              <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
+                Sin registros de emails. Los emails se registran cuando se envían por una regla automática.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b" style={{ backgroundColor: 'var(--color-muted)', borderColor: 'var(--color-border)' }}>
+                    {['Fecha', 'Destinatario', 'Asunto', 'Estado', 'Reintentos', ''].map(h => (
+                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider"
+                        style={{ color: 'var(--color-muted-foreground)' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y" style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
+                  {emailLogs.map(log => {
+                    const statusColor = log.status === 'sent'
+                      ? 'var(--color-coach)'
+                      : log.status === 'failed' || log.status === 'bounced'
+                        ? 'var(--color-destructive)'
+                        : 'var(--color-muted-foreground)'
+                    const statusLabel = { sent: 'Enviado', failed: 'Fallido', bounced: 'Rebotado', pending: 'Pendiente' }[log.status] ?? log.status
+
+                    return (
+                      <tr key={log.id} className="hover:bg-[var(--color-muted)] transition-colors">
+                        <td className="px-4 py-3 text-xs tabular-nums" style={{ color: 'var(--color-muted-foreground)', whiteSpace: 'nowrap' }}>
+                          {new Date(log.created_at).toLocaleString('es-CR', { dateStyle: 'short', timeStyle: 'short' })}
+                        </td>
+                        <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-foreground)' }}>
+                          {log.to_email}
+                        </td>
+                        <td className="px-4 py-3 text-xs max-w-[220px] truncate" style={{ color: 'var(--color-foreground)' }}>
+                          {log.subject}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                            style={{
+                              backgroundColor: `color-mix(in srgb, ${statusColor} 12%, transparent)`,
+                              color: statusColor,
+                            }}>
+                            {statusLabel}
+                          </span>
+                          {log.error_msg && (
+                            <p className="text-[10px] mt-0.5 max-w-[200px] truncate" style={{ color: 'var(--color-destructive)' }}
+                              title={log.error_msg}>
+                              {log.error_msg}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs tabular-nums text-center" style={{ color: 'var(--color-muted-foreground)' }}>
+                          {log.retry_count > 0 ? log.retry_count : '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          {(log.status === 'failed' || log.status === 'bounced') && (
+                            <button
+                              onClick={() => handleRetry(log.id)}
+                              disabled={isPending || !log.body_html}
+                              title={log.body_html ? 'Reenviar este email' : 'Sin cuerpo almacenado — no se puede reenviar'}
+                              className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md transition-colors disabled:opacity-40"
+                              style={{ color: 'var(--color-admin)', backgroundColor: 'color-mix(in srgb, var(--color-admin) 10%, transparent)' }}
+                            >
+                              <RotateCcw size={11} />Reenviar
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

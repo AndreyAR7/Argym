@@ -525,6 +525,7 @@ Deno.serve(async (req: Request) => {
         template_id: tpl.id,
         to_email:    toEmail,
         subject,
+        body_html:   bodyHtml,
         status,
         error_msg:   errorMsg,
         sent_at:     status === 'sent' ? new Date().toISOString() : null,

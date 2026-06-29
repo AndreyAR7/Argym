@@ -352,6 +352,146 @@ export async function saveSmtpAction(payload: {
   return { ok: true }
 }
 
+// ── Email Logs ────────────────────────────────────────────────────
+
+export interface EmailLog {
+  id: string
+  to_email: string
+  subject: string
+  status: 'pending' | 'sent' | 'failed' | 'bounced'
+  error_msg: string | null
+  body_html: string | null
+  retry_count: number
+  created_at: string
+  sent_at: string | null
+  rule_id: string | null
+  template_id: string | null
+}
+
+export async function getEmailLogsAction(limit = 100): Promise<{ logs?: EmailLog[]; error?: string }> {
+  const session = await getSessionData()
+  if (!session) return { error: 'No autenticado' }
+  const { supabase } = session
+
+  const { data, error } = await supabase
+    .from('email_logs')
+    .select('id, to_email, subject, status, error_msg, body_html, retry_count, created_at, sent_at, rule_id, template_id')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) return { error: error.message }
+  return { logs: (data ?? []) as EmailLog[] }
+}
+
+export async function retryEmailAction(logId: string): Promise<{ ok: boolean; error?: string }> {
+  const session = await getSessionData()
+  if (!session) return { ok: false, error: 'No autenticado' }
+  const { supabase } = session
+
+  const { data: log, error: fetchErr } = await supabase
+    .from('email_logs')
+    .select('to_email, subject, body_html, retry_count')
+    .eq('id', logId)
+    .single()
+
+  if (fetchErr || !log) return { ok: false, error: fetchErr?.message ?? 'Log no encontrado' }
+  if (!log.body_html) {
+    return { ok: false, error: 'Este email no tiene cuerpo almacenado. Los emails nuevos sí lo guardan.' }
+  }
+
+  const { data: config } = await supabase
+    .from('smtp_configs')
+    .select('host, port, username, password, from_email, from_name')
+    .maybeSingle()
+
+  if (!config?.host) return { ok: false, error: 'No hay configuración SMTP guardada' }
+
+  const { createTransport } = await import('nodemailer')
+  const port = Number(config.port)
+  const transporter = createTransport({
+    host: config.host, port,
+    secure: port === 465, requireTLS: port === 587,
+    auth: { user: config.username, pass: config.password },
+    tls: { rejectUnauthorized: false },
+  })
+
+  try {
+    await transporter.sendMail({
+      from: `"${config.from_name}" <${config.from_email}>`,
+      to: log.to_email,
+      subject: log.subject,
+      html: log.body_html,
+    })
+  } catch (err: any) {
+    return { ok: false, error: `Error al enviar: ${err.message}` }
+  }
+
+  await supabase
+    .from('email_logs')
+    .update({ status: 'sent', sent_at: new Date().toISOString(), retry_count: (log.retry_count ?? 0) + 1, last_retry_at: new Date().toISOString(), error_msg: null })
+    .eq('id', logId)
+
+  return { ok: true }
+}
+
+export async function bulkRetryFailedAction(): Promise<{ ok: boolean; sent: number; failed: number; error?: string }> {
+  const session = await getSessionData()
+  if (!session) return { ok: false, sent: 0, failed: 0, error: 'No autenticado' }
+  const { supabase } = session
+
+  const { data: failedLogs } = await supabase
+    .from('email_logs')
+    .select('id, to_email, subject, body_html, retry_count')
+    .eq('status', 'failed')
+    .not('body_html', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(50)
+
+  if (!failedLogs?.length) return { ok: true, sent: 0, failed: 0 }
+
+  const { data: config } = await supabase
+    .from('smtp_configs')
+    .select('host, port, username, password, from_email, from_name')
+    .maybeSingle()
+
+  if (!config?.host) return { ok: false, sent: 0, failed: failedLogs.length, error: 'Sin configuración SMTP' }
+
+  const { createTransport } = await import('nodemailer')
+  const port = Number(config.port)
+  const transporter = createTransport({
+    host: config.host, port,
+    secure: port === 465, requireTLS: port === 587,
+    auth: { user: config.username, pass: config.password },
+    tls: { rejectUnauthorized: false },
+  })
+
+  let sent = 0
+  let failed = 0
+  const now = new Date().toISOString()
+
+  for (const log of failedLogs) {
+    try {
+      await transporter.sendMail({
+        from: `"${config.from_name}" <${config.from_email}>`,
+        to: log.to_email,
+        subject: log.subject,
+        html: log.body_html,
+      })
+      await supabase.from('email_logs').update({
+        status: 'sent', sent_at: now, retry_count: (log.retry_count ?? 0) + 1, last_retry_at: now, error_msg: null,
+      }).eq('id', log.id)
+      sent++
+    } catch {
+      await supabase.from('email_logs').update({
+        retry_count: (log.retry_count ?? 0) + 1, last_retry_at: now,
+      }).eq('id', log.id)
+      failed++
+    }
+  }
+
+  return { ok: true, sent, failed }
+}
+
 export async function testSmtpAction(toEmail: string): Promise<{ ok: boolean; message: string }> {
   const session = await getSessionData()
   if (!session) return { ok: false, message: 'No autenticado' }
