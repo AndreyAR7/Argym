@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTransition } from 'react'
-import { Home, Dumbbell, Video, CalendarDays, Apple, TrendingUp, CreditCard, User, LogOut, X, Sparkles } from 'lucide-react'
+import { Home, Dumbbell, Video, CalendarDays, Apple, TrendingUp, CreditCard, User, LogOut, X, Sparkles, Trophy, BarChart3, Medal, Swords } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logoutAction } from '@/lib/auth/actions'
 
@@ -35,6 +35,15 @@ const NAV = [
     items: [
       { label: 'Nutrición', href: '/client/nutrition', icon: Apple },
       { label: 'Progreso', href: '/client/progress', icon: TrendingUp },
+    ],
+  },
+  {
+    title: 'Comunidad',
+    items: [
+      { label: 'Gamificación', href: '/client/gamificacion', icon: Trophy },
+      { label: 'Ranking', href: '/client/gamificacion/ranking', icon: BarChart3 },
+      { label: 'Logros', href: '/client/gamificacion/logros', icon: Medal },
+      { label: 'Retos', href: '/client/gamificacion/retos', icon: Swords },
     ],
   },
   {
