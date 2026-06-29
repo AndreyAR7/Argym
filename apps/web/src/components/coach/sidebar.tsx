@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTransition } from 'react'
-import { LayoutDashboard, Users, Dumbbell, CalendarDays, Apple, LogOut } from 'lucide-react'
+import { LayoutDashboard, Users, Dumbbell, CalendarDays, Apple, LogOut, User } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logoutAction } from '@/lib/auth/actions'
 
@@ -32,6 +32,10 @@ const NAV = [
   {
     title: 'Agenda',
     items: [{ label: 'Citas', href: '/coach/appointments', icon: CalendarDays }],
+  },
+  {
+    title: 'Cuenta',
+    items: [{ label: 'Mi Perfil', href: '/coach/profile', icon: User }],
   },
 ]
 

@@ -5,6 +5,7 @@ import { ClientAppointmentsCalendar } from '@/components/client/appointments-cal
 import { ClientAppointmentsList } from '@/components/client/client-appointments-list'
 import { CalendarDays, LayoutList } from 'lucide-react'
 import Link from 'next/link'
+import { RequestAppointmentModal } from './request-appointment-modal'
 
 export const metadata = { title: 'Mis Citas' }
 
@@ -70,6 +71,7 @@ export default async function ClientAppointmentsPage({
           ? `Semana del ${localDateStr(weekStart)}`
           : `${all.length} cita${all.length !== 1 ? 's' : ''} en total`}
       >
+        <RequestAppointmentModal />
         {/* View toggle */}
         <div className="flex items-center gap-0 rounded-lg border border-[var(--color-border)] overflow-hidden">
           <Link

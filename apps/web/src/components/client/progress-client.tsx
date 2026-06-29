@@ -280,6 +280,216 @@ function MetricChart({
   )
 }
 
+// ─── Line Chart ──────────────────────────────────────────────
+
+function LineChart({
+  data,
+  color,
+  unit,
+  label,
+}: {
+  data: { date: string; value: number }[]
+  color: string
+  unit: string
+  label: string
+}) {
+  if (data.length < 2) {
+    return (
+      <p className="text-[11px] text-[var(--color-muted-foreground)] italic py-4 text-center">
+        Necesitas al menos 2 mediciones para ver la evolución
+      </p>
+    )
+  }
+
+  const values = data.map((d) => d.value)
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const range = max - min || 0.001
+  const W = 320, H = 120, PX = 44, PY = 10
+
+  // Map each data point to SVG coordinates
+  const pts = data.map((d, i) => ({
+    x: PX + (i / (data.length - 1)) * (W - PX - 8),
+    y: PY + (1 - (d.value - min) / range) * (H - PY - 20),
+    value: d.value,
+    date: d.date,
+  }))
+
+  const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
+  const areaPath = `${linePath} L${pts[pts.length - 1].x.toFixed(1)},${(H - 20).toFixed(1)} L${pts[0].x.toFixed(1)},${(H - 20).toFixed(1)} Z`
+
+  const formatDate = (iso: string) =>
+    new Date(iso.length === 10 ? iso + 'T12:00:00' : iso).toLocaleDateString('es-CR', {
+      day: 'numeric',
+      month: 'short',
+    })
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 120 }} aria-label={label}>
+      {/* Y-axis min/max labels */}
+      <text x="2" y={PY + 4} fontSize="9" fill="var(--color-muted-foreground)" dominantBaseline="hanging">
+        {max.toFixed(1)}{unit}
+      </text>
+      <text x="2" y={H - 22} fontSize="9" fill="var(--color-muted-foreground)" dominantBaseline="auto">
+        {min.toFixed(1)}{unit}
+      </text>
+
+      {/* Filled area */}
+      <path d={areaPath} fill={color} fillOpacity="0.12" />
+
+      {/* Line */}
+      <path d={linePath} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+
+      {/* Data point circles with SVG title tooltip */}
+      {pts.map((p, i) => (
+        <circle key={i} cx={p.x} cy={p.y} r="3" fill={color} stroke="#fff" strokeWidth="1.5">
+          <title>{formatDate(p.date)}: {p.value.toFixed(1)}{unit}</title>
+        </circle>
+      ))}
+
+      {/* X-axis: first date */}
+      <text x={pts[0].x} y={H - 4} fontSize="9" fill="var(--color-muted-foreground)" textAnchor="middle">
+        {formatDate(data[0].date)}
+      </text>
+
+      {/* X-axis: last date */}
+      <text x={pts[pts.length - 1].x} y={H - 4} fontSize="9" fill="var(--color-muted-foreground)" textAnchor="middle">
+        {formatDate(data[data.length - 1].date)}
+      </text>
+    </svg>
+  )
+}
+
+// ─── Metric Trend Card ────────────────────────────────────────
+
+function MetricTrendCard({
+  label,
+  unit,
+  color,
+  data,
+}: {
+  label: string
+  unit: string
+  color: string
+  data: { date: string; value: number }[]
+}) {
+  const latest = data.length > 0 ? data[data.length - 1].value : null
+  const first = data.length > 1 ? data[0].value : null
+  const delta = latest != null && first != null ? Math.round((latest - first) * 10) / 10 : null
+  const sign = delta != null && delta > 0 ? '+' : ''
+
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-semibold text-[var(--color-foreground)]">{label}</span>
+        <div className="flex items-center gap-2 text-xs">
+          {latest != null && (
+            <span className="font-bold" style={{ color }}>
+              {latest.toFixed(1)}{unit}
+            </span>
+          )}
+          {delta != null && (
+            <span
+              className="font-bold"
+              style={{ color: delta === 0 ? 'var(--color-muted-foreground)' : delta < 0 ? '#22c55e' : '#ef4444' }}
+            >
+              {sign}{delta.toFixed(1)}{unit}
+            </span>
+          )}
+        </div>
+      </div>
+      {data.length < 2 ? (
+        <p className="text-[11px] text-[var(--color-muted-foreground)] italic py-4 text-center">
+          Necesitas al menos 2 mediciones para ver la evolución
+        </p>
+      ) : (
+        <LineChart data={data} color={color} unit={unit} label={label} />
+      )}
+    </div>
+  )
+}
+
+// ─── Evolución de medidas section ─────────────────────────────
+
+function EvolucionMedidas({ measurements }: { measurements: BodyMeasurement[] }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  const sorted = [...measurements].reverse() // oldest → newest
+
+  const metrics: { label: string; unit: string; color: string; data: { date: string; value: number }[] }[] = [
+    {
+      label: 'Peso',
+      unit: ' kg',
+      color: '#3b82f6',
+      data: sorted.filter((m) => m.weight_kg != null).map((m) => ({ date: m.measured_at, value: m.weight_kg! })),
+    },
+    {
+      label: '% Grasa corporal',
+      unit: '%',
+      color: '#f59e0b',
+      data: sorted.filter((m) => m.body_fat_pct != null).map((m) => ({ date: m.measured_at, value: m.body_fat_pct! })),
+    },
+    {
+      label: 'Cintura',
+      unit: ' cm',
+      color: '#ef4444',
+      data: sorted.filter((m) => m.waist_cm != null).map((m) => ({ date: m.measured_at, value: m.waist_cm! })),
+    },
+    {
+      label: 'Cadera',
+      unit: ' cm',
+      color: '#8b5cf6',
+      data: sorted.filter((m) => m.hip_cm != null).map((m) => ({ date: m.measured_at, value: m.hip_cm! })),
+    },
+    {
+      label: 'IMC',
+      unit: '',
+      color: '#22c55e',
+      data: sorted
+        .filter((m) => m.weight_kg != null && m.height_cm != null)
+        .map((m) => ({ date: m.measured_at, value: calcBMI(m.weight_kg!, m.height_cm!) })),
+    },
+  ]
+
+  // Only show metrics that have at least 1 data point (cards show the "need 2" message if < 2)
+  const visibleMetrics = metrics.filter((m) => m.data.length >= 1)
+
+  if (visibleMetrics.length === 0) return null
+
+  return (
+    <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)]">
+      <button
+        onClick={() => setIsExpanded((prev) => !prev)}
+        className="w-full flex items-center justify-between px-4 py-3.5 text-left"
+      >
+        <span className="text-sm font-semibold text-[var(--color-foreground)]">
+          📈 Evolución de medidas
+        </span>
+        <span
+          className="text-xs font-bold text-[var(--color-muted-foreground)] transition-transform duration-200"
+          style={{ display: 'inline-block', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+        >
+          ▼
+        </span>
+      </button>
+
+      {isExpanded && (
+        <div className="px-4 pb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          {visibleMetrics.map((m) => (
+            <MetricTrendCard
+              key={m.label}
+              label={m.label}
+              unit={m.unit}
+              color={m.color}
+              data={m.data}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Advice engine ────────────────────────────────────────────
 
 interface AdviceCard { icon: string; title: string; body: string; type: 'success' | 'warning' | 'info' }
@@ -813,6 +1023,8 @@ export function ProgressClient({ measurements, dailyProgress, streak, thisWeekMe
       )}
       {activeTab === 'streak' && <RachaTab streak={streak} />}
       {activeTab === 'analisis' && <AnalisisTab measurements={measurements} dailyProgress={dailyProgress} />}
+
+      <EvolucionMedidas measurements={measurements} />
 
       <MeasurementWizard
         open={showWizard}
