@@ -57,6 +57,7 @@ export default async function ClientHomePage() {
     { data: recentProgress },
     { data: recentVideos },
     { data: activePromo },
+    { data: gameStats },
   ] = await Promise.all([
     supabase.from('profiles').select('full_name').eq('id', user.id).single(),
     supabase.from('routine_assignments').select('id', { count: 'exact', head: true }).eq('client_id', user.id),
@@ -71,6 +72,8 @@ export default async function ClientHomePage() {
     supabase.from('video_assignments').select('id, note, videos(id, title, level, duration_seconds, thumbnail_color, video_storage_path, thumbnail_storage_path)').eq('client_id', user.id).order('assigned_at', { ascending: false }).limit(3),
     // active promotion for this user's plan
     supabase.from('promotions').select('id, title, description, end_date, discount_pct, discount_flat').eq('is_active', true).lte('start_date', todayStr).gte('end_date', todayStr).limit(1).single(),
+    // gamification stats
+    supabase.from('user_game_stats').select('current_streak, total_checkins, xp_total, level').eq('user_id', user.id).single(),
   ])
 
   const planName = (activeSub as any)?.plans?.name
@@ -143,8 +146,8 @@ export default async function ClientHomePage() {
         </div>
       )}
 
-      {/* Today's progress + streak */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Today's progress + streaks */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Link
           href="/client/routine"
           className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 hover:shadow-sm transition-shadow"
@@ -171,12 +174,24 @@ export default async function ClientHomePage() {
           className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 hover:shadow-sm transition-shadow"
         >
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Racha</p>
+            <p className="text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Rutina 🏋️</p>
             <Flame size={14} className="text-amber-500" />
           </div>
           <p className="text-3xl font-black text-amber-500">{streak}🔥</p>
+          <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">días de ejercicio</p>
+        </Link>
+
+        <Link
+          href="/client/gamificacion"
+          className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 hover:shadow-sm transition-shadow"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Check-in 📍</p>
+            <Flame size={14} style={{ color: '#10b981' }} />
+          </div>
+          <p className="text-3xl font-black" style={{ color: '#10b981' }}>{gameStats?.current_streak ?? 0}🔥</p>
           <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
-            {streak === 0 ? 'Empieza hoy' : streak === 1 ? '1 día seguido' : `${streak} días seguidos`}
+            visitas al gym · {gameStats?.total_checkins ?? 0} total
           </p>
         </Link>
       </div>
@@ -187,6 +202,19 @@ export default async function ClientHomePage() {
         <StatCard label="Videos" value={videoCount ?? 0} icon={<Video size={16} />} color="#8b5cf6" href="/client/videos" />
         <StatCard label="Citas" value={appointmentCount ?? 0} icon={<CalendarDays size={16} />} color="var(--color-coach)" href="/client/appointments" />
       </div>
+
+      {/* Gamification teaser */}
+      {gameStats && (
+        <Link href="/client/gamificacion" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-4 flex items-center gap-4 hover:shadow-sm transition-shadow">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style={{ backgroundColor: '#f59e0b18' }}>
+            🏆
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-[var(--color-foreground)]">Nivel {gameStats.level} · {gameStats.xp_total?.toLocaleString('es-CR')} XP</p>
+            <p className="text-xs text-[var(--color-muted-foreground)]">Ver tu progreso de gamificación →</p>
+          </div>
+        </Link>
+      )}
 
       {/* Featured videos */}
       {videos.length > 0 && (
