@@ -5,9 +5,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as WebBrowser from 'expo-web-browser';
 import { useTheme } from '@/hooks/useTheme';
 import { usePlansStore } from '@/store/plans.store';
 import { useAuthStore } from '@/store/auth.store';
+import { supabase } from '@/lib/supabase';
 import { ClientTopBar } from '@/components/client/ClientTopBar';
 import { PlanCard } from '@/components/plans/PlanCard';
 import { PaymentModal } from '@/components/plans/PaymentModal';
@@ -84,7 +86,7 @@ function PromoCard({ promo, onPress }: { promo: Promotion; onPress: (p: Promotio
 export default function ClientPromotionsScreen() {
   const T = useTheme();
   const { user } = useAuthStore();
-  const { promotions, isLoadingPromos, fetchPromotions, mySubscriptions, mockSubscribe } = usePlansStore();
+  const { promotions, isLoadingPromos, fetchPromotions, fetchMySubscription, mySubscriptions } = usePlansStore();
 
   const [selectedOffer, setSelectedOffer] = useState<Promotion | null>(null);
   const [offerPlans, setOfferPlans] = useState<Plan[]>([]);
@@ -116,7 +118,31 @@ export default function ClientPromotionsScreen() {
 
   const handlePaymentConfirm = async (plan: Plan, promoId?: string) => {
     if (!user) throw new Error('Usuario no autenticado');
-    await mockSubscribe(plan.id, user.id, user.tenant_id, promoId);
+
+    const { data: { session: authSession } } = await supabase.auth.getSession();
+    const token = authSession?.access_token;
+    if (!token) throw new Error('No autenticado');
+
+    const siteUrl = process.env.EXPO_PUBLIC_SITE_URL;
+    if (!siteUrl) throw new Error('EXPO_PUBLIC_SITE_URL no configurado');
+
+    const res = await fetch(`${siteUrl}/api/stripe/checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ planId: plan.id, promotionId: promoId ?? null }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error ?? `Error ${res.status}`);
+    }
+
+    const { url } = await res.json();
+    await WebBrowser.openBrowserAsync(url);
+    await fetchMySubscription(user.id, user.tenant_id);
   };
 
   return (

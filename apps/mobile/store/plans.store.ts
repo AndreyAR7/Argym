@@ -74,7 +74,6 @@ interface PlansActions {
   togglePromotion: (id: string, isActive: boolean) => Promise<void>;
   subscribeToRealtime: (tenantId: string) => () => void;
   dismissPromotion: () => void;
-  mockSubscribe: (planId: string, userId: string, tenantId: string, promoId?: string) => Promise<void>;
 }
 
 export const usePlansStore = create<PlansState & PlansActions>()((set, get) => ({
@@ -247,41 +246,4 @@ export const usePlansStore = create<PlansState & PlansActions>()((set, get) => (
   },
 
   dismissPromotion: () => set({ activePromotion: null }),
-
-  mockSubscribe: async (planId, userId, tenantId, promoId) => {
-    const plan = get().plans.find((p) => p.id === planId);
-    if (!plan) throw new Error('Plan no encontrado');
-
-    let finalPrice = plan.price;
-    if (promoId) {
-      const promo = get().promotions.find((p) => p.id === promoId);
-      if (promo?.discount_percentage) {
-        finalPrice = plan.price * (1 - promo.discount_percentage / 100);
-      } else if (promo?.discount_amount) {
-        finalPrice = Math.max(0, plan.price - promo.discount_amount);
-      }
-    }
-
-    const { data, error } = await supabase
-      .from('user_subscriptions')
-      .insert({
-        user_id: userId,
-        tenant_id: tenantId,
-        plan_id: planId,
-        promotion_id: promoId ?? null,
-        status: 'active',
-        start_date: new Date().toISOString(),
-        final_price: finalPrice,
-        payment_reference: `MOCK-${Date.now()}`,
-      })
-      .select('*, plan:plans(*)')
-      .single();
-
-    if (error) throw error;
-    const newSub = data as UserSubscription;
-    set((s) => ({
-      mySubscription: newSub,
-      mySubscriptions: [...s.mySubscriptions, newSub],
-    }));
-  },
 }));

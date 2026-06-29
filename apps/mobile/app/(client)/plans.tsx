@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, FlatList, Modal, ScrollView,
+  View, Text, FlatList, Modal, ScrollView, Alert,
   StyleSheet, ActivityIndicator, StatusBar, TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
 import { useTheme } from '@/hooks/useTheme';
 import { usePlansStore } from '@/store/plans.store';
 import { useAuthStore } from '@/store/auth.store';
+import { supabase } from '@/lib/supabase';
 import { PlanCard } from '@/components/plans/PlanCard';
 import { OfferCard } from '@/components/plans/OfferCard';
 import { PaymentModal } from '@/components/plans/PaymentModal';
@@ -35,7 +37,7 @@ export default function ClientPlansScreen() {
   const {
     promotions, mySubscriptions,
     isLoadingPromos, fetchPlans, fetchPromotions, fetchMySubscription,
-    subscribeToRealtime, mockSubscribe,
+    subscribeToRealtime,
   } = usePlansStore();
 
   // Offer drill-in state
@@ -78,7 +80,32 @@ export default function ClientPlansScreen() {
 
   const handlePaymentConfirm = async (plan: Plan, promoId?: string) => {
     if (!user) throw new Error('Usuario no autenticado');
-    await mockSubscribe(plan.id, user.id, user.tenant_id, promoId);
+
+    const { data: { session: authSession } } = await supabase.auth.getSession();
+    const token = authSession?.access_token;
+    if (!token) throw new Error('No autenticado');
+
+    const siteUrl = process.env.EXPO_PUBLIC_SITE_URL;
+    if (!siteUrl) throw new Error('EXPO_PUBLIC_SITE_URL no configurado');
+
+    const res = await fetch(`${siteUrl}/api/stripe/checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ planId: plan.id, promotionId: promoId ?? null }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error ?? `Error ${res.status}`);
+    }
+
+    const { url } = await res.json();
+    await WebBrowser.openBrowserAsync(url);
+    // Refresh subscription after browser closes (webhook may have already created it)
+    await fetchMySubscription(user.id, user.tenant_id);
   };
 
   // The active discount promo for the current offer (if discount type)

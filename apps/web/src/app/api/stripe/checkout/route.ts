@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getStripe } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 export async function POST(req: NextRequest) {
   try {
     const { planId, promotionId } = await req.json()
     if (!planId) return NextResponse.json({ error: 'planId required' }, { status: 400 })
 
-    const supabase = await createClient()
+    // Support both cookie-based auth (web) and Bearer token (mobile)
+    const authHeader = req.headers.get('Authorization')
+    const supabase = authHeader?.startsWith('Bearer ')
+      ? createSupabaseClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          { global: { headers: { Authorization: authHeader } } },
+        )
+      : await createClient()
+
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

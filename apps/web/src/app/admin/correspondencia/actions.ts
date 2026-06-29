@@ -1,6 +1,7 @@
 'use server'
 
 import { getSessionData } from '@/lib/auth/session'
+import { createAdminClient } from '@/lib/supabase/server-admin'
 import { createTransport } from 'nodemailer'
 
 // ── Shared HTML helpers ────────────────────────────────────────
@@ -499,11 +500,13 @@ export async function testSmtpAction(toEmail: string): Promise<{ ok: boolean; me
   const session = await getSessionData()
   if (!session) return { ok: false, message: 'No autenticado' }
 
-  const { supabase } = session
+  // Use admin client to bypass any RLS issues reading the SMTP config
+  const adminSupabase = await createAdminClient()
 
-  const { data: config, error } = await supabase
+  const { data: config, error } = await adminSupabase
     .from('smtp_configs')
     .select('host, port, username, password, from_email, from_name, use_tls')
+    .eq('tenant_id', session.tenantId)
     .maybeSingle()
 
   if (error) return { ok: false, message: `Error al leer configuración: ${error.message}` }
@@ -523,7 +526,12 @@ export async function testSmtpAction(toEmail: string): Promise<{ ok: boolean; me
   })
 
   try {
-    await transporter.verify()
+    await Promise.race([
+      transporter.verify(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(Object.assign(new Error('ETIMEDOUT'), { code: 'ETIMEDOUT' })), 15000)
+      ),
+    ])
   } catch (err: any) {
     const msg  = err.message ?? String(err)
     const code = err.responseCode ?? err.code ?? ''
