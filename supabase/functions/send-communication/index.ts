@@ -163,24 +163,42 @@ async function buildReceiptAttachments(d: ReceiptData): Promise<Attachment[]> {
   ]
 }
 
+// ── UUID validation helper ────────────────────────────────────────────────────
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// ── Allowed event types (whitelist) ─────────────────────────────────────────
+const VALID_EVENT_TYPES = new Set([
+  'appointment.created', 'appointment.confirmed', 'appointment.cancelled',
+  'appointment.reminder', 'plan.purchased', 'plan.expiring', 'plan.expired',
+  'promotion.used', 'client.approved', 'client.welcome',
+  'payment.failed', 'subscription.cancelled',
+])
+
+// ── Service client (module-level, reused across requests) ───────────────────
+const supabaseAdmin = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+)
+
 // ── Main handler ─────────────────────────────────────────────────────────────
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 })
 
-  // ── Validate caller identity ────────────────────────────────────
-  const authHeader = req.headers.get('Authorization')
-  if (!authHeader?.startsWith('Bearer ')) {
-    return new Response('Unauthorized', { status: 401 })
-  }
+  // ── Auth: two paths ─────────────────────────────────────────────
+  // Path A — internal call from DB trigger / cron:
+  //   Header x-webhook-secret must match the vault-stored secret.
+  //   tenant_id is trusted from the JSON body (trigger already validated the row).
+  // Path B — external call (e.g. from a server action):
+  //   Standard Supabase Bearer JWT + tenant membership check.
 
-  const callerClient = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: authHeader } } },
-  )
-  const { data: { user: callerUser } } = await callerClient.auth.getUser()
-  if (!callerUser) {
-    return new Response('Unauthorized', { status: 401 })
+  const webhookSecret = req.headers.get('x-webhook-secret')
+  const authHeader    = req.headers.get('Authorization')
+
+  // Reject oversized bodies before reading (triggers send tiny JSON payloads;
+  // anything over 8 KB is suspicious and could be a DoS attempt)
+  const contentLength = req.headers.get('content-length')
+  if (contentLength && parseInt(contentLength, 10) > 8192) {
+    return new Response('Payload Too Large', { status: 413 })
   }
 
   let payload: Payload
@@ -191,26 +209,64 @@ Deno.serve(async (req: Request) => {
   }
 
   const { event_type, tenant_id } = payload
-  if (!event_type || !tenant_id) {
-    return new Response('Missing required fields', { status: 400 })
+
+  // Input validation (applied regardless of auth path)
+  if (!event_type || !VALID_EVENT_TYPES.has(event_type)) {
+    return new Response('Invalid event_type', { status: 400 })
   }
+  if (!tenant_id || !UUID_RE.test(tenant_id)) {
+    return new Response('Invalid tenant_id', { status: 400 })
+  }
+  if (payload.appointment_id  && !UUID_RE.test(payload.appointment_id))  return new Response('Invalid appointment_id',  { status: 400 })
+  if (payload.subscription_id && !UUID_RE.test(payload.subscription_id)) return new Response('Invalid subscription_id', { status: 400 })
+  if (payload.user_id         && !UUID_RE.test(payload.user_id))         return new Response('Invalid user_id',         { status: 400 })
 
-  // Validate the caller's tenant matches the requested tenant
-  const { data: callerProfile } = await callerClient
-    .from('profiles')
-    .select('tenant_id')
-    .eq('id', callerUser.id)
-    .single()
+  if (webhookSecret) {
+    // ── Path A: internal DB trigger / cron ──────────────────────
+    const { data: secretRow } = await supabaseAdmin
+      .rpc('get_webhook_secret') as { data: string | null; error: unknown }
 
-  if (!callerProfile || callerProfile.tenant_id !== tenant_id) {
-    return new Response('Forbidden', { status: 403 })
+    if (!secretRow || webhookSecret !== secretRow) {
+      return new Response('Forbidden', { status: 403 })
+    }
+    // Verify the tenant actually exists (prevents spoofed tenant_id payloads)
+    const { data: tenantExists } = await supabaseAdmin
+      .from('tenants')
+      .select('id')
+      .eq('id', tenant_id)
+      .maybeSingle()
+    if (!tenantExists) {
+      return new Response('Unknown tenant', { status: 403 })
+    }
+  } else {
+    // ── Path B: external Bearer JWT ─────────────────────────────
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response('Unauthorized', { status: 401 })
+    }
+
+    const callerClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
+    )
+    const { data: { user: callerUser } } = await callerClient.auth.getUser()
+    if (!callerUser) {
+      return new Response('Unauthorized', { status: 401 })
+    }
+
+    const { data: callerProfile } = await callerClient
+      .from('profiles')
+      .select('tenant_id')
+      .eq('id', callerUser.id)
+      .single()
+
+    if (!callerProfile || callerProfile.tenant_id !== tenant_id) {
+      return new Response('Forbidden', { status: 403 })
+    }
   }
 
   // Service client for privileged DB operations (emails, SMTP config, etc.)
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-  )
+  const supabase = supabaseAdmin
 
   // ── 1. Matching active rules ────────────────────────────────────
   const { data: rules, error: rulesErr } = await supabase
@@ -309,7 +365,8 @@ Deno.serve(async (req: Request) => {
       plan_name: appt.appointment_type ?? appt.title ?? 'Entrenamiento',
     }
   } else if (
-    (event_type.startsWith('plan.') || event_type.startsWith('promotion.')) &&
+    (event_type.startsWith('plan.') || event_type.startsWith('promotion.') ||
+     event_type === 'payment.failed' || event_type === 'subscription.cancelled') &&
     payload.subscription_id
   ) {
     // ── Subscription / plan event ─────────────────────────────────

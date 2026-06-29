@@ -398,6 +398,9 @@ export async function retryEmailAction(logId: string): Promise<{ ok: boolean; er
   if (!log.body_html) {
     return { ok: false, error: 'Este email no tiene cuerpo almacenado. Los emails nuevos sí lo guardan.' }
   }
+  if ((log.retry_count ?? 0) >= 10) {
+    return { ok: false, error: 'Límite de reintentos alcanzado (máx 10). Crea un nuevo email desde las reglas.' }
+  }
 
   const { data: config } = await supabase
     .from('smtp_configs')
