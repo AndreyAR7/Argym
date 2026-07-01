@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSessionData } from '@/lib/auth/session'
+import { getUserUnlocks } from '@/lib/gamification/get-user-unlocks'
 import { ChallengeActions } from './challenge-actions'
 
 export const metadata = { title: 'Retos' }
@@ -158,10 +159,15 @@ export default async function RetosPage() {
   const { supabase, tenantId, user } = session
   const userId = user.id
 
-  const { data, error } = await supabase.rpc('get_user_challenges', {
-    p_user_id: userId,
-    p_tenant_id: tenantId,
-  })
+  const [{ data, error }, unlocks] = await Promise.all([
+    supabase.rpc('get_user_challenges', {
+      p_user_id: userId,
+      p_tenant_id: tenantId,
+    }),
+    getUserUnlocks(userId),
+  ])
+
+  const canCreateChallenges = unlocks.can_create_challenges
 
   const challenges: Challenge[] = error ? [] : (data ?? [])
   const sorted = sortChallenges(challenges)
@@ -182,15 +188,21 @@ export default async function RetosPage() {
           <h1 className="text-2xl font-black text-[var(--color-foreground)]">⚔️ Retos</h1>
         </div>
 
-        <Link
-          href="/client/gamificacion/retos/nuevo"
-          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[var(--color-client)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-95"
-        >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Crear reto
-        </Link>
+        {canCreateChallenges ? (
+          <Link
+            href="/client/gamificacion/retos/nuevo"
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[var(--color-client)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-95"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Crear reto
+          </Link>
+        ) : (
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-muted)]/50 px-4 py-2.5 text-sm font-semibold text-[var(--color-muted-foreground)] cursor-not-allowed select-none">
+            🔒 Nivel 5 requerido
+          </span>
+        )}
       </div>
 
       {/* Error notice */}
@@ -215,17 +227,26 @@ export default async function RetosPage() {
               No hay retos activos
             </p>
             <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-              ¡Crea el primero!
+              {canCreateChallenges ? '¡Crea el primero!' : 'Alcanza el Nivel 5 para crear el primero.'}
             </p>
-            <Link
-              href="/client/gamificacion/retos/nuevo"
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[var(--color-client)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-95"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              Crear reto
-            </Link>
+            {canCreateChallenges ? (
+              <Link
+                href="/client/gamificacion/retos/nuevo"
+                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[var(--color-client)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 active:scale-95"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Crear reto
+              </Link>
+            ) : (
+              <Link
+                href="/client/gamificacion"
+                className="mt-6 inline-flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-muted)]/50 px-5 py-2.5 text-sm font-semibold text-[var(--color-muted-foreground)] transition-all hover:bg-[var(--color-muted)] active:scale-95"
+              >
+                Ver mi progreso →
+              </Link>
+            )}
           </div>
         )
       )}
