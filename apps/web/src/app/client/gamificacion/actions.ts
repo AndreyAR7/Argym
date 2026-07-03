@@ -1,6 +1,7 @@
 'use server'
 
 import { getSessionData } from '@/lib/auth/session'
+import { createAdminClient } from '@/lib/supabase/server-admin'
 
 export interface CheckinResult {
   success: boolean
@@ -82,19 +83,45 @@ export async function completeChallengeAction(
   return data as { success: boolean; xp_earned?: number }
 }
 
+export async function getTenantMembersAction(): Promise<
+  { id: string; full_name: string }[]
+> {
+  const session = await getSessionData()
+  if (!session) return []
+
+  const { supabase, tenantId, user } = session
+
+  const { data } = await supabase
+    .from('profiles')
+    .select('user_id, full_name')
+    .eq('tenant_id', tenantId)
+    .eq('role', 'client')
+    .neq('user_id', user.id)
+    .order('full_name')
+
+  return (data ?? []).map((p) => ({
+    id: p.user_id as string,
+    full_name: (p.full_name as string) ?? 'Sin nombre',
+  }))
+}
+
 export async function createChallengeAction(params: {
   title: string
   description: string
   challengeType: 'global' | '1v1' | 'group'
   xpReward: number
   expiresIn: '1w' | '2w' | '1m' | null
+  opponentId?: string
 }): Promise<{ success: boolean; id?: string; error?: string }> {
   const session = await getSessionData()
   if (!session) return { success: false, error: 'No autenticado' }
 
+  if (params.challengeType === '1v1' && !params.opponentId) {
+    return { success: false, error: 'Debes seleccionar un oponente para el reto 1v1.' }
+  }
+
   const { supabase, tenantId, user } = session
 
-  // Compute expires_at from expiresIn
   let expiresAt: string | null = null
   if (params.expiresIn) {
     const d = new Date()
@@ -118,19 +145,31 @@ export async function createChallengeAction(params: {
       status: 'active',
       starts_at: new Date().toISOString(),
       expires_at: expiresAt,
+      max_participants: params.challengeType === '1v1' ? 2 : null,
     })
     .select('id')
     .single()
 
   if (challengeError) return { success: false, error: challengeError.message }
 
-  // Add creator as first participant (accepted)
+  // Creator joins as accepted
   await supabase.from('challenge_participants').insert({
     challenge_id: challenge.id,
     user_id: user.id,
     status: 'accepted',
     invited_by: user.id,
   })
+
+  // For 1v1: invite the opponent via service role (bypasses own-write RLS)
+  if (params.challengeType === '1v1' && params.opponentId) {
+    const adminClient = await createAdminClient()
+    await adminClient.from('challenge_participants').insert({
+      challenge_id: challenge.id,
+      user_id: params.opponentId,
+      status: 'pending',
+      invited_by: user.id,
+    })
+  }
 
   return { success: true, id: challenge.id }
 }
