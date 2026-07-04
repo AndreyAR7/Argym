@@ -8,6 +8,8 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   // Supabase storage for images/avatars; data: for inline base64 images
   "img-src 'self' data: blob: https://*.supabase.co",
+  // Supabase storage for video playback (signed URLs from private buckets)
+  "media-src 'self' blob: https://*.supabase.co",
   "font-src 'self' data:",
   // Supabase API + realtime WS; Stripe API for server-side calls proxied
   // through Next.js server actions (never from the browser directly)
