@@ -5,6 +5,7 @@ import { RoutineToggle } from '@/components/admin/routine-toggle'
 import { RoutineSearch } from '@/components/admin/routine-search'
 import { NewRoutineButton } from '@/components/admin/new-routine-button'
 import { RoutineDeleteButton } from '@/components/admin/routine-delete-button'
+import { RoutineCloneButton } from '@/components/admin/routine-clone-button'
 import { Dumbbell } from 'lucide-react'
 import Link from 'next/link'
 
@@ -127,6 +128,7 @@ export default async function RoutinesPage({
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
+                      <RoutineCloneButton routineId={routine.id} routineName={routine.name} />
                       <RoutineDeleteButton routineId={routine.id} routineName={routine.name} />
                       <Link
                         href={`/admin/routines/${routine.id}`}

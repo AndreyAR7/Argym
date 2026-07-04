@@ -59,5 +59,16 @@ export async function sendPushNotificationAction(data: {
   })
 
   if (error) return { error: error.message }
+
+  // Log the broadcast (best-effort — don't fail if insert fails)
+  await supabase.from('notification_broadcasts').insert({
+    tenant_id: profile!.tenant_id,
+    sent_by: user.id,
+    title: data.title,
+    body: data.body,
+    target_role: data.target_role,
+  })
+
+  revalidatePath('/admin/notifications')
   return { success: true }
 }

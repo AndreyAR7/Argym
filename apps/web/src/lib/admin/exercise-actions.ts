@@ -151,3 +151,56 @@ export async function deleteRoutineAction(routineId: string) {
     return { success: false, error: e.message }
   }
 }
+
+export async function cloneRoutineAction(routineId: string) {
+  try {
+    const { supabase, user, tenantId } = await getContext()
+
+    // Fetch original routine
+    const { data: original, error: fetchErr } = await supabase
+      .from('routines')
+      .select('name, description, level, allowed_plans, allowed_levels, is_template')
+      .eq('id', routineId)
+      .eq('tenant_id', tenantId)
+      .single()
+    if (fetchErr || !original) throw fetchErr ?? new Error('Rutina no encontrada')
+
+    // Fetch exercises
+    const { data: exercises } = await supabase
+      .from('exercises')
+      .select('name, muscle, sets, reps, rest_seconds, notes, sort_order, demo_video_storage_path, demo_video_bucket')
+      .eq('routine_id', routineId)
+      .order('sort_order', { ascending: true })
+
+    // Create new routine
+    const { data: cloned, error: insertErr } = await supabase
+      .from('routines')
+      .insert({
+        tenant_id:      tenantId,
+        created_by:     user.id,
+        name:           `${original.name} (Copia)`,
+        description:    original.description,
+        level:          original.level,
+        allowed_plans:  original.allowed_plans,
+        allowed_levels: original.allowed_levels,
+        is_template:    original.is_template,
+        is_active:      false,
+      })
+      .select('id')
+      .single()
+    if (insertErr || !cloned) throw insertErr ?? new Error('No se pudo crear la copia')
+
+    // Clone exercises if any
+    if (exercises && exercises.length > 0) {
+      const { error: exErr } = await supabase.from('exercises').insert(
+        exercises.map((ex) => ({ ...ex, routine_id: cloned.id, tenant_id: tenantId }))
+      )
+      if (exErr) throw exErr
+    }
+
+    revalidatePath('/admin/routines')
+    return { success: true, routineId: cloned.id }
+  } catch (e: any) {
+    return { success: false, error: e.message }
+  }
+}
