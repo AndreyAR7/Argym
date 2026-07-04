@@ -47,16 +47,17 @@ export function VideoPlayerModal({ title, storagePath, bucket = 'videos', videoI
   const [fullscreen,   setFullscreen]   = useState(false)
   const [showControls, setShowControls] = useState(true)
 
-  // ── Signed URL ──────────────────────────────────────────────────────────────
+  // ── Signed URL via server-side API route (avoids storage RLS with anon key) ─
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const supabase = createClient()
-        const { data, error } = await supabase.storage
-          .from(bucket).createSignedUrl(storagePath, 3600)
-        if (error) throw error
-        if (!cancelled) setVideoUrl(data.signedUrl)
+        const res = await fetch(
+          `/api/video-url?path=${encodeURIComponent(storagePath)}&bucket=${encodeURIComponent(bucket)}`,
+        )
+        const json = await res.json()
+        if (!res.ok) throw new Error(json.error ?? 'No se pudo cargar el video')
+        if (!cancelled) setVideoUrl(json.url)
       } catch (e: any) {
         if (!cancelled) setError(e.message ?? 'No se pudo cargar el video')
       } finally {
