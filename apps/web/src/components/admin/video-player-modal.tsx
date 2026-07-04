@@ -55,6 +55,10 @@ export function VideoPlayerModal({ title, storagePath, bucket = 'videos', videoI
         const res = await fetch(
           `/api/video-url?path=${encodeURIComponent(storagePath)}&bucket=${encodeURIComponent(bucket)}`,
         )
+        const contentType = res.headers.get('content-type') ?? ''
+        if (!contentType.includes('application/json')) {
+          throw new Error(`Error del servidor (${res.status})`)
+        }
         const json = await res.json()
         if (!res.ok) throw new Error(json.error ?? 'No se pudo cargar el video')
         if (!cancelled) setVideoUrl(json.url)
