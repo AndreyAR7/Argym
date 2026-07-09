@@ -45,7 +45,6 @@ export default function CheckinScanPage() {
             const url = new URL(code.data)
             if (url.pathname.includes('/checkin') && url.searchParams.get('branch')) {
               stopCamera()
-              setDetectedUrl(code.data)
               setStatus('detected')
               // Navigate to the existing checkin page — it handles validation + result display
               const dest = url.pathname + url.search
