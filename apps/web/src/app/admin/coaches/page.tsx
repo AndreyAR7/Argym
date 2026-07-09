@@ -2,6 +2,7 @@ import { getSessionData } from '@/lib/auth/session'
 import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
 import { PageHeader } from '@/components/shared/page-header'
+import { Pagination } from '@/components/shared/pagination'
 import { ClientRowActions } from '@/components/admin/client-row-actions'
 import { CoachFilters } from '@/components/admin/coach-filters'
 import { ManageCoachClientsButton } from '@/components/admin/manage-coach-clients-button'
@@ -12,15 +13,19 @@ import { ElevateCoachButton } from '@/components/admin/elevate-coach-modal'
 
 export const metadata = { title: 'Coaches' }
 
+const PAGE_SIZE = 20
+
 export default async function CoachesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; status?: string; branch?: string }>
+  searchParams: Promise<{ search?: string; status?: string; branch?: string; page?: string }>
 }) {
   const params = await searchParams
   const search = params.search ?? ''
   const status = params.status ?? 'approved'
   const branchFilter = params.branch ?? 'all'
+  const page   = Math.max(1, parseInt(params.page ?? '1'))
+  const offset = (page - 1) * PAGE_SIZE
 
   const session = await getSessionData()
   const { supabase, tenantId } = session!
@@ -50,7 +55,9 @@ export default async function CoachesPage({
   if (status !== 'all') query = query.eq('approval_status', status)
   if (branchFilter !== 'all') query = query.eq('branch_id', branchFilter)
 
-  const { data: coaches, count } = await query.order('full_name', { ascending: true })
+  const { data: coaches, count } = await query
+    .order('full_name', { ascending: true })
+    .range(offset, offset + PAGE_SIZE - 1)
 
   return (
     <div className="p-4 md:p-8">
@@ -142,6 +149,8 @@ export default async function CoachesPage({
           </tbody>
         </table>
       </div>
+
+      <Pagination total={count ?? 0} pageSize={PAGE_SIZE} currentPage={page} />
     </div>
   )
 }

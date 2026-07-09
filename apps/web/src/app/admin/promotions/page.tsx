@@ -1,5 +1,6 @@
 import { getSessionData } from '@/lib/auth/session'
 import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
 import { NewPromotionButton } from '@/components/admin/new-promotion-button'
 import { PromotionCard } from '@/components/admin/promotion-card'
 import { Tag, Megaphone, Package, Percent } from 'lucide-react'
@@ -33,7 +34,14 @@ const CATEGORIES = [
   },
 ] as const
 
-export default async function PromotionsPage() {
+export default async function PromotionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>
+}) {
+  const params = await searchParams
+  const q = params.q ?? ''
+
   const session = await getSessionData()
   const { supabase, tenantId } = session!
 
@@ -57,7 +65,9 @@ export default async function PromotionsPage() {
       .order('name'),
   ])
 
-  const all = promotions ?? []
+  const all = (promotions ?? []).filter(p =>
+    !q || p.title.toLowerCase().includes(q.toLowerCase()),
+  )
   const plansList = plans ?? []
   const branchesList = branches ?? []
   const activeCount = all.filter((p) => p.is_active).length
@@ -70,6 +80,10 @@ export default async function PromotionsPage() {
       >
         <NewPromotionButton plans={plansList} branches={branchesList} />
       </PageHeader>
+
+      <div className="mt-4">
+        <SearchInput placeholder="Buscar promoción..." className="max-w-xs" />
+      </div>
 
       {all.length === 0 ? (
         <div className="mt-16 flex flex-col items-center gap-3 text-center">

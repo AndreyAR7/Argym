@@ -1,12 +1,20 @@
 import { getSessionData } from '@/lib/auth/session'
 import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
 import { PlanCard } from '@/components/admin/plan-card'
 import { NewPlanButton } from '@/components/admin/new-plan-button'
 import { LayoutGrid } from 'lucide-react'
 
 export const metadata = { title: 'Planes' }
 
-export default async function PlansPage() {
+export default async function PlansPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>
+}) {
+  const params = await searchParams
+  const q = params.q ?? ''
+
   const session = await getSessionData()
   const { supabase, tenantId } = session!
 
@@ -18,12 +26,16 @@ export default async function PlansPage() {
       .eq('tenant_id', tenantId)
       .eq('is_active', true)
       .order('name'),
-    supabase
-      .from('plans')
-      .select('id, name, description, price, currency, billing_cycle, features, is_active, sort_order, expiry_date, plan_tier, branch_id')
-      .eq('tenant_id', tenantId)
-      .order('sort_order', { ascending: true })
-      .order('created_at', { ascending: true }),
+    (() => {
+      let q2 = supabase
+        .from('plans')
+        .select('id, name, description, price, currency, billing_cycle, features, is_active, sort_order, expiry_date, plan_tier, branch_id')
+        .eq('tenant_id', tenantId)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true })
+      if (q) q2 = q2.ilike('name', `%${q}%`)
+      return q2
+    })(),
   ])
 
   // Get subscriber counts per plan
@@ -55,6 +67,11 @@ export default async function PlansPage() {
       >
         <NewPlanButton branches={branches ?? []} />
       </PageHeader>
+
+      {/* Search */}
+      <div className="mt-6">
+        <SearchInput placeholder="Buscar plan..." className="max-w-xs" />
+      </div>
 
       {plansWithCounts.length === 0 ? (
         <div className="mt-16 flex flex-col items-center gap-4 text-center">

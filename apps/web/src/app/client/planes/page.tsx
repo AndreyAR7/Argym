@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
 import { CheckCircle2, CreditCard, Tag, Sparkles } from 'lucide-react'
 import { SubscribeButton } from '@/components/client/subscribe-button'
 
@@ -25,7 +26,14 @@ const LEVEL_LABELS: Record<string, string> = {
   advanced: 'Avanzado',
 }
 
-export default async function ClientPlanesPage() {
+export default async function ClientPlanesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>
+}) {
+  const params = await searchParams
+  const q = params.q ?? ''
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -124,6 +132,10 @@ export default async function ClientPlanesPage() {
 
   const clientLevelLabel = profile.client_level ? LEVEL_LABELS[profile.client_level] ?? profile.client_level : null
 
+  const visiblePlans = q
+    ? plans.filter((p: any) => p.name.toLowerCase().includes(q.toLowerCase()))
+    : plans
+
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
       <PageHeader
@@ -151,6 +163,11 @@ export default async function ClientPlanesPage() {
         </div>
       )}
 
+      {/* Search */}
+      <div className="mt-4">
+        <SearchInput placeholder="Buscar plan..." className="max-w-xs" />
+      </div>
+
       {/* Plans grid */}
       {plans.length === 0 ? (
         <div className="mt-10 rounded-xl border border-dashed border-[var(--color-border)] p-16 text-center">
@@ -164,7 +181,7 @@ export default async function ClientPlanesPage() {
         </div>
       ) : (
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {plans.map((plan: any) => {
+          {visiblePlans.map((plan: any) => {
             const promo = promoByPlan.get(plan.id)
             const alreadySubscribed = subscribedPlanIds.has(plan.id)
             const finalPrice = promo ? computeDiscountedPrice(plan.price, promo) : plan.price

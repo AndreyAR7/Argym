@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { getSessionData } from '@/lib/auth/session'
+import { SearchInput } from '@/components/shared/search-input'
+import { Pagination } from '@/components/shared/pagination'
 import { Plus, Circle } from 'lucide-react'
 
 export const metadata = { title: 'Gimnasios — ARGYM HQ' }
@@ -14,7 +16,17 @@ function adminClient() {
   )
 }
 
-export default async function TenantsPage() {
+const PAGE_SIZE = 20
+
+export default async function TenantsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string }>
+}) {
+  const params = await searchParams
+  const q    = params.q ?? ''
+  const page = Math.max(1, parseInt(params.page ?? '1'))
+
   const session = await getSessionData()
   if (!session) redirect('/login')
   if (session.role !== 'admin') redirect('/')
@@ -64,7 +76,11 @@ export default async function TenantsPage() {
     expired:   { label: 'Expirado', color: '#525252' },
   }
 
-  const rows = tenants ?? []
+  const allRows = tenants ?? []
+  const filtered = q
+    ? allRows.filter(t => t.name.toLowerCase().includes(q.toLowerCase()) || t.slug.toLowerCase().includes(q.toLowerCase()))
+    : allRows
+  const rows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   return (
     <div className="p-6 md:p-8 max-w-[1200px]">
@@ -73,7 +89,7 @@ export default async function TenantsPage() {
         <div>
           <h1 className="text-lg font-semibold" style={{ color: '#f0f0f0' }}>Gimnasios</h1>
           <p className="text-sm mt-0.5" style={{ color: '#737373' }}>
-            {rows.length} {rows.length === 1 ? 'tenant registrado' : 'tenants registrados'}
+            {filtered.length} {filtered.length === 1 ? 'tenant registrado' : 'tenants registrados'}
           </p>
         </div>
         <Link
@@ -84,6 +100,11 @@ export default async function TenantsPage() {
           <Plus size={14} />
           Nuevo gimnasio
         </Link>
+      </div>
+
+      {/* Search */}
+      <div className="mb-4">
+        <SearchInput placeholder="Buscar por nombre o slug..." className="max-w-xs" />
       </div>
 
       {/* Table */}
@@ -211,6 +232,8 @@ export default async function TenantsPage() {
           </table>
         </div>
       </div>
+
+      <Pagination total={filtered.length} pageSize={PAGE_SIZE} currentPage={page} />
     </div>
   )
 }

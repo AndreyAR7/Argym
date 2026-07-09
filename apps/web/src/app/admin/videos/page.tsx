@@ -1,5 +1,7 @@
 import { getSessionData } from '@/lib/auth/session'
 import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
+import { Pagination } from '@/components/shared/pagination'
 import { Badge } from '@/components/ui/badge'
 import { VideoRowActions } from '@/components/admin/video-row-actions'
 import { VideoLevelSelect } from '@/components/admin/video-level-select'
@@ -29,14 +31,19 @@ function formatDuration(secs: number | null) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+const PAGE_SIZE = 24
+
 export default async function VideosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; level?: string }>
+  searchParams: Promise<{ status?: string; level?: string; q?: string; page?: string }>
 }) {
   const params = await searchParams
   const statusFilter = params.status ?? 'all'
-  const levelFilter = params.level ?? 'all'
+  const levelFilter  = params.level  ?? 'all'
+  const q            = params.q      ?? ''
+  const page         = Math.max(1, parseInt(params.page ?? '1'))
+  const offset       = (page - 1) * PAGE_SIZE
 
   const session = await getSessionData()
   const { supabase, tenantId } = session!
@@ -49,9 +56,10 @@ export default async function VideosPage({
     .order('created_at', { ascending: false })
 
   if (statusFilter !== 'all') query = query.eq('status', statusFilter)
-  if (levelFilter !== 'all') query = query.eq('level', levelFilter)
+  if (levelFilter  !== 'all') query = query.eq('level',  levelFilter)
+  if (q) query = query.ilike('title', `%${q}%`)
 
-  const { data: videos, count } = await query
+  const { data: videos, count } = await query.range(offset, offset + PAGE_SIZE - 1)
 
   function buildUrl(s?: string, l?: string) {
     const sp = new URLSearchParams()
@@ -74,6 +82,9 @@ export default async function VideosPage({
 
       {/* ── Filters ── */}
       <div className="mt-6 flex flex-wrap items-center gap-4">
+        {/* Text search */}
+        <SearchInput placeholder="Buscar por título..." className="w-56" />
+
         {/* Status tabs */}
         <div className="flex items-center gap-1 bg-[var(--color-muted)] rounded-lg p-1 overflow-x-auto">
           {STATUS_TABS.map((tab) => (
@@ -176,6 +187,8 @@ export default async function VideosPage({
           </table>
         </div>
       )}
+
+      <Pagination total={count ?? 0} pageSize={PAGE_SIZE} currentPage={page} />
     </div>
   )
 }

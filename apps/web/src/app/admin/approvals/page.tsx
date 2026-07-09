@@ -1,5 +1,6 @@
 import { getSessionData } from '@/lib/auth/session'
 import { PageHeader } from '@/components/shared/page-header'
+import { SearchInput } from '@/components/shared/search-input'
 import { ApprovalRow } from '@/components/admin/approval-row'
 import { ApprovalsTabs } from '@/components/admin/approvals-tabs'
 import { ShieldCheck } from 'lucide-react'
@@ -9,10 +10,11 @@ export const metadata = { title: 'Aprobaciones' }
 export default async function ApprovalsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>
+  searchParams: Promise<{ status?: string; q?: string }>
 }) {
   const params = await searchParams
   const statusFilter = (params.status ?? 'pending') as 'pending' | 'approved' | 'rejected'
+  const q = params.q ?? ''
 
   const session = await getSessionData()
   const { supabase, user } = session!
@@ -30,6 +32,13 @@ export default async function ApprovalsPage({
     if (s in counts) counts[s] = Number(row.cnt)
   }
 
+  const usersFiltered = q
+    ? (users ?? []).filter((u: any) =>
+        u.full_name?.toLowerCase().includes(q.toLowerCase()) ||
+        u.email?.toLowerCase().includes(q.toLowerCase()),
+      )
+    : (users ?? [])
+
   return (
     <div className="p-4 md:p-8 max-w-4xl">
       <PageHeader
@@ -39,17 +48,19 @@ export default async function ApprovalsPage({
 
       {/* ── Tabs ── */}
       <div className="mt-6">
-        <ApprovalsTabs
-          current={statusFilter}
-          counts={counts}
-        />
+        <ApprovalsTabs current={statusFilter} counts={counts} />
+      </div>
+
+      {/* ── Search ── */}
+      <div className="mt-4">
+        <SearchInput placeholder="Buscar por nombre o correo..." className="max-w-sm" />
       </div>
 
       {/* ── List ── */}
-      <div className="mt-4">
-        {users && users.length > 0 ? (
+      <div className="mt-3">
+        {usersFiltered.length > 0 ? (
           <div className="rounded-xl border border-[var(--color-border)] overflow-hidden divide-y divide-[var(--color-border)]">
-            {users.map((u: any) => (
+            {usersFiltered.map((u: any) => (
               <ApprovalRow
                 key={u.id}
                 userId={u.id}

@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
+import { SearchInput } from '@/components/shared/search-input'
+import { Pagination } from '@/components/shared/pagination'
 import { CoachNewAppointmentButton } from '@/components/coach/coach-new-appointment-button'
 import { CalendarDays, MapPin, Video, Phone } from 'lucide-react'
 import Link from 'next/link'
@@ -38,10 +40,13 @@ function formatDateTime(iso: string) {
 export default async function CoachAppointmentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>
+  searchParams: Promise<{ status?: string; q?: string; page?: string }>
 }) {
   const params = await searchParams
   const statusFilter = params.status ?? 'all'
+  const q    = params.q ?? ''
+  const page = Math.max(1, parseInt(params.page ?? '1'))
+  const PAGE_SIZE = 20
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -75,6 +80,18 @@ export default async function CoachAppointmentsPage({
     ;(profiles ?? []).forEach((p: any) => clientMap.set(p.id, p))
   }
 
+  // Client-side text filter after loading
+  const filtered = q
+    ? (appointments ?? []).filter((a: any) => {
+        const client = clientMap.get(a.client_id)
+        return (
+          a.title?.toLowerCase().includes(q.toLowerCase()) ||
+          client?.full_name?.toLowerCase().includes(q.toLowerCase())
+        )
+      })
+    : (appointments ?? [])
+  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
   return (
     <div className="p-4 md:p-8">
       {/* Header */}
@@ -92,6 +109,11 @@ export default async function CoachAppointmentsPage({
           coachId={user!.id}
           coachName={coachName}
         />
+      </div>
+
+      {/* Search */}
+      <div className="mt-4 mb-4">
+        <SearchInput placeholder="Buscar por título o cliente..." className="max-w-xs" />
       </div>
 
       {/* Status tabs */}
@@ -124,8 +146,8 @@ export default async function CoachAppointmentsPage({
             </tr>
           </thead>
           <tbody className="bg-[var(--color-card)] divide-y divide-[var(--color-border)]">
-            {appointments && appointments.length > 0 ? (
-              appointments.map((apt: any) => {
+            {paginated.length > 0 ? (
+              paginated.map((apt: any) => {
                 const client = clientMap.get(apt.client_id)
                 const { date, time } = formatDateTime(apt.start_time)
                 return (
@@ -168,7 +190,7 @@ export default async function CoachAppointmentsPage({
                   <div className="flex flex-col items-center gap-3">
                     <CalendarDays size={32} className="text-[var(--color-border)]" />
                     <p className="text-sm text-[var(--color-muted-foreground)]">
-                      {statusFilter !== 'all' ? 'Sin citas con ese estado' : 'Aún no tienes citas programadas'}
+                      {q ? `Sin resultados para "${q}"` : statusFilter !== 'all' ? 'Sin citas con ese estado' : 'Aún no tienes citas programadas'}
                     </p>
                   </div>
                 </td>
@@ -177,6 +199,8 @@ export default async function CoachAppointmentsPage({
           </tbody>
         </table>
       </div>
+
+      <Pagination total={filtered.length} pageSize={PAGE_SIZE} currentPage={page} />
     </div>
   )
 }
