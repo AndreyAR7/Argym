@@ -284,16 +284,21 @@ Deno.serve(async (req: Request) => {
     )
   }
 
-  // ── 2. SMTP config ──────────────────────────────────────────────
+  // ── 2. SMTP config + Resend fallback ───────────────────────────
   const { data: smtp } = await supabase
     .from('smtp_configs')
     .select('host, port, username, password, from_email, from_name')
     .eq('tenant_id', tenant_id)
     .maybeSingle()
 
-  if (!smtp?.host || !smtp.username || !smtp.password) {
+  const resendApiKey  = Deno.env.get('RESEND_API_KEY')
+  const resendFrom    = Deno.env.get('RESEND_FROM_EMAIL') ?? 'ARGYM <noreply@argym.app>'
+  const hasSmtp       = !!(smtp?.host && smtp.username && smtp.password)
+  const hasResend     = !!resendApiKey
+
+  if (!hasSmtp && !hasResend) {
     return new Response(
-      JSON.stringify({ processed: 0, reason: 'no smtp config' }),
+      JSON.stringify({ processed: 0, reason: 'no smtp config and no resend fallback' }),
       { status: 200 },
     )
   }
@@ -523,16 +528,60 @@ Deno.serve(async (req: Request) => {
   const render = (tmpl: string) =>
     tmpl.replace(/\{\{(\w+)\}\}/g, (_, k) => templateVars[k] ?? `{{${k}}}`)
 
-  // ── 6. SMTP transporter ─────────────────────────────────────────
-  const port = Number(smtp.port)
-  const transporter = createTransport({
-    host:       smtp.host,
-    port,
-    secure:     port === 465,
-    requireTLS: port === 587,
-    auth: { user: smtp.username, pass: smtp.password },
-    tls: { rejectUnauthorized: false },
-  })
+  // ── 6. Email sender (SMTP or Resend fallback) ──────────────────
+  let smtpTransporter: ReturnType<typeof createTransport> | null = null
+  if (hasSmtp && smtp) {
+    const port = Number(smtp.port)
+    smtpTransporter = createTransport({
+      host:       smtp.host,
+      port,
+      secure:     port === 465,
+      requireTLS: port === 587,
+      auth: { user: smtp.username, pass: smtp.password },
+      tls: { rejectUnauthorized: false },
+    })
+  }
+
+  const sendEmail = async (opts: {
+    from: string
+    to: string
+    subject: string
+    html: string
+    attachments?: Attachment[]
+  }): Promise<void> => {
+    if (smtpTransporter) {
+      await smtpTransporter.sendMail({
+        from:        opts.from,
+        to:          opts.to,
+        subject:     opts.subject,
+        html:        opts.html,
+        attachments: opts.attachments?.length ? opts.attachments : undefined,
+      })
+    } else {
+      // Resend REST API fallback
+      const res = await fetch('https://api.resend.com/emails', {
+        method:  'POST',
+        headers: {
+          'Authorization': `Bearer ${resendApiKey}`,
+          'Content-Type':  'application/json',
+        },
+        body: JSON.stringify({
+          from:    resendFrom,
+          to:      [opts.to],
+          subject: opts.subject,
+          html:    opts.html,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        throw new Error(`Resend API error ${res.status}: ${body}`)
+      }
+    }
+  }
+
+  const senderFrom = hasSmtp && smtp
+    ? `"${smtp.from_name}" <${smtp.from_email}>`
+    : resendFrom
 
   // ── 7. Send per rule ────────────────────────────────────────────
   let processed = 0
@@ -563,8 +612,8 @@ Deno.serve(async (req: Request) => {
       let errorMsg: string | null = null
 
       try {
-        await transporter.sendMail({
-          from:        `"${smtp.from_name}" <${smtp.from_email}>`,
+        await sendEmail({
+          from:        senderFrom,
           to:          toEmail,
           subject,
           html:        bodyHtml,

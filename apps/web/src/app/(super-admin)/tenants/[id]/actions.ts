@@ -13,6 +13,79 @@ function adminClient() {
   )
 }
 
+async function assertSuperAdmin() {
+  const session = await getSessionData()
+  if (!session || session.role !== 'admin') redirect('/')
+  return adminClient()
+}
+
+// ── Platform subscription management ──────────────────────────────────────────
+
+export async function upsertPlatformSubscriptionAction(data: {
+  tenantId: string
+  planId: string
+  status: string
+  billingCycle: string
+  periodStart: string
+  periodEnd: string
+}) {
+  const db = await assertSuperAdmin()
+
+  const { error } = await db.from('tenant_subscriptions').upsert(
+    {
+      tenant_id:            data.tenantId,
+      plan_id:              data.planId,
+      status:               data.status,
+      billing_cycle:        data.billingCycle,
+      current_period_start: data.periodStart,
+      current_period_end:   data.periodEnd,
+      updated_at:           new Date().toISOString(),
+    },
+    { onConflict: 'tenant_id' },
+  )
+
+  if (error) return { error: error.message }
+
+  // Sync tenant.is_active based on status
+  const isActive = data.status === 'active' || data.status === 'trialing'
+  await db.from('tenants').update({ is_active: isActive }).eq('id', data.tenantId)
+
+  revalidatePath(`/super-admin/tenants/${data.tenantId}`)
+  return { success: true }
+}
+
+export async function suspendTenantPlatformAction(tenantId: string) {
+  const db = await assertSuperAdmin()
+
+  await Promise.all([
+    db.from('tenants').update({ is_active: false }).eq('id', tenantId),
+    db
+      .from('tenant_subscriptions')
+      .update({ status: 'past_due', updated_at: new Date().toISOString() })
+      .eq('tenant_id', tenantId),
+  ])
+
+  revalidatePath(`/super-admin/tenants/${tenantId}`)
+  revalidatePath('/super-admin/tenants')
+  return { success: true }
+}
+
+export async function reactivateTenantPlatformAction(tenantId: string) {
+  const db = await assertSuperAdmin()
+
+  await Promise.all([
+    db.from('tenants').update({ is_active: true }).eq('id', tenantId),
+    db
+      .from('tenant_subscriptions')
+      .update({ status: 'active', updated_at: new Date().toISOString() })
+      .eq('tenant_id', tenantId),
+  ])
+
+  revalidatePath(`/super-admin/tenants/${tenantId}`)
+  revalidatePath('/super-admin/tenants')
+  return { success: true }
+}
+
 export async function toggleTenantActiveAction(tenantId: string, isActive: boolean) {
   const session = await getSessionData()
   if (!session || session.role !== 'admin') redirect('/')
@@ -54,6 +127,13 @@ export async function createTenantAction(data: {
     .single()
 
   if (error) return { error: error.message }
+
+  // Auto-seed default branch, email templates, and communication rules
+  const seedResult = await db.rpc('seed_tenant_defaults', { p_tenant_id: tenant.id })
+  if (seedResult.error) {
+    console.error('[createTenant] seed_tenant_defaults failed:', seedResult.error.message)
+  }
+
   revalidatePath('/super-admin/tenants')
   return { success: true, tenantId: tenant.id }
 }

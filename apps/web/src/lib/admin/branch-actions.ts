@@ -47,21 +47,24 @@ export async function updateBranchAction(id: string, data: {
   email: string | null
   is_active: boolean
 }) {
-  const { supabase, error: authError } = await getAdminContext()
-  if (authError) return { error: authError }
+  const { supabase, tenantId, error: authError } = await getAdminContext()
+  if (authError || !tenantId) return { error: authError ?? 'Sin tenant' }
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('branches')
     .update({
-      name: data.name.trim(),
-      address: data.address?.trim() || null,
-      phone: data.phone?.trim() || null,
-      email: data.email?.trim() || null,
+      name:      data.name.trim(),
+      address:   data.address?.trim() || null,
+      phone:     data.phone?.trim()   || null,
+      email:     data.email?.trim()   || null,
       is_active: data.is_active,
     })
     .eq('id', id)
+    .eq('tenant_id', tenantId)
+    .select('id')
 
   if (error) return { error: error.message }
+  if (!updated || updated.length === 0) return { error: 'Sucursal no encontrada o sin permiso para editarla' }
   revalidatePath('/admin/branches')
   return { success: true }
 }

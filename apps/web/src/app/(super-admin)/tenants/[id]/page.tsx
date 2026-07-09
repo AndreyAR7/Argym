@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { getSessionData } from '@/lib/auth/session'
 import { ArrowLeft, Circle, Users, UserCheck, Dumbbell, Calendar } from 'lucide-react'
 import { TenantToggleButton } from './tenant-toggle-button'
+import { PlatformSubscriptionForm } from './platform-subscription-form'
 
 export const metadata = { title: 'Detalle de gimnasio — ARGYM HQ' }
 
@@ -28,7 +29,7 @@ export default async function TenantDetailPage({
 
   const db = adminClient()
 
-  const [tenantResult, profilesResult, subscriptionResult] = await Promise.all([
+  const [tenantResult, profilesResult, subscriptionResult, plansResult] = await Promise.all([
     db
       .from('tenants')
       .select('id, name, slug, is_active, created_at, timezone, locale, currency')
@@ -41,17 +42,24 @@ export default async function TenantDetailPage({
       .order('created_at', { ascending: false }),
     db
       .from('tenant_subscriptions')
-      .select('status, subscription_plans(name, price, billing_cycle)')
+      .select('plan_id, status, billing_cycle, current_period_start, current_period_end')
       .eq('tenant_id', tenantId)
-      .eq('status', 'active')
-      .limit(1),
+      .maybeSingle(),
+    db
+      .from('subscription_plans')
+      .select('id, name, price_monthly, price_yearly, currency, trial_days')
+      .eq('is_platform_plan', true)
+      .eq('is_active', true)
+      .order('price_monthly', { ascending: true }),
   ])
 
   const tenant = tenantResult.data
   if (!tenant) notFound()
 
-  const profiles = profilesResult.data ?? []
-  const activeSub = subscriptionResult.data?.[0]
+  const profiles     = profilesResult.data ?? []
+  const platformSub  = subscriptionResult.data ?? null
+  const platformPlans = plansResult.data ?? []
+  const activeSub    = platformSub
 
   // Count roles (profiles table has is_active flag but role is in user_roles)
   const totalMembers = profiles.length
@@ -64,7 +72,6 @@ export default async function TenantDetailPage({
     return d >= thirtyDaysAgo
   }).length
 
-  const plan = (activeSub?.subscription_plans as any)
 
   return (
     <div className="p-6 md:p-8 max-w-3xl">
@@ -143,10 +150,6 @@ export default async function TenantDetailPage({
           { label: 'Moneda',       value: tenant.currency  ?? '—' },
           { label: 'Locale',       value: tenant.locale    ?? '—' },
           {
-            label: 'Plan activo',
-            value: plan ? `${plan.name} — ${plan.price ?? '—'} ${tenant.currency ?? ''} / ${plan.billing_cycle ?? ''}` : 'Sin plan activo',
-          },
-          {
             label: 'Miembro desde',
             value: new Date(tenant.created_at).toLocaleDateString('es-CR', {
               day: '2-digit', month: 'long', year: 'numeric',
@@ -159,6 +162,17 @@ export default async function TenantDetailPage({
           </div>
         ))}
       </div>
+
+      {/* Platform subscription management */}
+      {platformPlans.length > 0 && (
+        <div className="mb-6">
+          <PlatformSubscriptionForm
+            tenantId={tenant.id}
+            plans={platformPlans as any}
+            subscription={platformSub as any}
+          />
+        </div>
+      )}
 
       {/* Recent members */}
       {profiles.length > 0 && (

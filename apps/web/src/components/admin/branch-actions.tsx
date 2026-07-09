@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useRef, useEffect } from 'react'
+import { useState, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { MoreHorizontal, Pencil, PowerOff, Power, X, AlertCircle } from 'lucide-react'
 import { toggleBranchActiveAction, updateBranchAction } from '@/lib/admin/actions'
@@ -28,14 +28,6 @@ export function BranchActions({ branch }: { branch: Branch }) {
   const [error, setError] = useState<string | null>(null)
   const [pos, setPos] = useState({ top: 0, right: 0 })
   const btnRef = useRef<HTMLButtonElement>(null)
-
-  useEffect(() => {
-    function onDown(e: MouseEvent) {
-      if (btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [])
 
   function handleOpen() {
     if (!open && btnRef.current) {

@@ -351,18 +351,31 @@ export async function updateBranchAction(
   },
 ): Promise<{ success?: true; error?: string }> {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
 
-  const { error } = await supabase
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('tenant_id')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile?.tenant_id) return { error: 'No se pudo obtener el tenant' }
+
+  const { data: updated, error } = await supabase
     .from('branches')
     .update({
-      name: data.name,
+      name:    data.name,
       address: data.address,
-      phone: data.phone,
-      email: data.email,
+      phone:   data.phone,
+      email:   data.email,
     })
     .eq('id', id)
+    .eq('tenant_id', profile.tenant_id)
+    .select('id')
 
   if (error) return { error: error.message }
+  if (!updated || updated.length === 0) return { error: 'No se encontró la sucursal o no tienes permiso para editarla' }
   revalidatePath('/admin/branches')
   return { success: true }
 }
@@ -372,11 +385,22 @@ export async function toggleBranchActiveAction(
   isActive: boolean,
 ): Promise<{ success?: true; error?: string }> {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('tenant_id')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile?.tenant_id) return { error: 'No se pudo obtener el tenant' }
 
   const { error } = await supabase
     .from('branches')
     .update({ is_active: isActive })
     .eq('id', id)
+    .eq('tenant_id', profile.tenant_id)
 
   if (error) return { error: error.message }
   revalidatePath('/admin/branches')

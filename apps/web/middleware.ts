@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/reset-password', '/pending-approval', '/auth/callback']
+const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/reset-password', '/pending-approval', '/auth/callback', '/suspended', '/terms', '/privacy']
 
 // Parse the JWT expiry without a network call
 function getJwtExpiry(token: string): number {
@@ -25,6 +25,8 @@ export async function middleware(request: NextRequest) {
   // All actual data access is still protected by Supabase RLS.
   const cachedTenantId = request.cookies.get('x-tid')?.value
   const cachedRole     = request.cookies.get('x-role')?.value
+
+  const cachedActive = request.cookies.get('x-active')?.value
 
   if (cachedTenantId && cachedRole) {
     // Find the access token cookie (named 'sb-*-auth-token' or similar)
@@ -58,6 +60,14 @@ export async function middleware(request: NextRequest) {
 
     if (jwtValid) {
       if (process.env.NODE_ENV !== 'production') console.log(`[MW] FAST: ${Date.now() - t0}ms`)
+
+      // Suspend check: redirect to /suspended if tenant is inactive
+      if (cachedActive === 'false' && !isPublicPath && pathname !== '/suspended') {
+        const suspendedUrl = request.nextUrl.clone()
+        suspendedUrl.pathname = '/suspended'
+        return NextResponse.redirect(suspendedUrl)
+      }
+
       // Set as REQUEST headers so headers() in server components can read them
       const reqHeaders = new Headers(request.headers)
       reqHeaders.set('x-tenant-id', cachedTenantId)
@@ -126,6 +136,17 @@ export async function middleware(request: NextRequest) {
       const avatarUrl = profileRes.data?.avatar_url ?? ''
       const approvalStatus = profileRes.data?.approval_status ?? 'pending'
 
+      // Check if tenant is active (for suspension enforcement)
+      let tenantIsActive = true
+      if (tenantId) {
+        const { data: tenantData } = await supabase
+          .from('tenants')
+          .select('is_active')
+          .eq('id', tenantId)
+          .single()
+        tenantIsActive = tenantData?.is_active ?? true
+      }
+
       const cookieOpts = {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -138,6 +159,14 @@ export async function middleware(request: NextRequest) {
       if (fullName) supabaseResponse.cookies.set('x-name', fullName, { ...cookieOpts, httpOnly: false })
       if (avatarUrl) supabaseResponse.cookies.set('x-avatar', avatarUrl, { ...cookieOpts, httpOnly: false })
       supabaseResponse.cookies.set('x-approval', approvalStatus, cookieOpts)
+      supabaseResponse.cookies.set('x-active', String(tenantIsActive), cookieOpts)
+
+      // Redirect to suspended if tenant inactive (slow path)
+      if (!tenantIsActive && !isPublicPath && pathname !== '/suspended') {
+        const suspendedUrl = request.nextUrl.clone()
+        suspendedUrl.pathname = '/suspended'
+        return NextResponse.redirect(suspendedUrl)
+      }
 
     }
   }
