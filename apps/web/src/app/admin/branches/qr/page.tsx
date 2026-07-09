@@ -1,22 +1,18 @@
 import { createClient } from '@/lib/supabase/server'
 import { getSessionData } from '@/lib/auth/session'
 import { PageHeader } from '@/components/shared/page-header'
-import { Building2, QrCode } from 'lucide-react'
-import { CopyUrlButton } from './copy-url-button'
-import { QrDownloadButton } from './qr-download-button'
+import { Building2, QrCode, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
 import QRCode from 'qrcode'
+import { generateQrToken, secondsUntilNextWindow } from '@/lib/qr-token'
+import { DynamicQrCard } from './dynamic-qr-card'
 
 export const metadata = { title: 'QR Check-in' }
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://tu-dominio.com'
 
-function checkinUrl(branchId: string) {
-  return `${APP_URL}/checkin?branch=${branchId}`
-}
-
-async function generateQrDataUrl(text: string): Promise<string> {
-  return QRCode.toDataURL(text, {
+async function buildQrDataUrl(url: string): Promise<string> {
+  return QRCode.toDataURL(url, {
     width: 220,
     margin: 2,
     color: { dark: '#000000', light: '#ffffff' },
@@ -39,12 +35,14 @@ export default async function QrPage() {
 
   const count = branches?.length ?? 0
 
-  // Generate all QR data URLs server-side (no external calls, no CSP issues)
+  // Generate initial tokens + QR data URLs server-side
+  const expiresIn = secondsUntilNextWindow()
   const branchesWithQr = await Promise.all(
     (branches ?? []).map(async (branch) => {
-      const url = checkinUrl(branch.id)
-      const qrDataUrl = await generateQrDataUrl(url)
-      return { ...branch, url, qrDataUrl }
+      const token     = generateQrToken(branch.id)
+      const checkinUrl = `${APP_URL}/checkin?branch=${branch.id}&t=${token}`
+      const qrDataUrl  = await buildQrDataUrl(checkinUrl)
+      return { ...branch, qrDataUrl, checkinUrl }
     }),
   )
 
@@ -63,11 +61,20 @@ export default async function QrPage() {
         </Link>
       </PageHeader>
 
-      <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-amber-500/5 px-4 py-3 flex items-start gap-3">
-        <QrCode size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-        <p className="text-sm text-[var(--color-muted-foreground)]">
-          Imprime o muestra el QR de cada sucursal en la entrada. Los clientes lo escanean para registrar su asistencia y ganar XP automáticamente.
-        </p>
+      {/* Info banners */}
+      <div className="mt-4 space-y-2">
+        <div className="rounded-xl border border-[var(--color-border)] bg-amber-500/5 px-4 py-3 flex items-start gap-3">
+          <QrCode size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-sm text-[var(--color-muted-foreground)]">
+            Muestra el QR en una pantalla en la entrada. Los clientes lo escanean para registrar asistencia y ganar XP automáticamente.
+          </p>
+        </div>
+        <div className="rounded-xl border border-[var(--color-border)] bg-emerald-500/5 px-4 py-3 flex items-start gap-3">
+          <ShieldCheck size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+          <p className="text-sm text-[var(--color-muted-foreground)]">
+            El código cambia automáticamente cada 5 minutos. Las fotos del QR no sirven para hacer check-in después de que expire.
+          </p>
+        </div>
       </div>
 
       <div className="mt-6">
@@ -90,46 +97,15 @@ export default async function QrPage() {
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {branchesWithQr.map((branch) => (
-              <div
+              <DynamicQrCard
                 key={branch.id}
-                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden"
-              >
-                {/* Card header */}
-                <div className="px-5 pt-5 pb-4 border-b border-[var(--color-border)]">
-                  <div className="flex items-center gap-2">
-                    <Building2 size={14} className="text-[var(--color-muted-foreground)] shrink-0" />
-                    <h2 className="font-semibold text-[var(--color-foreground)] truncate">{branch.name}</h2>
-                  </div>
-                  {branch.address && (
-                    <p className="mt-0.5 text-xs text-[var(--color-muted-foreground)] truncate pl-5">
-                      {branch.address}
-                    </p>
-                  )}
-                </div>
-
-                {/* QR code — generated server-side as PNG data URL, no external requests */}
-                <div className="flex justify-center py-6 bg-white">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={branch.qrDataUrl}
-                    alt={`QR de check-in para ${branch.name}`}
-                    width={220}
-                    height={220}
-                    className="rounded-lg"
-                  />
-                </div>
-
-                {/* URL + actions */}
-                <div className="px-5 pb-5 pt-4 space-y-3">
-                  <p className="font-mono text-[10px] text-[var(--color-muted-foreground)] break-all leading-relaxed bg-[var(--color-muted)] rounded-lg px-3 py-2">
-                    {branch.url}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <CopyUrlButton url={branch.url} />
-                    <QrDownloadButton dataUrl={branch.qrDataUrl} branchName={branch.name} />
-                  </div>
-                </div>
-              </div>
+                branchId={branch.id}
+                branchName={branch.name}
+                address={branch.address ?? null}
+                initialQrUrl={branch.qrDataUrl}
+                initialCheckinUrl={branch.checkinUrl}
+                initialExpiresIn={expiresIn}
+              />
             ))}
           </div>
         )}
