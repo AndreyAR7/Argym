@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import type jsQRType from 'jsqr'
 import Link from 'next/link'
 import { ArrowLeft, CameraOff } from 'lucide-react'
 
 type Status = 'requesting' | 'active' | 'detected' | 'denied' | 'unsupported'
+type JsQRFn = (data: Uint8ClampedArray, width: number, height: number) => { data: string } | null
 
 export default function CheckinScanPage() {
   const router = useRouter()
@@ -14,7 +14,7 @@ export default function CheckinScanPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef    = useRef<number | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
-  const jsqrRef   = useRef<typeof jsQRType | null>(null)
+  const jsqrRef   = useRef<JsQRFn | null>(null)
   const [status, setStatus] = useState<Status>('requesting')
 
   // Dynamic import avoids Turbopack CJS bundling issues with jsqr
