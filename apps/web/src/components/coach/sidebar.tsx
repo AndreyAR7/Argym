@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTransition } from 'react'
-import { LayoutDashboard, Users, Dumbbell, CalendarDays, Apple, LogOut, User } from 'lucide-react'
+import { LayoutDashboard, Users, Dumbbell, CalendarDays, Apple, LogOut, User, Video } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logoutAction } from '@/lib/auth/actions'
 
@@ -26,6 +26,7 @@ const NAV = [
     title: 'Contenido',
     items: [
       { label: 'Rutinas', href: '/coach/routines', icon: Dumbbell },
+      { label: 'Videos', href: '/coach/videos', icon: Video },
       { label: 'Nutrición', href: '/coach/nutrition', icon: Apple },
     ],
   },

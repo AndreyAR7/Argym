@@ -103,7 +103,7 @@ export default async function ClientAppointmentsPage({
           weekStart={localDateStr(weekStart)}
         />
       ) : (
-        <ClientAppointmentsList upcoming={upcoming} past={past} />
+        <ClientAppointmentsList upcoming={upcoming} past={past} userId={user.id} />
       )}
     </div>
   )

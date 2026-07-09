@@ -31,6 +31,7 @@ export default async function CoachLayout({ children }: { children: React.ReactN
       userName={profile?.full_name ?? user.email ?? ''}
       userEmail={user.email ?? ''}
       avatarUrl={profile?.avatar_url ?? null}
+      userId={user.id}
     >
       {children}
     </CoachShell>

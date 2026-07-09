@@ -10,9 +10,10 @@ interface CoachShellProps {
   userName: string
   userEmail: string
   avatarUrl: string | null
+  userId: string
 }
 
-export function CoachShell({ children, userName, userEmail, avatarUrl }: CoachShellProps) {
+export function CoachShell({ children, userName, userEmail, avatarUrl, userId }: CoachShellProps) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
@@ -30,6 +31,7 @@ export function CoachShell({ children, userName, userEmail, avatarUrl }: CoachSh
         userName={userName}
         userEmail={userEmail}
         avatarUrl={avatarUrl}
+        userId={userId}
         accentColor="var(--color-coach)"
         brandLabel="ARGYM Coach"
         profileHref="/coach/profile"

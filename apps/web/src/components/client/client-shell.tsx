@@ -10,9 +10,10 @@ interface ClientShellProps {
   userName: string
   userEmail: string
   avatarUrl: string | null
+  userId: string
 }
 
-export function ClientShell({ children, userName, userEmail, avatarUrl }: ClientShellProps) {
+export function ClientShell({ children, userName, userEmail, avatarUrl, userId }: ClientShellProps) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
@@ -31,6 +32,7 @@ export function ClientShell({ children, userName, userEmail, avatarUrl }: Client
         userName={userName}
         userEmail={userEmail}
         avatarUrl={avatarUrl}
+        userId={userId}
         accentColor="var(--color-client)"
         brandLabel="ARGYM"
         profileHref="/client/profile"

@@ -10,9 +10,10 @@ interface AdminShellProps {
   userName: string
   userEmail: string
   avatarUrl: string | null
+  userId: string
 }
 
-export function AdminShell({ children, userName, userEmail, avatarUrl }: AdminShellProps) {
+export function AdminShell({ children, userName, userEmail, avatarUrl, userId }: AdminShellProps) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
@@ -31,6 +32,7 @@ export function AdminShell({ children, userName, userEmail, avatarUrl }: AdminSh
         userName={userName}
         userEmail={userEmail}
         avatarUrl={avatarUrl}
+        userId={userId}
         accentColor="var(--color-admin)"
         brandLabel="ARGYM Admin"
         profileHref="/admin/profile"

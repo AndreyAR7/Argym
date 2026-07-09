@@ -2,9 +2,10 @@ import { redirect } from 'next/navigation'
 import { getSessionData } from '@/lib/auth/session'
 import { PageHeader } from '@/components/shared/page-header'
 import { DeactivateChallengeButton } from './deactivate-challenge-button'
+import { CreateChallengeButton } from './create-challenge-button'
 import {
   Trophy, Zap, Users, Target,
-  Flame, Star, Medal, TrendingUp,
+  Flame, Star, Medal,
   ShieldCheck,
 } from 'lucide-react'
 
@@ -268,6 +269,7 @@ export default async function GamificacionPage() {
               {challenges.length}
             </span>
           </div>
+          <CreateChallengeButton />
         </div>
 
         <div className="rounded-xl border border-[var(--color-border)] overflow-hidden overflow-x-auto">
@@ -384,15 +386,6 @@ export default async function GamificacionPage() {
           </table>
         </div>
 
-        {/* ── Create Challenge placeholder ── */}
-        <div className="mt-6 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-muted)]/40 p-8 text-center">
-          <TrendingUp size={24} className="mx-auto text-[var(--color-muted-foreground)] mb-3" />
-          <p className="text-sm font-medium text-[var(--color-foreground)]">Crear reto</p>
-          <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
-            Formulario de creación disponible próximamente
-          </p>
-          {/* TODO: CreateChallengeForm */}
-        </div>
       </section>
     </div>
   )

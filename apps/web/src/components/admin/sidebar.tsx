@@ -22,6 +22,7 @@ import {
   Mail,
   TrendingUp,
   Trophy,
+  QrCode,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logoutAction } from '@/lib/auth/actions'
@@ -55,6 +56,7 @@ const NAV: NavSection[] = [
     title: 'Gestión',
     items: [
       { label: 'Sucursales', href: '/admin/branches', icon: Building2 },
+      { label: 'QR Check-in', href: '/admin/branches/qr', icon: QrCode },
       { label: 'Clientes', href: '/admin/clients', icon: Users },
       { label: 'Coaches', href: '/admin/coaches', icon: Users },
       { label: 'Aprobaciones', href: '/admin/approvals', icon: UserCheck },

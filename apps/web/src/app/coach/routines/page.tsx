@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { RoutineSearch } from '@/components/admin/routine-search'
 import { Dumbbell } from 'lucide-react'
 import Link from 'next/link'
+import { AssignRoutineButton } from './assign-routine-button'
 
 export const metadata = { title: 'Mis Rutinas' }
 
@@ -121,12 +122,7 @@ export default async function CoachRoutinesPage({
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/admin/routines/${routine.id}`}
-                      className="px-2.5 py-1.5 rounded-lg border border-[var(--color-border)] text-xs font-medium text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors"
-                    >
-                      Ver detalle
-                    </Link>
+                    <AssignRoutineButton routineId={routine.id} routineName={routine.name} />
                   </td>
                 </tr>
               ))}

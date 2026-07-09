@@ -31,6 +31,7 @@ export default async function ClientLayout({ children }: { children: React.React
       userName={profile?.full_name ?? user.email ?? ''}
       userEmail={user.email ?? ''}
       avatarUrl={profile?.avatar_url ?? null}
+      userId={user.id}
     >
       {children}
     </ClientShell>

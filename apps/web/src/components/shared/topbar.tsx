@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useTheme, type Theme } from './theme-provider'
+import { NotificationBell } from './notification-bell'
 import { getInitials } from '@/lib/utils'
 import { logoutAction } from '@/lib/auth/actions'
 
@@ -21,6 +22,7 @@ interface TopbarProps {
   userName: string
   userEmail: string
   avatarUrl: string | null
+  userId?: string
   accentColor?: string
   brandLabel?: string
   profileHref?: string
@@ -33,6 +35,7 @@ export function Topbar({
   userName,
   userEmail,
   avatarUrl,
+  userId,
   accentColor = 'var(--color-admin)',
   brandLabel = 'ARGYM',
   profileHref = '#',
@@ -86,7 +89,9 @@ export function Topbar({
         </div>
       </div>
 
-      {/* Right — user dropdown */}
+      {/* Right — bell + user dropdown */}
+      <div className="flex items-center gap-1">
+        {userId && <NotificationBell userId={userId} />}
       <div className="relative" ref={ref}>
         <button
           onClick={() => setOpen(v => !v)}
@@ -197,6 +202,7 @@ export function Topbar({
             </div>
           </div>
         )}
+      </div>
       </div>
     </header>
   )

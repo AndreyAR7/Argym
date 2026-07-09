@@ -15,6 +15,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       userName={profile?.full_name ?? user.email ?? ''}
       userEmail={user.email ?? ''}
       avatarUrl={profile?.avatar_url ?? null}
+      userId={user.id}
     >
       {children}
     </AdminShell>
