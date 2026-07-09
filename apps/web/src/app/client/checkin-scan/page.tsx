@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import jsQR from 'jsqr'
+import type jsQRType from 'jsqr'
 import Link from 'next/link'
 import { ArrowLeft, CameraOff } from 'lucide-react'
 
@@ -14,8 +14,13 @@ export default function CheckinScanPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef    = useRef<number | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const jsqrRef   = useRef<typeof jsQRType | null>(null)
   const [status, setStatus] = useState<Status>('requesting')
-  const [detectedUrl, setDetectedUrl] = useState<string | null>(null)
+
+  // Dynamic import avoids Turbopack CJS bundling issues with jsqr
+  useEffect(() => {
+    import('jsqr').then((mod) => { jsqrRef.current = mod.default })
+  }, [])
 
   const stopCamera = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
@@ -27,14 +32,14 @@ export default function CheckinScanPage() {
     const canvas = canvasRef.current
     if (!video || !canvas) return
 
-    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    if (video.readyState === video.HAVE_ENOUGH_DATA && jsqrRef.current) {
       canvas.width  = video.videoWidth
       canvas.height = video.videoHeight
       const ctx = canvas.getContext('2d', { willReadFrequently: true })
       if (ctx) {
         ctx.drawImage(video, 0, 0)
         const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        const code    = jsQR(imgData.data, imgData.width, imgData.height)
+        const code    = jsqrRef.current(imgData.data, imgData.width, imgData.height)
         if (code?.data) {
           try {
             const url = new URL(code.data)
