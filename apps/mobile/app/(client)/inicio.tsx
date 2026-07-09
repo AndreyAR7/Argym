@@ -213,7 +213,8 @@ export default function ClientHome() {
         {/* Quick actions */}
         <View style={{ marginBottom: 24 }}>
           <SectionHeader title="Acciones rápidas" />
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+            <QuickActionButton icon="📷" label="Check-in" onPress={() => router.push('/(client)/checkin-scan')} accent={T.green} />
             <QuickActionButton icon="💪" label="Rutina" onPress={() => router.push('/(client)/routine')} accent={T.accent} />
             <QuickActionButton icon="🥗" label="Nutrición" onPress={() => router.push('/(client)/nutrition')} accent={T.green} />
             <QuickActionButton icon="📊" label="Progreso" onPress={() => router.push('/(client)/progress')} accent={T.orange} />

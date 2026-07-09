@@ -30,6 +30,7 @@ export default function ClientLayout() {
         <Stack.Screen name="leaderboard" />
         <Stack.Screen name="achievements" />
         <Stack.Screen name="challenges" />
+        <Stack.Screen name="checkin-scan" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
       </Stack>
       <ClientSidebar />
     </View>

@@ -37,6 +37,7 @@ interface NavItem {
 // Homologated icons — all use consistent emoji style
 const NAV_ITEMS: NavItem[] = [
   { id: 'inicio',              label: 'Inicio',        icon: '🏠', route: '/(client)/inicio',              accentKey: 'accent' },
+  { id: 'checkin-scan',        label: 'Check-in',      icon: '📷', route: '/(client)/checkin-scan',         accentKey: 'green' },
   { id: 'client-appointments', label: 'Mis Citas',     icon: '📅', route: '/(client)/client-appointments',  accentKey: 'blue' },
   { id: 'progress',            label: 'Progreso',      icon: '📊', route: '/(client)/progress',             accentKey: 'orange' },
   { id: 'routine',             label: 'Rutina',        icon: '💪', route: '/(client)/routine',              accentKey: 'accent' },
