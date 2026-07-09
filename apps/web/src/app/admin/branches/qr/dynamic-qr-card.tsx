@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { RefreshCw, Building2 } from 'lucide-react'
+import { RefreshCw, Building2, MonitorPlay } from 'lucide-react'
 import { CopyUrlButton } from './copy-url-button'
 import { QrDownloadButton } from './qr-download-button'
 
@@ -144,6 +144,16 @@ export function DynamicQrCard({
         <div className="flex items-center gap-2">
           <CopyUrlButton url={checkinUrl} />
           <QrDownloadButton dataUrl={qrUrl} branchName={branchName} />
+          <a
+            href={`/monitor/${branchId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Abrir vista de monitor (pantalla completa para la entrada)"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-muted)] px-3 py-1.5 text-xs font-medium text-[var(--color-foreground)] hover:bg-[var(--color-border)] transition-colors"
+          >
+            <MonitorPlay size={12} />
+            Monitor
+          </a>
         </div>
         <p className="text-[10px] text-[var(--color-muted-foreground)] flex items-center gap-1">
           <RefreshCw size={9} />
