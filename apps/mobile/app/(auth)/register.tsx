@@ -11,7 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { registerSchema, type RegisterFormValues } from '@/lib/validations';
 import { useTheme } from '@/hooks/useTheme';
 
-type Tenant = { id: string; name: string; slug: string };
+type Branch = { id: string; name: string; address: string | null; tenant_id: string };
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -22,11 +22,11 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [tenantResults, setTenantResults] = useState<Tenant[]>([]);
-  const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+  const [branchResults, setBranchResults] = useState<Branch[]>([]);
+  const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [tenantError, setTenantError] = useState<string | null>(null);
+  const [branchError, setBranchError] = useState<string | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { control, handleSubmit, formState: { errors } } = useForm<RegisterFormValues>({
@@ -34,47 +34,47 @@ export default function RegisterScreen() {
     defaultValues: { full_name: '', email: '', password: '', confirmPassword: '' },
   });
 
-  const loadTenants = async (query: string) => {
+  const loadBranches = async (query: string) => {
     setIsSearching(true);
     const req = supabase
-      .from('tenants')
-      .select('id, name, slug')
+      .from('branches')
+      .select('id, name, address, tenant_id')
       .eq('is_active', true)
       .order('name');
     if (query.trim()) req.ilike('name', `%${query.trim()}%`);
     const { data } = await req.limit(20);
-    setTenantResults(data ?? []);
+    setBranchResults(data ?? []);
     setShowDropdown(true);
     setIsSearching(false);
   };
 
   const onSearchFocus = () => {
-    if (!selectedTenant) loadTenants(searchQuery);
+    if (!selectedBranch) loadBranches(searchQuery);
   };
 
   useEffect(() => {
-    if (selectedTenant) return;
+    if (selectedBranch) return;
     if (searchTimer.current) clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => loadTenants(searchQuery), 300);
+    searchTimer.current = setTimeout(() => loadBranches(searchQuery), 300);
     return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
-  }, [searchQuery, selectedTenant]);
+  }, [searchQuery, selectedBranch]);
 
-  const selectTenant = (tenant: Tenant) => {
-    setSelectedTenant(tenant);
-    setSearchQuery(tenant.name);
+  const selectBranch = (branch: Branch) => {
+    setSelectedBranch(branch);
+    setSearchQuery(branch.name);
     setShowDropdown(false);
-    setTenantError(null);
+    setBranchError(null);
   };
 
-  const clearTenant = () => {
-    setSelectedTenant(null);
+  const clearBranch = () => {
+    setSelectedBranch(null);
     setSearchQuery('');
-    setTenantResults([]);
+    setBranchResults([]);
   };
 
   const onSubmit = async (values: RegisterFormValues) => {
-    if (!selectedTenant) {
-      setTenantError('Selecciona un gimnasio de la lista');
+    if (!selectedBranch) {
+      setBranchError('Selecciona tu sucursal de la lista');
       return;
     }
     setIsLoading(true);
@@ -86,7 +86,8 @@ export default function RegisterScreen() {
         options: {
           data: {
             full_name: values.full_name.trim(),
-            tenant_id: selectedTenant.id,
+            tenant_id: selectedBranch.tenant_id,
+            branch_id: selectedBranch.id,
             requested_role: 'client',
           },
         },
@@ -210,14 +211,14 @@ export default function RegisterScreen() {
           {errors.email && <Text style={{ color: T.red, fontSize: 12, marginTop: 4 }}>{errors.email.message}</Text>}
         </View>
 
-        {/* Gym search */}
+        {/* Branch search */}
         <View style={{ marginBottom: 14 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: T.textSecondary, marginBottom: 6 }}>Gimnasio</Text>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: T.textSecondary, marginBottom: 6 }}>Sucursal / Gimnasio</Text>
           <View style={{ position: 'relative' }}>
             <View style={{
               flexDirection: 'row', alignItems: 'center',
               borderWidth: 1,
-              borderColor: tenantError ? T.red : selectedTenant ? T.accent : T.border,
+              borderColor: branchError ? T.red : selectedBranch ? T.accent : T.border,
               borderRadius: 10,
               backgroundColor: T.card,
               paddingHorizontal: 14,
@@ -230,23 +231,23 @@ export default function RegisterScreen() {
                 onFocus={onSearchFocus}
                 onChangeText={(v) => {
                   setSearchQuery(v);
-                  if (selectedTenant) setSelectedTenant(null);
-                  setTenantError(null);
+                  if (selectedBranch) setSelectedBranch(null);
+                  setBranchError(null);
                 }}
                 autoCapitalize="none"
                 autoCorrect={false}
-                editable={!selectedTenant}
+                editable={!selectedBranch}
               />
               {isSearching && <ActivityIndicator size="small" color={T.accent} style={{ marginLeft: 8 }} />}
-              {selectedTenant && (
-                <TouchableOpacity onPress={clearTenant} style={{ padding: 4, marginLeft: 4 }}>
+              {selectedBranch && (
+                <TouchableOpacity onPress={clearBranch} style={{ padding: 4, marginLeft: 4 }}>
                   <Text style={{ color: T.textMuted, fontSize: 18, lineHeight: 20 }}>✕</Text>
                 </TouchableOpacity>
               )}
             </View>
 
             {/* Dropdown results */}
-            {showDropdown && tenantResults.length > 0 && (
+            {showDropdown && branchResults.length > 0 && (
               <View style={{
                 backgroundColor: T.card,
                 borderWidth: 1,
@@ -255,14 +256,14 @@ export default function RegisterScreen() {
                 marginTop: 4,
                 overflow: 'hidden',
               }}>
-                {tenantResults.map((tenant, index) => (
+                {branchResults.map((branch, index) => (
                   <TouchableOpacity
-                    key={tenant.id}
-                    onPress={() => selectTenant(tenant)}
+                    key={branch.id}
+                    onPress={() => selectBranch(branch)}
                     style={{
                       paddingHorizontal: 14,
                       paddingVertical: 12,
-                      borderBottomWidth: index < tenantResults.length - 1 ? 1 : 0,
+                      borderBottomWidth: index < branchResults.length - 1 ? 1 : 0,
                       borderBottomColor: T.border,
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -270,27 +271,29 @@ export default function RegisterScreen() {
                   >
                     <Text style={{ fontSize: 16, marginRight: 10 }}>🏋️</Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: T.textPrimary }}>{tenant.name}</Text>
-                      <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 1 }}>{tenant.slug}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: T.textPrimary }}>{branch.name}</Text>
+                      {branch.address ? (
+                        <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 1 }}>{branch.address}</Text>
+                      ) : null}
                     </View>
                   </TouchableOpacity>
                 ))}
               </View>
             )}
 
-            {showDropdown && !isSearching && tenantResults.length === 0 && searchQuery.trim().length > 0 && (
+            {showDropdown && !isSearching && branchResults.length === 0 && searchQuery.trim().length > 0 && (
               <View style={{ backgroundColor: T.card, borderWidth: 1, borderColor: T.border, borderRadius: 10, marginTop: 4, padding: 14 }}>
-                <Text style={{ color: T.textMuted, fontSize: 13, textAlign: 'center' }}>No se encontraron gimnasios</Text>
+                <Text style={{ color: T.textMuted, fontSize: 13, textAlign: 'center' }}>No se encontraron sucursales</Text>
               </View>
             )}
           </View>
 
-          {selectedTenant && (
+          {selectedBranch && (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
-              <Text style={{ fontSize: 12, color: T.accent }}>✓ {selectedTenant.name} seleccionado</Text>
+              <Text style={{ fontSize: 12, color: T.accent }}>✓ {selectedBranch.name} seleccionado</Text>
             </View>
           )}
-          {tenantError && <Text style={{ color: T.red, fontSize: 12, marginTop: 4 }}>{tenantError}</Text>}
+          {branchError && <Text style={{ color: T.red, fontSize: 12, marginTop: 4 }}>{branchError}</Text>}
         </View>
 
         {/* Password */}

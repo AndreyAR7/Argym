@@ -6,7 +6,7 @@ export default async function RegisterPage() {
 
   const { data: branches } = await supabase
     .from('branches')
-    .select('id, name, address, tenants!inner(name)')
+    .select('id, name, address, tenants(name)')
     .eq('is_active', true)
     .order('name')
 
