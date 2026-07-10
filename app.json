@@ -2,20 +2,8 @@
   "expo": {
     "extra": {
       "eas": {
-        "projectId": "4747d431-c841-4ccc-9a00-056a925f5cac"
+        "projectId": "06135515-c0cb-4ce2-8706-cf60e5648234"
       }
-    },
-    "owner": "arojastr",
-    "android": {
-      "package": "com.arojastr.saasclientmanagementplatform"
-    },
-    "plugins": [
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Necesitamos acceso a tu cámara para escanear el código QR de check-in del gimnasio."
-        }
-      ]
-    ]
+    }
   }
 }

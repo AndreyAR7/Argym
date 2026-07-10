@@ -6,7 +6,12 @@ module.exports = {
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     userInterfaceStyle: "automatic",
-    scheme: "saas-client-management",
+    scheme: "argym",
+    splash: {
+      image: "./assets/images/icon.png",
+      resizeMode: "contain",
+      backgroundColor: "#0D1B2A"
+    },
     assetBundlePatterns: ["**/*"],
     plugins: [
       "expo-router",
@@ -17,6 +22,12 @@ module.exports = {
         "expo-image-picker",
         {
           photosPermission: "La app necesita acceso a tus fotos para actualizar tu avatar."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          cameraPermission: "La app necesita acceso a la cámara para escanear códigos QR de check-in."
         }
       ],
       "expo-system-ui",
@@ -40,10 +51,10 @@ module.exports = {
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.saas.clientmanagement"
+      bundleIdentifier: "com.argym.app"
     },
     android: {
-      package: "com.saas.clientmanagement",
+      package: "com.argym.app",
       permissions: ["android.permission.RECORD_AUDIO"],
       adaptiveIcon: {
         foregroundImage: "./assets/images/icon.png",

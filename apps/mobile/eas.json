@@ -7,26 +7,57 @@
     "base": {
       "node": "20.18.0",
       "pnpm": "10.33.0",
-      "prebuildCommand": "cd ../.. && pnpm install --no-frozen-lockfile && cd apps/mobile"
+      "prebuildCommand": "cd ../.. && pnpm install --no-frozen-lockfile && cd apps/mobile",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://wzvhxkleswlzzobxtmfv.supabase.co"
+      },
+      "secrets": {
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "EXPO_PUBLIC_SUPABASE_ANON_KEY"
+      }
     },
     "development": {
       "extends": "base",
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
+      }
     },
     "preview": {
       "extends": "base",
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "simulator": false
       }
     },
     "production": {
       "extends": "base",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "credentialsSource": "remote"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./google-play-key.json",
+        "track": "internal"
+      },
+      "ios": {
+        "appleId": "arojas@ologistics.com",
+        "ascAppId": "SET_YOUR_APP_STORE_CONNECT_APP_ID",
+        "appleTeamId": "SET_YOUR_APPLE_DEVELOPER_TEAM_ID"
+      }
+    }
   }
 }
