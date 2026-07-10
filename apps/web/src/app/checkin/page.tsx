@@ -58,6 +58,37 @@ export default async function CheckinPage({ searchParams }: Props) {
 
   const { supabase, user, tenantId } = session
 
+  // Verify the branch belongs to the user's tenant before calling the RPC.
+  // This prevents cross-gym check-ins (e.g. Golds Gym member scanning Angulo Gym QR).
+  const { data: branchRow } = await supabase
+    .from('branches')
+    .select('id')
+    .eq('id', branch)
+    .eq('tenant_id', tenantId)
+    .maybeSingle()
+
+  if (!branchRow) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)] p-4">
+        <div className="w-full max-w-sm text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-[var(--color-destructive)]/10 flex items-center justify-center mx-auto">
+            <span className="text-3xl">🚫</span>
+          </div>
+          <h1 className="text-xl font-semibold text-[var(--color-foreground)]">QR de otro gimnasio</h1>
+          <p className="text-sm text-[var(--color-muted-foreground)]">
+            Este código QR pertenece a una sucursal que no es de tu gimnasio. Solo puedes hacer check-in en las sucursales de tu gimnasio registrado.
+          </p>
+          <a
+            href="/client/inicio"
+            className="inline-block rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90 transition-opacity"
+          >
+            Volver al inicio
+          </a>
+        </div>
+      </div>
+    )
+  }
+
   // Call the check-in RPC
   const { data, error } = await supabase.rpc('award_checkin', {
     p_user_id: user.id,

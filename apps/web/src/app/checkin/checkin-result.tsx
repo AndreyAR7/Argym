@@ -10,6 +10,7 @@ interface CheckinResultData {
   new_streak: number
   new_badges: string[]
   new_level: number
+  error?: string
 }
 
 interface Props {
@@ -92,7 +93,30 @@ function useConfetti(active: boolean) {
 export function CheckinResult({ result }: Props) {
   const isNew = result?.success && !result?.already_checked_in
   const alreadyIn = result?.already_checked_in
+  const wrongGym = !result?.success && result?.error === 'branch_not_in_tenant'
   const confettiRef = useConfetti(isNew)
+
+  if (wrongGym) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)] p-4">
+        <div className="w-full max-w-sm text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-[var(--color-destructive)]/10 flex items-center justify-center mx-auto">
+            <span className="text-3xl">🚫</span>
+          </div>
+          <h1 className="text-xl font-semibold text-[var(--color-foreground)]">QR de otro gimnasio</h1>
+          <p className="text-sm text-[var(--color-muted-foreground)]">
+            Este código QR pertenece a una sucursal que no es de tu gimnasio. Solo puedes hacer check-in en las sucursales de tu gimnasio registrado.
+          </p>
+          <Link
+            href="/client/inicio"
+            className="inline-block rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90 transition-opacity"
+          >
+            Volver al inicio
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   if (alreadyIn) {
     return (
