@@ -9,10 +9,8 @@
       "pnpm": "10.33.0",
       "prebuildCommand": "cd ../.. && pnpm install --no-frozen-lockfile && cd apps/mobile",
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "https://wzvhxkleswlzzobxtmfv.supabase.co"
-      },
-      "secrets": {
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "EXPO_PUBLIC_SUPABASE_ANON_KEY"
+        "EXPO_PUBLIC_SUPABASE_URL": "https://wzvhxkleswlzzobxtmfv.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6dmh4a2xlc3dsenpvYnh0bWZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNDA5MjMsImV4cCI6MjA5MDgxNjkyM30.P0zIO3IK9u9kucgxaLXWCLzKPSNp92c975ZtKR_qZEw"
       }
     },
     "development": {
