@@ -1,7 +1,7 @@
 module.exports = {
   expo: {
     name: "ARGYM",
-    slug: "ARGYM",
+    slug: "saas-client-management-mobile",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
