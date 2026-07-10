@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
@@ -104,7 +105,9 @@ export default async function TenantsPage({
 
       {/* Search */}
       <div className="mb-4">
-        <SearchInput placeholder="Buscar por nombre o slug..." className="max-w-xs" />
+        <Suspense>
+          <SearchInput placeholder="Buscar por nombre o slug..." className="max-w-xs" />
+        </Suspense>
       </div>
 
       {/* Table */}
@@ -233,7 +236,9 @@ export default async function TenantsPage({
         </div>
       </div>
 
-      <Pagination total={filtered.length} pageSize={PAGE_SIZE} currentPage={page} />
+      <Suspense>
+        <Pagination total={filtered.length} pageSize={PAGE_SIZE} currentPage={page} />
+      </Suspense>
     </div>
   )
 }
