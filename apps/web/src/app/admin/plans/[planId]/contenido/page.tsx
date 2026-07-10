@@ -31,18 +31,25 @@ export default async function PlanContenidoPage({ params }: { params: Promise<{ 
   const [
     { data: allVideos },
     { data: allNutritions },
-    { data: allRoutines },
+    { data: allRoutinesRaw },
     { data: planVideoRows },
     { data: planNutritionRows },
     { data: planRoutineRows },
   ] = await Promise.all([
     supabase.from('videos').select('id, title, status').eq('tenant_id', tenantId).order('title'),
     supabase.from('nutrition_plans').select('id, name, status').eq('tenant_id', tenantId).order('name'),
-    supabase.from('routines').select('id, name, status').eq('tenant_id', tenantId).order('name'),
+    supabase.from('routines').select('id, name, is_active').eq('tenant_id', tenantId).order('name'),
     supabase.from('plan_videos').select('video_id').eq('plan_id', planId),
     supabase.from('plan_nutritions').select('nutrition_plan_id').eq('plan_id', planId),
     supabase.from('plan_routines').select('routine_id').eq('plan_id', planId),
   ])
+
+  // routines table uses is_active (boolean), ContentItem expects status (string)
+  const allRoutines = (allRoutinesRaw ?? []).map((r: any) => ({
+    id: r.id,
+    name: r.name,
+    status: r.is_active ? 'activa' : 'inactiva',
+  }))
 
   const assignedVideoIds = new Set((planVideoRows ?? []).map((r: any) => r.video_id))
   const assignedNutritionIds = new Set((planNutritionRows ?? []).map((r: any) => r.nutrition_plan_id))
@@ -52,8 +59,8 @@ export default async function PlanContenidoPage({ params }: { params: Promise<{ 
   const availableVideos = (allVideos ?? []).filter((v: any) => !assignedVideoIds.has(v.id))
   const assignedNutritions = (allNutritions ?? []).filter((n: any) => assignedNutritionIds.has(n.id))
   const availableNutritions = (allNutritions ?? []).filter((n: any) => !assignedNutritionIds.has(n.id))
-  const assignedRoutines = (allRoutines ?? []).filter((r: any) => assignedRoutineIds.has(r.id))
-  const availableRoutines = (allRoutines ?? []).filter((r: any) => !assignedRoutineIds.has(r.id))
+  const assignedRoutines = allRoutines.filter((r) => assignedRoutineIds.has(r.id))
+  const availableRoutines = allRoutines.filter((r) => !assignedRoutineIds.has(r.id))
 
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto">
