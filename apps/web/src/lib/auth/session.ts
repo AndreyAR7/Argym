@@ -24,11 +24,19 @@ export const getSessionData = cache(async () => {
     ckStore.get('x-role')?.value ??
     undefined
 
-  const approvalStatus =
-    ckStore.get('x-approval')?.value ?? 'pending'
-
   if (tenantId) {
-    console.log(`[SESSION] fast path (cookies): ${Date.now() - t0}ms total`)
+    // Fetch approval_status fresh from DB — never trust the cached cookie for
+    // this field because an admin can approve/reject a user mid-session and
+    // because stale 'pending' cookies from previous sessions would block access.
+    const { data: freshProfile } = await supabase
+      .from('profiles')
+      .select('approval_status')
+      .eq('id', user.id)
+      .single()
+
+    const approvalStatus = freshProfile?.approval_status ?? ckStore.get('x-approval')?.value ?? 'pending'
+    console.log(`[SESSION] fast path (cookies+approval): ${Date.now() - t0}ms total`)
+
     const fullName  = ckStore.get('x-name')?.value ?? (user.user_metadata?.full_name as string) ?? null
     const avatarUrl = ckStore.get('x-avatar')?.value ?? (user.user_metadata?.avatar_url as string) ?? null
 
