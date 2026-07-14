@@ -84,6 +84,7 @@ CREATE POLICY "notification_queue_admin_read"
 -- a notification.  The function validates tenant membership before inserting,
 -- preventing cross-tenant writes even if the caller supplies a wrong tenant_id.
 
+DROP FUNCTION IF EXISTS public.queue_notification CASCADE;
 CREATE OR REPLACE FUNCTION public.queue_notification(
   p_user_id          UUID,
   p_tenant_id        UUID,
@@ -140,6 +141,7 @@ GRANT EXECUTE ON FUNCTION public.queue_notification(UUID, UUID, TEXT, TEXT, TEXT
 -- notification_queue regardless of the triggering session's RLS context.
 -- Errors are swallowed — notifications must never block the originating DML.
 
+DROP FUNCTION IF EXISTS public.enqueue_push_notification CASCADE;
 CREATE OR REPLACE FUNCTION public.enqueue_push_notification(
   p_user_id           UUID,
   p_tenant_id         UUID,
@@ -178,6 +180,7 @@ GRANT  EXECUTE ON FUNCTION public.enqueue_push_notification(UUID,UUID,TEXT,TEXT,
 -- Fires on UPDATE when status transitions to 'confirmed'.
 -- Complements the send-communication email trigger in migration 089.
 
+DROP FUNCTION IF EXISTS public.trg_notify_push_appointment_confirmed CASCADE;
 CREATE OR REPLACE FUNCTION public.trg_notify_push_appointment_confirmed()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -230,6 +233,7 @@ CREATE TRIGGER trg_notify_push_appointment_confirmed
 -- Fires on INSERT when status is 'pending_confirmation' or 'scheduled',
 -- acknowledging that the appointment request was received.
 
+DROP FUNCTION IF EXISTS public.trg_notify_push_appointment_created CASCADE;
 CREATE OR REPLACE FUNCTION public.trg_notify_push_appointment_created()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -278,6 +282,7 @@ CREATE TRIGGER trg_notify_push_appointment_created
 
 -- ── 7. Trigger: appointment_cancelled → push to client ───────────────────────
 
+DROP FUNCTION IF EXISTS public.trg_notify_push_appointment_cancelled CASCADE;
 CREATE OR REPLACE FUNCTION public.trg_notify_push_appointment_cancelled()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -326,6 +331,7 @@ CREATE TRIGGER trg_notify_push_appointment_cancelled
 -- (trigger_profile_approval_communication which calls send-communication).
 -- This trigger adds the push channel.
 
+DROP FUNCTION IF EXISTS public.trg_notify_push_user_approved CASCADE;
 CREATE OR REPLACE FUNCTION public.trg_notify_push_user_approved()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -361,6 +367,7 @@ CREATE TRIGGER trg_notify_push_user_approved
 
 -- ── 9. Trigger: plan purchased (subscription becomes active) → push to client ─
 
+DROP FUNCTION IF EXISTS public.trg_notify_push_plan_purchased CASCADE;
 CREATE OR REPLACE FUNCTION public.trg_notify_push_plan_purchased()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -420,6 +427,7 @@ CREATE TRIGGER trg_notify_push_plan_purchased_update
 -- Also inserts push rows into notification_queue as a side-effect so the
 -- mobile app can surface them without a second round-trip.
 
+DROP FUNCTION IF EXISTS public.check_expiring_subscriptions CASCADE;
 CREATE OR REPLACE FUNCTION public.check_expiring_subscriptions(
   p_days INT DEFAULT 3
 )
@@ -466,6 +474,7 @@ GRANT EXECUTE ON FUNCTION public.check_expiring_subscriptions(INT) TO service_ro
 -- to bulk-insert push notifications for subscriptions expiring in p_days days.
 -- Returns the count of notifications queued.
 
+DROP FUNCTION IF EXISTS public.enqueue_expiring_subscription_pushes CASCADE;
 CREATE OR REPLACE FUNCTION public.enqueue_expiring_subscription_pushes(
   p_days INT DEFAULT 3
 )
@@ -518,6 +527,7 @@ GRANT EXECUTE ON FUNCTION public.enqueue_expiring_subscription_pushes(INT) TO se
 -- Marks rows as 'processing' first (advisory lock pattern) to prevent
 -- double-processing under concurrent runs.
 
+DROP FUNCTION IF EXISTS public.process_notification_queue CASCADE;
 CREATE OR REPLACE FUNCTION public.process_notification_queue(
   p_batch_size INT DEFAULT 50
 )

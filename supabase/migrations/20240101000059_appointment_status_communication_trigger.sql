@@ -6,6 +6,7 @@
 -- Complements migration 000054 which handles INSERT (appointment.created).
 -- ============================================================
 
+DROP FUNCTION IF EXISTS public.trigger_appointment_status_communication CASCADE;
 CREATE OR REPLACE FUNCTION public.trigger_appointment_status_communication()
 RETURNS TRIGGER
 LANGUAGE plpgsql

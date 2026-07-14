@@ -19,6 +19,7 @@ ALTER TABLE public.user_subscriptions
 
 -- ── 2. Trigger: plan.expired ──────────────────────────────────────
 
+DROP FUNCTION IF EXISTS public.trigger_subscription_status_communication CASCADE;
 CREATE OR REPLACE FUNCTION public.trigger_subscription_status_communication()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -55,6 +56,7 @@ CREATE TRIGGER on_subscription_status_communication
 
 -- ── 3. Trigger: client.approved + client.welcome ─────────────────
 
+DROP FUNCTION IF EXISTS public.trigger_profile_approval_communication CASCADE;
 CREATE OR REPLACE FUNCTION public.trigger_profile_approval_communication()
 RETURNS TRIGGER
 LANGUAGE plpgsql

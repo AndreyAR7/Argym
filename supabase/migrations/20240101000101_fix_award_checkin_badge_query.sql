@@ -5,6 +5,7 @@
 -- Restore the original _gam_check_badges() call while keeping the
 -- branch-in-tenant security guard added in migration 000100.
 -- ---------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.award_checkin CASCADE;
 CREATE OR REPLACE FUNCTION public.award_checkin(
     p_user_id   UUID,
     p_tenant_id UUID,

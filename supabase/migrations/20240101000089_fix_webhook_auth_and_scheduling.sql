@@ -42,6 +42,7 @@ ON CONFLICT (key) DO NOTHING;
 -- Edge Function calls supabaseAdmin.rpc('get_webhook_secret') to validate
 -- incoming requests. SECURITY DEFINER runs as owner (postgres/service_role)
 -- bypassing the REVOKE above; anon/authenticated cannot call it directly.
+DROP FUNCTION IF EXISTS public.get_webhook_secret CASCADE;
 CREATE OR REPLACE FUNCTION public.get_webhook_secret()
 RETURNS TEXT
 LANGUAGE sql
@@ -60,6 +61,7 @@ GRANT  EXECUTE ON FUNCTION public.get_webhook_secret() TO service_role;
 -- ── 4. Recreate ALL trigger functions with webhook secret ────────────────
 
 -- 4a. appointment.created
+DROP FUNCTION IF EXISTS public.trigger_appointment_communication CASCADE;
 CREATE OR REPLACE FUNCTION public.trigger_appointment_communication()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -86,6 +88,7 @@ END;
 $$;
 
 -- 4b. appointment.confirmed / appointment.cancelled
+DROP FUNCTION IF EXISTS public.trigger_appointment_status_communication CASCADE;
 CREATE OR REPLACE FUNCTION public.trigger_appointment_status_communication()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -124,6 +127,7 @@ END;
 $$;
 
 -- 4c. plan.purchased (subscription becomes active)
+DROP FUNCTION IF EXISTS public.trigger_subscription_communication CASCADE;
 CREATE OR REPLACE FUNCTION public.trigger_subscription_communication()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -152,6 +156,7 @@ END;
 $$;
 
 -- 4d. plan.expired (subscription status changes to expired)
+DROP FUNCTION IF EXISTS public.trigger_subscription_status_communication CASCADE;
 CREATE OR REPLACE FUNCTION public.trigger_subscription_status_communication()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -182,6 +187,7 @@ END;
 $$;
 
 -- 4e. client.approved + client.welcome
+DROP FUNCTION IF EXISTS public.trigger_profile_approval_communication CASCADE;
 CREATE OR REPLACE FUNCTION public.trigger_profile_approval_communication()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -217,6 +223,7 @@ $$;
 -- ── 5. Recreate cron functions with webhook secret ───────────────────────
 
 -- 5a. Appointment reminders (runs every 5 min via pg_cron)
+DROP FUNCTION IF EXISTS public.send_appointment_reminders CASCADE;
 CREATE OR REPLACE FUNCTION public.send_appointment_reminders()
 RETURNS INT
 LANGUAGE plpgsql
@@ -261,6 +268,7 @@ END;
 $$;
 
 -- 5b. Plan expiry warnings (runs daily at 08:00 UTC via pg_cron)
+DROP FUNCTION IF EXISTS public.send_expiring_plan_warnings CASCADE;
 CREATE OR REPLACE FUNCTION public.send_expiring_plan_warnings()
 RETURNS INT
 LANGUAGE plpgsql

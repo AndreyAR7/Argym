@@ -11,6 +11,7 @@
 CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
 
 -- ── Trigger function ──────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.trigger_appointment_communication CASCADE;
 CREATE OR REPLACE FUNCTION public.trigger_appointment_communication()
 RETURNS TRIGGER
 LANGUAGE plpgsql

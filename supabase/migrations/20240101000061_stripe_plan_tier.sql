@@ -15,6 +15,7 @@ CREATE INDEX IF NOT EXISTS idx_profiles_stripe_customer
 -- RPC: create_client_subscription
 -- Called by the Stripe webhook (service role) to activate a subscription
 -- SECURITY DEFINER so it can bypass RLS when called via service role
+DROP FUNCTION IF EXISTS public.create_client_subscription CASCADE;
 CREATE OR REPLACE FUNCTION public.create_client_subscription(
   p_user_id         UUID,
   p_tenant_id       UUID,

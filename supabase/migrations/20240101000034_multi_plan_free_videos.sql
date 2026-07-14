@@ -18,6 +18,7 @@ CREATE INDEX IF NOT EXISTS idx_videos_free ON public.videos(tenant_id) WHERE is_
 -- No longer cancels existing active subscriptions.
 -- Each call creates one new subscription.  Users keep all plans
 -- until their end_date passes.
+DROP FUNCTION IF EXISTS public.assign_plan CASCADE;
 CREATE OR REPLACE FUNCTION public.assign_plan(
   p_user_id   UUID,
   p_tenant_id UUID,

@@ -38,4 +38,3 @@ $$;
 
 -- Allow authenticated users to call this RPC
 GRANT EXECUTE ON FUNCTION public.get_profiles_by_role(TEXT) TO authenticated;
-z|

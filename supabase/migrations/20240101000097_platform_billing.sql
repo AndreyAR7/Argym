@@ -28,6 +28,7 @@ CREATE POLICY "tenant_owner_read_own_subscription"
 
 -- ── RPC: upsert_platform_subscription ───────────────────────────────────────
 -- Called by the platform webhook on checkout.session.completed
+DROP FUNCTION IF EXISTS public.upsert_platform_subscription CASCADE;
 CREATE OR REPLACE FUNCTION public.upsert_platform_subscription(
   p_tenant_id            UUID,
   p_plan_id              UUID,
@@ -72,6 +73,7 @@ END;
 $$;
 
 -- ── RPC: renew_platform_subscription ────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.renew_platform_subscription CASCADE;
 CREATE OR REPLACE FUNCTION public.renew_platform_subscription(
   p_stripe_sub_id   TEXT,
   p_period_start    TIMESTAMPTZ,
@@ -107,6 +109,7 @@ END;
 $$;
 
 -- ── RPC: suspend_platform_subscription ──────────────────────────────────────
+DROP FUNCTION IF EXISTS public.suspend_platform_subscription CASCADE;
 CREATE OR REPLACE FUNCTION public.suspend_platform_subscription(
   p_stripe_sub_id TEXT
 )
@@ -137,6 +140,7 @@ END;
 $$;
 
 -- ── RPC: cancel_platform_subscription ───────────────────────────────────────
+DROP FUNCTION IF EXISTS public.cancel_platform_subscription CASCADE;
 CREATE OR REPLACE FUNCTION public.cancel_platform_subscription(
   p_stripe_sub_id TEXT
 )

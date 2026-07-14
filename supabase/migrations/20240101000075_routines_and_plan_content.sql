@@ -6,6 +6,41 @@
 -- policy on routines (which references them).
 -- ============================================================
 
+-- ── routines (CREATE TABLE IF NOT EXISTS — was missing from migrations) ──
+CREATE TABLE IF NOT EXISTS public.routines (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  description TEXT,
+  level       TEXT CHECK (level IN ('beginner', 'intermediate', 'advanced')),
+  is_active   BOOLEAN NOT NULL DEFAULT true,
+  is_template BOOLEAN NOT NULL DEFAULT false,
+  created_by  UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.routines ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_routines_tenant ON public.routines(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_routines_active ON public.routines(tenant_id, is_active);
+
+-- Admin full access
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='routines' AND policyname='routines_admin_all') THEN
+    CREATE POLICY "routines_admin_all" ON public.routines
+      FOR ALL USING (
+        tenant_id = public.get_tenant_id()
+        AND public.has_permission('billing.manage')
+      );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='routines' AND policyname='routines_coach_read') THEN
+    CREATE POLICY "routines_coach_read" ON public.routines
+      FOR SELECT USING (tenant_id = public.get_tenant_id());
+  END IF;
+END $$;
+
 -- ── plan_routines ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.plan_routines (
   plan_id    UUID NOT NULL REFERENCES public.plans(id)    ON DELETE CASCADE,

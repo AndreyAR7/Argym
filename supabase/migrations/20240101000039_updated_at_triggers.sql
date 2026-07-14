@@ -3,6 +3,7 @@
 -- ============================================================
 
 -- 1. Shared trigger function
+DROP FUNCTION IF EXISTS public.set_updated_at CASCADE;
 CREATE OR REPLACE FUNCTION public.set_updated_at()
   RETURNS TRIGGER
   LANGUAGE plpgsql
@@ -15,53 +16,61 @@ $$;
 
 -- 2. nutrition_plans
 DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_trigger
-    WHERE tgname = 'trg_set_updated_at_nutrition_plans'
-      AND tgrelid = 'public.nutrition_plans'::regclass
-  ) THEN
-    CREATE TRIGGER trg_set_updated_at_nutrition_plans
-      BEFORE UPDATE ON public.nutrition_plans
-      FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'nutrition_plans') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_trigger
+      WHERE tgname = 'trg_set_updated_at_nutrition_plans'
+        AND tgrelid = 'public.nutrition_plans'::regclass
+    ) THEN
+      CREATE TRIGGER trg_set_updated_at_nutrition_plans
+        BEFORE UPDATE ON public.nutrition_plans
+        FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+    END IF;
   END IF;
 END $$;
 
 -- 3. videos
 DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_trigger
-    WHERE tgname = 'trg_set_updated_at_videos'
-      AND tgrelid = 'public.videos'::regclass
-  ) THEN
-    CREATE TRIGGER trg_set_updated_at_videos
-      BEFORE UPDATE ON public.videos
-      FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'videos') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_trigger
+      WHERE tgname = 'trg_set_updated_at_videos'
+        AND tgrelid = 'public.videos'::regclass
+    ) THEN
+      CREATE TRIGGER trg_set_updated_at_videos
+        BEFORE UPDATE ON public.videos
+        FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+    END IF;
   END IF;
 END $$;
 
--- 4. routines
+-- 4. routines (only if table exists)
 DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_trigger
-    WHERE tgname = 'trg_set_updated_at_routines'
-      AND tgrelid = 'public.routines'::regclass
-  ) THEN
-    CREATE TRIGGER trg_set_updated_at_routines
-      BEFORE UPDATE ON public.routines
-      FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'routines') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_trigger
+      WHERE tgname = 'trg_set_updated_at_routines'
+        AND tgrelid = 'public.routines'::regclass
+    ) THEN
+      CREATE TRIGGER trg_set_updated_at_routines
+        BEFORE UPDATE ON public.routines
+        FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+    END IF;
   END IF;
 END $$;
 
--- 5. exercises
+-- 5. exercises (only if table exists)
 DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_trigger
-    WHERE tgname = 'trg_set_updated_at_exercises'
-      AND tgrelid = 'public.exercises'::regclass
-  ) THEN
-    CREATE TRIGGER trg_set_updated_at_exercises
-      BEFORE UPDATE ON public.exercises
-      FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'exercises') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_trigger
+      WHERE tgname = 'trg_set_updated_at_exercises'
+        AND tgrelid = 'public.exercises'::regclass
+    ) THEN
+      CREATE TRIGGER trg_set_updated_at_exercises
+        BEFORE UPDATE ON public.exercises
+        FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+    END IF;
   END IF;
 END $$;
 
@@ -85,6 +94,6 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- 7. Composite index on appointments
+-- 7. Composite index on appointments (column is start_time)
 CREATE INDEX IF NOT EXISTS idx_appointments_tenant_status_start
-  ON public.appointments(tenant_id, status, start_at);
+  ON public.appointments(tenant_id, status, start_time);

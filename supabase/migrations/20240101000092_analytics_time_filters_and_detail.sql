@@ -9,6 +9,7 @@
 -- ─────────────────────────────────────────────────────────────
 -- 1. EXECUTIVE KPIs (MRR · ARR · churn · ARPU · fill-rate)
 -- ─────────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_executive_kpis CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_executive_kpis(
   p_tenant_id UUID,
   p_from      TIMESTAMPTZ DEFAULT '-infinity',
@@ -143,6 +144,7 @@ $$;
 -- ─────────────────────────────────────────────────────────────
 -- 2. REVENUE SUMMARY with date range
 -- ─────────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_revenue_summary CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_revenue_summary(
   p_tenant_id UUID,
   p_from      TIMESTAMPTZ,
@@ -191,6 +193,7 @@ $$;
 -- ─────────────────────────────────────────────────────────────
 -- 3. MONTHLY REVENUE with date range
 -- ─────────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_monthly_revenue CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_monthly_revenue(
   p_tenant_id UUID,
   p_from      TIMESTAMPTZ,
@@ -213,6 +216,7 @@ $$;
 -- ─────────────────────────────────────────────────────────────
 -- 4. TOP PLANS with date range
 -- ─────────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_top_plans CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_top_plans(
   p_tenant_id UUID,
   p_from      TIMESTAMPTZ,
@@ -236,6 +240,7 @@ $$;
 -- ─────────────────────────────────────────────────────────────
 -- 5. TOP PROMOTIONS with date range
 -- ─────────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_top_promotions CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_top_promotions(
   p_tenant_id UUID,
   p_from      TIMESTAMPTZ,
@@ -264,6 +269,7 @@ $$;
 -- ─────────────────────────────────────────────────────────────
 -- 6. TOP USERS with date range
 -- ─────────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_top_users CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_top_users(
   p_tenant_id UUID,
   p_from      TIMESTAMPTZ,
@@ -294,6 +300,7 @@ $$;
 -- ─────────────────────────────────────────────────────────────
 -- 7. BRANCH PERFORMANCE with date range
 -- ─────────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_branch_performance CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_branch_performance(
   p_tenant_id UUID,
   p_from      TIMESTAMPTZ,
@@ -340,6 +347,7 @@ $$;
 -- ─────────────────────────────────────────────────────────────
 -- 8. TOP VIDEOS with date range
 -- ─────────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_top_videos CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_top_videos(
   p_tenant_id UUID,
   p_from      TIMESTAMPTZ,
@@ -360,6 +368,7 @@ $$;
 -- ─────────────────────────────────────────────────────────────
 -- 9. WEEKLY ACTIVITY with date range
 -- ─────────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_weekly_activity CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_weekly_activity(
   p_tenant_id UUID,
   p_from      TIMESTAMPTZ,
@@ -391,6 +400,7 @@ $$;
 -- ─────────────────────────────────────────────────────────────
 -- 10. DETAILED CLIENTS TABLE (all columns)
 -- ─────────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_detailed_clients CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_detailed_clients(
   p_tenant_id UUID,
   p_from      TIMESTAMPTZ DEFAULT '-infinity',
@@ -447,6 +457,7 @@ $$;
 -- ─────────────────────────────────────────────────────────────
 -- 11. DETAILED TRANSACTIONS / INVOICES TABLE
 -- ─────────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_detailed_transactions CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_detailed_transactions(
   p_tenant_id UUID,
   p_from      TIMESTAMPTZ DEFAULT '-infinity',
@@ -500,6 +511,7 @@ $$;
 -- ─────────────────────────────────────────────────────────────
 -- 12. DETAILED SUBSCRIPTIONS TABLE
 -- ─────────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_detailed_subscriptions CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_detailed_subscriptions(
   p_tenant_id UUID,
   p_from      TIMESTAMPTZ DEFAULT '-infinity',
@@ -552,6 +564,7 @@ $$;
 -- ─────────────────────────────────────────────────────────────
 -- 13. DETAILED APPOINTMENTS TABLE
 -- ─────────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_detailed_appointments CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_detailed_appointments(
   p_tenant_id UUID,
   p_from      TIMESTAMPTZ DEFAULT '-infinity',

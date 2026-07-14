@@ -39,7 +39,7 @@ DECLARE
 BEGIN
   -- ── Resolve tenant + admin ──────────────────────────────────
   SELECT id INTO v_tid FROM public.tenants LIMIT 1;
-  IF v_tid IS NULL THEN RAISE EXCEPTION 'No tenant found — run core migrations first'; END IF;
+  IF v_tid IS NULL THEN RAISE NOTICE 'No tenant found — skipping seed'; RETURN; END IF;
 
   SELECT p.id INTO v_admin_id
   FROM public.profiles p

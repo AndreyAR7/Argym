@@ -7,6 +7,7 @@
 -- ============================================================
 
 -- Function called by the cron job
+DROP FUNCTION IF EXISTS public.auto_cancel_unconfirmed_appointments CASCADE;
 CREATE OR REPLACE FUNCTION public.auto_cancel_unconfirmed_appointments()
 RETURNS void
 LANGUAGE plpgsql AS $$

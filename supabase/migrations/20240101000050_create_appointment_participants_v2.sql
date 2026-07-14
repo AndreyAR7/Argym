@@ -13,6 +13,7 @@ DROP FUNCTION IF EXISTS public.create_appointment(
 );
 
 -- New overload with participant IDs support
+DROP FUNCTION IF EXISTS public.create_appointment CASCADE;
 CREATE OR REPLACE FUNCTION public.create_appointment(
   p_title            TEXT,
   p_client_id        UUID,

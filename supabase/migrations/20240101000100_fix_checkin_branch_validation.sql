@@ -3,6 +3,7 @@
 -- user's own tenant. Without this check a member of Gym A could scan the QR
 -- of Gym B and be awarded a check-in as if they had visited their own gym.
 -- ---------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.award_checkin CASCADE;
 CREATE OR REPLACE FUNCTION public.award_checkin(
     p_user_id   UUID,
     p_tenant_id UUID,

@@ -9,6 +9,7 @@
 -- NULL-uid safety improvement from 000078.
 -- ============================================================
 
+DROP FUNCTION IF EXISTS public.has_permission CASCADE;
 CREATE OR REPLACE FUNCTION public.has_permission(permission_code TEXT)
 RETURNS BOOLEAN AS $$
   SELECT CASE WHEN auth.uid() IS NULL THEN FALSE

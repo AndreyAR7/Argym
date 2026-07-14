@@ -50,7 +50,7 @@ DECLARE
 
 BEGIN
   SELECT id INTO v_tid FROM public.tenants LIMIT 1;
-  IF v_tid IS NULL THEN RAISE EXCEPTION 'No tenant found — run after tenant creation'; END IF;
+  IF v_tid IS NULL THEN RAISE NOTICE 'No tenant found — skipping seed content'; RETURN; END IF;
 
   SELECT p.id INTO v_uid
   FROM public.profiles p

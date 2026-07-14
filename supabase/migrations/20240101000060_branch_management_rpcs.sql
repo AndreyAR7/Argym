@@ -4,6 +4,7 @@
 -- ============================================================
 -- 1. get_branches_with_stats()
 -- ============================================================
+DROP FUNCTION IF EXISTS public.get_branches_with_stats CASCADE;
 CREATE OR REPLACE FUNCTION public.get_branches_with_stats()
 RETURNS TABLE (
     id          uuid,
@@ -60,6 +61,7 @@ GRANT EXECUTE ON FUNCTION public.get_branches_with_stats() TO authenticated;
 -- ============================================================
 -- 2. assign_user_to_branch(p_user_id uuid, p_branch_id uuid)
 -- ============================================================
+DROP FUNCTION IF EXISTS public.assign_user_to_branch CASCADE;
 CREATE OR REPLACE FUNCTION public.assign_user_to_branch(
     p_user_id  uuid,
     p_branch_id uuid

@@ -8,6 +8,7 @@
 
 CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
 
+DROP FUNCTION IF EXISTS public.trigger_subscription_communication CASCADE;
 CREATE OR REPLACE FUNCTION public.trigger_subscription_communication()
 RETURNS TRIGGER
 LANGUAGE plpgsql

@@ -8,6 +8,7 @@ CREATE INDEX IF NOT EXISTS idx_email_logs_tenant_status_created
   ON public.email_logs(tenant_id, status, created_at DESC);
 
 -- ── Analytics: revenue summary (KPI cards) ──────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_revenue_summary CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_revenue_summary(p_tenant_id UUID)
 RETURNS TABLE (
   total_revenue          NUMERIC,
@@ -52,6 +53,7 @@ END;
 $$;
 
 -- ── Monthly revenue (last 13 months) ────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_monthly_revenue CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_monthly_revenue(p_tenant_id UUID)
 RETURNS TABLE (year_month TEXT, revenue NUMERIC, count BIGINT)
 LANGUAGE plpgsql
@@ -79,6 +81,7 @@ END;
 $$;
 
 -- ── Top plans ────────────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_top_plans CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_top_plans(p_tenant_id UUID)
 RETURNS TABLE (plan_name TEXT, purchases BIGINT, revenue NUMERIC, currency TEXT)
 LANGUAGE plpgsql
@@ -108,6 +111,7 @@ END;
 $$;
 
 -- ── Top promotions ───────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_top_promotions CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_top_promotions(p_tenant_id UUID)
 RETURNS TABLE (promo_title TEXT, uses BIGINT, avg_discount NUMERIC)
 LANGUAGE plpgsql
@@ -137,6 +141,7 @@ END;
 $$;
 
 -- ── Top users (revenue + activity) ──────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_top_users CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_top_users(p_tenant_id UUID)
 RETURNS TABLE (full_name TEXT, revenue NUMERIC, subscriptions BIGINT, appointments BIGINT, measurements BIGINT)
 LANGUAGE plpgsql
@@ -170,6 +175,7 @@ END;
 $$;
 
 -- ── Branch performance ───────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_branch_performance CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_branch_performance(p_tenant_id UUID)
 RETURNS TABLE (branch_name TEXT, clients BIGINT, coaches BIGINT, revenue NUMERIC, appointments BIGINT)
 LANGUAGE plpgsql
@@ -211,6 +217,7 @@ END;
 $$;
 
 -- ── Top videos ───────────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_top_videos CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_top_videos(p_tenant_id UUID)
 RETURNS TABLE (video_title TEXT, assignments BIGINT)
 LANGUAGE plpgsql
@@ -238,6 +245,7 @@ END;
 $$;
 
 -- ── Weekly activity (last 12 weeks) ─────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.analytics_weekly_activity CASCADE;
 CREATE OR REPLACE FUNCTION public.analytics_weekly_activity(p_tenant_id UUID)
 RETURNS TABLE (year_week TEXT, appointments BIGINT, new_subscriptions BIGINT, revenue NUMERIC)
 LANGUAGE plpgsql

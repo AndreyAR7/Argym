@@ -2,6 +2,7 @@
 -- now creates a paid invoice alongside the subscription row.
 -- assign_plan (manual admin) already created pending invoices — unchanged.
 
+DROP FUNCTION IF EXISTS public.create_client_subscription CASCADE;
 CREATE OR REPLACE FUNCTION public.create_client_subscription(
   p_user_id         UUID,
   p_tenant_id       UUID,

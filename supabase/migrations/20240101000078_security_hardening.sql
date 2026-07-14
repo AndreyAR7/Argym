@@ -11,6 +11,7 @@
 -- ============================================================
 
 -- ── 1. Harden get_tenant_id() ─────────────────────────────────
+DROP FUNCTION IF EXISTS public.get_tenant_id CASCADE;
 CREATE OR REPLACE FUNCTION public.get_tenant_id()
 RETURNS UUID AS $$
 DECLARE
@@ -29,6 +30,7 @@ SET search_path = public, auth;
 
 -- ── 2. Harden has_permission() ───────────────────────────────
 -- NOTE: parameter name must match the existing function signature (permission_code)
+DROP FUNCTION IF EXISTS public.has_permission CASCADE;
 CREATE OR REPLACE FUNCTION public.has_permission(permission_code TEXT)
 RETURNS BOOLEAN AS $$
 DECLARE

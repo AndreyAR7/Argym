@@ -7,6 +7,7 @@
 -- client/coach belong to the same tenant.
 -- ============================================================
 
+DROP FUNCTION IF EXISTS public.create_appointment CASCADE;
 CREATE OR REPLACE FUNCTION public.create_appointment(
   p_title            TEXT,
   p_client_id        UUID,

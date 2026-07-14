@@ -2,6 +2,7 @@
 -- Called daily by the expire-plan-subscriptions Edge Function cron job.
 -- Safe to call multiple times (idempotent).
 
+DROP FUNCTION IF EXISTS public.expire_subscriptions_for_expired_plans CASCADE;
 CREATE OR REPLACE FUNCTION public.expire_subscriptions_for_expired_plans()
 RETURNS integer
 LANGUAGE plpgsql

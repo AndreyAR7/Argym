@@ -11,6 +11,7 @@
 -- ============================================================
 
 -- ── Fix: elevate_user_to_coach ────────────────────────────────
+DROP FUNCTION IF EXISTS public.elevate_user_to_coach CASCADE;
 CREATE OR REPLACE FUNCTION public.elevate_user_to_coach(
   p_user_id  UUID,
   p_admin_id UUID
@@ -61,6 +62,7 @@ END;
 $$;
 
 -- ── New: demote_coach_to_client ───────────────────────────────
+DROP FUNCTION IF EXISTS public.demote_coach_to_client CASCADE;
 CREATE OR REPLACE FUNCTION public.demote_coach_to_client(
   p_user_id  UUID,
   p_admin_id UUID

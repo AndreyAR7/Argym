@@ -9,6 +9,7 @@
 -- Inserts an XP transaction and upserts user_game_stats accumulators.
 -- Called only by service_role / other SECURITY DEFINER functions.
 -- ---------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public._gam_award_xp CASCADE;
 CREATE OR REPLACE FUNCTION public._gam_award_xp(
     p_user_id   UUID,
     p_tenant_id UUID,
@@ -43,6 +44,7 @@ $$;
 -- Recalculates and persists the level for a user based on their current xp_total.
 -- Returns the new level.
 -- ---------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public._gam_update_level CASCADE;
 CREATE OR REPLACE FUNCTION public._gam_update_level(
     p_user_id   UUID,
     p_tenant_id UUID
@@ -88,6 +90,7 @@ $$;
 -- Evaluates all auto-award badge conditions for a user and awards any newly
 -- earned badges. Returns the set of badge_definitions just awarded.
 -- ---------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public._gam_check_badges CASCADE;
 CREATE OR REPLACE FUNCTION public._gam_check_badges(
     p_user_id   UUID,
     p_tenant_id UUID
@@ -167,6 +170,7 @@ $$;
 -- Records a gym check-in for a user, calculates XP + streak, awards badges.
 -- Callable by the user themselves or by service_role (admin tools, QR scanner).
 -- ---------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.award_checkin CASCADE;
 CREATE OR REPLACE FUNCTION public.award_checkin(
     p_user_id   UUID,
     p_tenant_id UUID,
@@ -363,6 +367,7 @@ $$;
 -- Public RPC: get_leaderboard
 -- Returns ranked users within a tenant, sorted by the requested XP period.
 -- ---------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_leaderboard CASCADE;
 CREATE OR REPLACE FUNCTION public.get_leaderboard(
     p_tenant_id UUID,
     p_period    TEXT    DEFAULT 'week',
@@ -438,6 +443,7 @@ $$;
 --   • challenges the user participates in
 --   • challenges the user created
 -- ---------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_user_challenges CASCADE;
 CREATE OR REPLACE FUNCTION public.get_user_challenges(
     p_user_id   UUID,
     p_tenant_id UUID
@@ -521,6 +527,7 @@ $$;
 -- Public RPC: complete_challenge_entry
 -- Marks a participant as having completed a challenge, awards XP and badges.
 -- ---------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.complete_challenge_entry CASCADE;
 CREATE OR REPLACE FUNCTION public.complete_challenge_entry(
     p_challenge_id UUID,
     p_user_id      UUID

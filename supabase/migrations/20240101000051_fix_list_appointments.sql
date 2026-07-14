@@ -12,6 +12,7 @@
 
 DROP FUNCTION IF EXISTS public.list_appointments(TIMESTAMPTZ, TIMESTAMPTZ);
 
+DROP FUNCTION IF EXISTS public.list_appointments CASCADE;
 CREATE OR REPLACE FUNCTION public.list_appointments(
   p_start_time TIMESTAMPTZ DEFAULT NULL,
   p_end_time   TIMESTAMPTZ DEFAULT NULL

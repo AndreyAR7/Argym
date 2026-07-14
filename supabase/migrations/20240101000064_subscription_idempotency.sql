@@ -7,6 +7,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_user_subscriptions_payment_ref
 
 -- Update create_client_subscription to be idempotent
 -- If a subscription with the same payment_reference already exists, skip the insert
+DROP FUNCTION IF EXISTS public.create_client_subscription CASCADE;
 CREATE OR REPLACE FUNCTION public.create_client_subscription(
   p_user_id         UUID,
   p_tenant_id       UUID,

@@ -7,6 +7,7 @@
 -- to notifications regardless of the caller's RLS context.
 -- ============================================================
 
+DROP FUNCTION IF EXISTS public.notify_staff_on_measurement CASCADE;
 CREATE OR REPLACE FUNCTION public.notify_staff_on_measurement()
 RETURNS TRIGGER
 LANGUAGE plpgsql

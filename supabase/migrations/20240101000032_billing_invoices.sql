@@ -10,6 +10,7 @@
 -- ── 1. Invoice number sequence ────────────────────────────
 CREATE SEQUENCE IF NOT EXISTS public.invoice_number_seq START 1;
 
+DROP FUNCTION IF EXISTS public.next_invoice_number CASCADE;
 CREATE OR REPLACE FUNCTION public.next_invoice_number()
 RETURNS TEXT LANGUAGE plpgsql AS $$
 BEGIN
@@ -19,7 +20,7 @@ $$;
 
 -- ── 2. Invoices table ─────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.invoices (
-  id               UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id        UUID        NOT NULL REFERENCES public.tenants(id)  ON DELETE CASCADE,
   user_id          UUID        NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   subscription_id  UUID        REFERENCES public.user_subscriptions(id) ON DELETE SET NULL,
@@ -70,6 +71,7 @@ ALTER TABLE public.user_subscriptions
   ADD COLUMN IF NOT EXISTS cancellation_reason TEXT;
 
 -- ── 4. Helper: compute end_date from billing cycle ───────
+DROP FUNCTION IF EXISTS public.subscription_end_date CASCADE;
 CREATE OR REPLACE FUNCTION public.subscription_end_date(
   p_start      TIMESTAMPTZ,
   p_cycle      TEXT          -- 'monthly' | 'yearly' | 'one_time'
@@ -86,6 +88,7 @@ END;
 $$;
 
 -- ── 5. assign_plan — now sets end_date + creates invoice ─
+DROP FUNCTION IF EXISTS public.assign_plan CASCADE;
 CREATE OR REPLACE FUNCTION public.assign_plan(
   p_user_id   UUID,
   p_tenant_id UUID,
@@ -151,6 +154,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.assign_plan(UUID, UUID, UUID, NUMERIC) TO authenticated;
 
 -- ── 6. cancel_subscription ───────────────────────────────
+DROP FUNCTION IF EXISTS public.cancel_subscription CASCADE;
 CREATE OR REPLACE FUNCTION public.cancel_subscription(
   p_subscription_id UUID,
   p_reason          TEXT DEFAULT NULL
@@ -189,6 +193,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.cancel_subscription(UUID, TEXT) TO authenticated;
 
 -- ── 7. mark_invoice_paid ─────────────────────────────────
+DROP FUNCTION IF EXISTS public.mark_invoice_paid CASCADE;
 CREATE OR REPLACE FUNCTION public.mark_invoice_paid(
   p_invoice_id UUID,
   p_notes      TEXT DEFAULT NULL
@@ -217,6 +222,7 @@ GRANT EXECUTE ON FUNCTION public.mark_invoice_paid(UUID, TEXT) TO authenticated;
 -- Call daily via pg_cron or Supabase Edge Function scheduler.
 -- Marks subscriptions past their end_date as 'expired' and
 -- marks their unpaid invoices as 'overdue'.
+DROP FUNCTION IF EXISTS public.expire_due_subscriptions CASCADE;
 CREATE OR REPLACE FUNCTION public.expire_due_subscriptions()
 RETURNS INT   -- number of subscriptions expired
 LANGUAGE plpgsql SECURITY DEFINER AS $$
@@ -247,6 +253,7 @@ END;
 $$;
 
 -- ── 9. get_billing_summary (admin dashboard) ─────────────
+DROP FUNCTION IF EXISTS public.get_billing_summary CASCADE;
 CREATE OR REPLACE FUNCTION public.get_billing_summary(p_tenant_id UUID)
 RETURNS TABLE (
   mrr                  NUMERIC,   -- monthly recurring revenue (active subs)

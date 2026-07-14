@@ -52,6 +52,7 @@ GRANT EXECUTE ON FUNCTION public.get_users_by_approval_status(TEXT) TO authentic
 -- Returns a count for each approval_status in the current tenant.
 -- Used by the approvals page tabs to show badge numbers.
 
+DROP FUNCTION IF EXISTS public.get_approval_status_counts CASCADE;
 CREATE OR REPLACE FUNCTION public.get_approval_status_counts()
 RETURNS TABLE (status TEXT, cnt BIGINT)
 LANGUAGE plpgsql

@@ -19,6 +19,7 @@ CREATE INDEX IF NOT EXISTS idx_user_subs_stripe_sub_id
 -- recurring subscription (billing_reason != 'subscription_create').
 -- Handles the race where expire_due_subscriptions ran before the webhook:
 -- extends from MAX(current end_date, now) so no time is lost.
+DROP FUNCTION IF EXISTS public.renew_client_subscription CASCADE;
 CREATE OR REPLACE FUNCTION public.renew_client_subscription(
   p_stripe_subscription_id TEXT,
   p_payment_ref            TEXT    DEFAULT NULL,
@@ -73,6 +74,7 @@ GRANT  EXECUTE ON FUNCTION public.renew_client_subscription(TEXT, TEXT, NUMERIC)
 -- ── 3. RPC: cancel subscription ──────────────────────────────────────────
 -- Called when Stripe fires customer.subscription.deleted (user cancelled,
 -- or Stripe's dunning exhausted retries).
+DROP FUNCTION IF EXISTS public.cancel_client_subscription CASCADE;
 CREATE OR REPLACE FUNCTION public.cancel_client_subscription(
   p_stripe_subscription_id TEXT
 )

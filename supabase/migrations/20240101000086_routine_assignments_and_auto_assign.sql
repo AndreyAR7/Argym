@@ -8,6 +8,16 @@
 --  3. Updates create_client_subscription to auto-assign plan routines.
 -- ============================================================
 
+-- ── 0. CREATE TABLE IF NOT EXISTS (was created outside migrations) ──────────
+CREATE TABLE IF NOT EXISTS public.routine_assignments (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  routine_id UUID NOT NULL REFERENCES public.routines(id) ON DELETE CASCADE,
+  client_id  UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  tenant_id  UUID NOT NULL REFERENCES public.tenants(id)  ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (routine_id, client_id)
+);
+
 -- ── 1. RLS ──────────────────────────────────────────────────────────────────
 ALTER TABLE IF EXISTS public.routine_assignments ENABLE ROW LEVEL SECURITY;
 
@@ -33,6 +43,7 @@ CREATE INDEX IF NOT EXISTS idx_routine_assignments_routine
   ON public.routine_assignments(routine_id);
 
 -- ── 3. Updated create_client_subscription RPC ───────────────────────────────
+DROP FUNCTION IF EXISTS public.create_client_subscription CASCADE;
 CREATE OR REPLACE FUNCTION public.create_client_subscription(
   p_user_id         UUID,
   p_tenant_id       UUID,

@@ -6,6 +6,7 @@
 -- 1. Extend handle_new_user() to persist branch_id when present in metadata.
 --    (Google OAuth users won't have it — they select it afterwards via
 --    the set_own_branch() RPC below.)
+DROP FUNCTION IF EXISTS public.handle_new_user CASCADE;
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -56,6 +57,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 2. RPC: pending users can claim a branch after OAuth sign-in.
 --    Uses SECURITY DEFINER so the user doesn't need direct UPDATE access.
+DROP FUNCTION IF EXISTS public.set_own_branch CASCADE;
 CREATE OR REPLACE FUNCTION public.set_own_branch(p_branch_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql

@@ -8,11 +8,12 @@
 --    (used by client server actions to send push notifications)
 -- ============================================================
 
--- 1. New enum values (idempotent in PG 14+)
+-- 1. Add enum values (safe — IF NOT EXISTS)
 ALTER TYPE public.appointment_status ADD VALUE IF NOT EXISTS 'pending_confirmation';
 ALTER TYPE public.appointment_status ADD VALUE IF NOT EXISTS 'postpone_requested';
 
 -- 2. Update client update policy
+-- Use status::text cast to avoid "unsafe use of new enum value in same transaction"
 DROP POLICY IF EXISTS "appointments_client_update" ON public.appointments;
 
 CREATE POLICY "appointments_client_update"
@@ -25,11 +26,12 @@ CREATE POLICY "appointments_client_update"
   WITH CHECK (
     tenant_id = public.get_tenant_id()
     AND client_id = auth.uid()
-    AND status IN ('confirmed', 'cancelled', 'postpone_requested')
+    AND status::text IN ('confirmed', 'cancelled', 'postpone_requested')
   );
 
 -- 3. Return all admin user_ids for the calling user's tenant
 --    SECURITY DEFINER so a client JWT can safely invoke it.
+DROP FUNCTION IF EXISTS public.get_tenant_admin_ids CASCADE;
 CREATE OR REPLACE FUNCTION public.get_tenant_admin_ids()
 RETURNS UUID[]
 SECURITY DEFINER

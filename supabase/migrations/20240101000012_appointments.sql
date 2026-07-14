@@ -1,7 +1,21 @@
 -- ============================================================
--- Appointments: RLS, policies, indexes, trigger
--- Safe to run on existing table — no CREATE TABLE
+-- Appointments: CREATE TABLE + RLS, policies, indexes, trigger
 -- ============================================================
+
+-- ── 0. Create table if it doesn't exist ──────────────────────
+CREATE TABLE IF NOT EXISTS public.appointments (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id        UUID NOT NULL,
+  client_id        UUID NOT NULL,
+  coach_id         UUID,
+  title            TEXT NOT NULL,
+  description      TEXT,
+  start_time       TIMESTAMPTZ NOT NULL,
+  end_time         TIMESTAMPTZ NOT NULL,
+  status           public.appointment_status NOT NULL DEFAULT 'scheduled',
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 -- ── 1. Enable RLS (idempotent) ────────────────────────────────
 ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;

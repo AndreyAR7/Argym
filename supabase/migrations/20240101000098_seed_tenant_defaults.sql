@@ -4,6 +4,7 @@
 -- default branch, default email templates, default communication rules.
 -- ─────────────────────────────────────────────────────────────────────────────
 
+DROP FUNCTION IF EXISTS public.seed_tenant_defaults CASCADE;
 CREATE OR REPLACE FUNCTION public.seed_tenant_defaults(p_tenant_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql

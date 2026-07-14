@@ -81,6 +81,7 @@ CREATE INDEX IF NOT EXISTS idx_profiles_branch  ON public.profiles(branch_id);
 -- ── 9. Update handle_new_user to persist branch_id ────────────
 -- Reads branch_id from signup metadata so new registrations are
 -- automatically linked to the branch the user selected.
+DROP FUNCTION IF EXISTS public.handle_new_user CASCADE;
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql

@@ -10,6 +10,7 @@
 --      field names OR the Google-provided equivalents (name / picture).
 -- ============================================================
 
+DROP FUNCTION IF EXISTS public.handle_new_user CASCADE;
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE

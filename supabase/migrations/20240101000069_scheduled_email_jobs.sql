@@ -12,6 +12,7 @@
 -- marks them immediately (prevents duplicates even if the HTTP call fails),
 -- then fires send-communication once per appointment.
 
+DROP FUNCTION IF EXISTS public.send_appointment_reminders CASCADE;
 CREATE OR REPLACE FUNCTION public.send_appointment_reminders()
 RETURNS INT
 LANGUAGE plpgsql
@@ -57,6 +58,7 @@ $$;
 -- Finds active subscriptions expiring in 6–8 days that haven't
 -- received a warning, marks them, fires send-communication.
 
+DROP FUNCTION IF EXISTS public.send_expiring_plan_warnings CASCADE;
 CREATE OR REPLACE FUNCTION public.send_expiring_plan_warnings()
 RETURNS INT
 LANGUAGE plpgsql

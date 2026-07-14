@@ -5,6 +5,7 @@
 -- Added p_clear_client_level BOOLEAN that explicitly sets NULL.
 -- ============================================================
 
+DROP FUNCTION IF EXISTS public.update_profile_by_staff CASCADE;
 CREATE OR REPLACE FUNCTION public.update_profile_by_staff(
   p_target_user_id     UUID,
   p_full_name          TEXT     DEFAULT NULL,

@@ -4,6 +4,7 @@ ALTER TABLE public.profiles
     CHECK (client_level IN ('beginner', 'intermediate', 'advanced'));
 
 -- ── Update get_profiles_by_role to include client_level ──────
+DROP FUNCTION IF EXISTS public.get_profiles_by_role(TEXT);
 CREATE OR REPLACE FUNCTION public.get_profiles_by_role(role_name TEXT)
 RETURNS TABLE (
   id              UUID,
