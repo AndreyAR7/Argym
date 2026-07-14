@@ -1,0 +1,5 @@
+{
+  "buildCommand": "pnpm --filter saas-client-management-web build",
+  "outputDirectory": "apps/web/.next",
+  "installCommand": "pnpm install"
+}
