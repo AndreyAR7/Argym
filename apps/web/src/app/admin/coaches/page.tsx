@@ -10,6 +10,7 @@ import { formatDate } from '@/lib/utils'
 import { UserPlus, Users2 } from 'lucide-react'
 import Link from 'next/link'
 import { ElevateCoachButton } from '@/components/admin/elevate-coach-modal'
+import { DemoteCoachButton } from '@/components/admin/demote-coach-button'
 
 export const metadata = { title: 'Coaches' }
 
@@ -117,6 +118,10 @@ export default async function CoachesPage({
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
+                      <DemoteCoachButton
+                        coachId={coach.id}
+                        coachName={coach.full_name}
+                      />
                       <ManageCoachClientsButton
                         coach={{ id: coach.id, full_name: coach.full_name }}
                       />

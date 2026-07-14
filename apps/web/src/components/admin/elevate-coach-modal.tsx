@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from 'react'
 import { X, Search, UserCheck, Loader2, CheckCircle2 } from 'lucide-react'
 import { getClientsForElevationAction, elevateToCoachAction } from '@/lib/admin/actions'
+import { useConfirm } from '@/context/confirm-context'
 
 interface Client {
   id: string
@@ -19,6 +20,7 @@ export function ElevateCoachButton() {
   const [elevated, setElevated] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
   const [, startTransition] = useTransition()
+  const { confirm } = useConfirm()
 
   useEffect(() => {
     if (!open) return
@@ -39,15 +41,24 @@ export function ElevateCoachButton() {
     (c) => !elevated.has(c.id) && (!search || c.full_name?.toLowerCase().includes(search.toLowerCase()))
   )
 
-  function handleElevate(clientId: string) {
-    setElevating(clientId)
+  async function handleElevate(client: Client) {
+    const ok = await confirm({
+      title: 'Elevar a Coach',
+      message: `¿Estás seguro de elevar a "${client.full_name ?? 'este usuario'}" al rol de Coach? Perderá el acceso de cliente.`,
+      confirmLabel: 'Sí, elevar',
+      cancelLabel: 'Cancelar',
+      variant: 'danger',
+    })
+    if (!ok) return
+
+    setElevating(client.id)
     setError(null)
     startTransition(async () => {
-      const res = await elevateToCoachAction(clientId)
+      const res = await elevateToCoachAction(client.id)
       if (res?.error) {
         setError(res.error)
       } else {
-        setElevated((prev) => new Set([...prev, clientId]))
+        setElevated((prev) => new Set([...prev, client.id]))
       }
       setElevating(null)
     })
@@ -139,7 +150,7 @@ export function ElevateCoachButton() {
                         )}
                       </div>
                       <button
-                        onClick={() => handleElevate(client.id)}
+                        onClick={() => handleElevate(client)}
                         disabled={elevating === client.id}
                         className="ml-3 flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[var(--color-primary)] hover:opacity-90 transition-opacity disabled:opacity-50"
                       >

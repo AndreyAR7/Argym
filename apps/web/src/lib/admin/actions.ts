@@ -479,3 +479,21 @@ export async function elevateToCoachAction(
   revalidatePath('/admin/clients')
   return { success: true }
 }
+
+export async function demoteToClientAction(
+  userId: string,
+): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { error } = await supabase.rpc('demote_coach_to_client', {
+    p_user_id:  userId,
+    p_admin_id: user.id,
+  })
+
+  if (error) return { error: error.message }
+  revalidatePath('/admin/coaches')
+  revalidatePath('/admin/clients')
+  return { success: true }
+}
