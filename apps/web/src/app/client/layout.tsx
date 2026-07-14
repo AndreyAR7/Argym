@@ -24,7 +24,7 @@ export default async function ClientLayout({ children }: { children: React.React
     .single()
 
   const role = (userRole as any)?.roles?.name as string | undefined
-  if (role !== 'client') redirect('/')
+  if (role !== 'client') redirect('/pending-approval')
 
   return (
     <ClientShell

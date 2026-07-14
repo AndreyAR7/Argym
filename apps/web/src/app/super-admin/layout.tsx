@@ -10,7 +10,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
 
   // Gate: must have admin role. In production, add a super_admin role or
   // check against an env-var allowlist of user IDs for tighter access control.
-  if (role !== 'admin') redirect('/')
+  if (role !== 'admin') redirect('/pending-approval')
 
   return (
     <SuperAdminShell

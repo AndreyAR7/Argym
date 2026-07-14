@@ -24,7 +24,7 @@ export default async function CoachLayout({ children }: { children: React.ReactN
     .single()
 
   const role = (userRole as any)?.roles?.name as string | undefined
-  if (role !== 'coach') redirect('/')
+  if (role !== 'coach') redirect('/pending-approval')
 
   return (
     <CoachShell

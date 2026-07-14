@@ -7,11 +7,9 @@ export const getSessionData = cache(async () => {
   const supabase = await createClient()
 
   const t1 = Date.now()
-  const { data: { session } } = await supabase.auth.getSession()
-  console.log(`[SESSION] getSession(): ${Date.now() - t1}ms`)
-  if (!session) return null
-
-  const user = session.user
+  const { data: { user } } = await supabase.auth.getUser()
+  console.log(`[SESSION] getUser(): ${Date.now() - t1}ms`)
+  if (!user) return null
 
   const hdrs    = await headers()
   const ckStore = await cookies()

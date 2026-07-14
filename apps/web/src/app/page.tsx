@@ -40,7 +40,10 @@ export default async function RootPage() {
 
     if (role === 'admin') redirect('/admin/dashboard')
     if (role === 'coach') redirect('/coach')
-    redirect('/client/inicio')
+    if (role === 'client') redirect('/client/inicio')
+    // No role assigned yet — send to pending-approval to avoid redirect loop
+    // with role-specific layouts that redirect back here when role doesn't match.
+    redirect('/pending-approval')
   }
 
   // ─── Unauthenticated visitors: render landing page ───────────────────────

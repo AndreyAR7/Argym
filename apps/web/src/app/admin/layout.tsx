@@ -8,7 +8,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const { user, profile, role } = session
   if (!profile || profile.approval_status !== 'approved') redirect('/pending-approval')
-  if (role !== 'admin') redirect('/')
+  if (role !== 'admin') redirect('/pending-approval')
 
   return (
     <AdminShell
