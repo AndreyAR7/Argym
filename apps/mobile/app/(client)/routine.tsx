@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { ClientTopBar } from '@/components/client/ClientTopBar';
 import { useAuthStore } from '@/store/auth.store';
@@ -12,23 +13,6 @@ import { useRoutinesStore } from '@/store/routines.store';
 import { usePlansStore } from '@/store/plans.store';
 import { ROUTINE_LEVEL_LABELS } from '@/types/routines';
 import type { ClientRoutine, Exercise } from '@/types/routines';
-
-// ─── UI string constants ──────────────────────────────────────
-const STRINGS = {
-  screenTitle: 'Rutina',
-  noRoutinesTitle: 'Sin rutinas asignadas',
-  noRoutinesBody: 'Tu coach asignará una rutina personalizada para ti pronto.',
-  noExercises: 'Esta rutina no tiene ejercicios aún.',
-  totalProgressLabel: 'Progreso total de hoy',
-  exercisesUnit: ' ejercicios',
-  completedLabel: 'Completado',
-  completedBanner: '¡Excelente! Rutina completada al 100%',
-  sectionPrefix: 'EJERCICIOS —',
-  sectionSuffix: 'de',
-  sectionCompleted: 'completados',
-  errorTitle: 'Error',
-  errorBody: 'No se pudo actualizar el progreso.',
-} as const;
 
 // ─── Circular progress ────────────────────────────────────────
 const CircularProgress = React.memo(function CircularProgress({
@@ -62,6 +46,7 @@ const CircularProgress = React.memo(function CircularProgress({
 const ExerciseCheckItem = React.memo(function ExerciseCheckItem({ exercise, completed, onToggle, onDemo, T }: {
   exercise: Exercise; completed: boolean; onToggle: () => void; onDemo?: () => void; T: any;
 }) {
+  const { t } = useTranslation();
   return (
     <TouchableOpacity
       onPress={onToggle}
@@ -88,7 +73,7 @@ const ExerciseCheckItem = React.memo(function ExerciseCheckItem({ exercise, comp
           {exercise.name}
         </Text>
         <Text style={[styles.checkMeta, { color: T.textSecondary }]}>
-          {exercise.sets} series × {exercise.reps} reps · {exercise.rest_seconds}s descanso
+          {t('client.routine.setsRepsRest', { sets: exercise.sets, reps: exercise.reps, rest: exercise.rest_seconds })}
         </Text>
         {exercise.notes ? (
           <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2, fontStyle: 'italic' }}>
@@ -105,7 +90,7 @@ const ExerciseCheckItem = React.memo(function ExerciseCheckItem({ exercise, comp
             style={[styles.demoBadge, { backgroundColor: T.accent }]}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
-            <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff' }}>▶ Demo</Text>
+            <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff' }}>{`▶ ${t('client.routine.demoLabel')}`}</Text>
           </TouchableOpacity>
         )}
         <View style={[styles.muscleBadge, { backgroundColor: T.accent + '18' }]}>
@@ -127,6 +112,7 @@ const RoutineAccordion = React.memo(function RoutineAccordion({ routine, expande
   /** Map of exerciseId → optimistic completed state, overrides store value while async is in-flight */
   optimisticOverrides: Record<string, boolean>;
 }) {
+  const { t } = useTranslation();
   // Merge optimistic overrides into progress for rendering
   const mergedProgress = useMemo(() => {
     if (Object.keys(optimisticOverrides).length === 0) return routine.progress;
@@ -177,11 +163,11 @@ const RoutineAccordion = React.memo(function RoutineAccordion({ routine, expande
               </Text>
             </View>
             <Text style={{ fontSize: 11, color: T.textMuted }}>
-              {completedCount}/{totalCount} ejercicios
+              {t('client.routine.exercisesCount', { completed: completedCount, total: totalCount })}
             </Text>
             {allDone && (
               <Text style={{ fontSize: 11, color: T.green, fontWeight: '700' }}>
-                🎉 {STRINGS.completedLabel}
+                {`🎉 ${t('client.routine.completed')}`}
               </Text>
             )}
           </View>
@@ -208,11 +194,11 @@ const RoutineAccordion = React.memo(function RoutineAccordion({ routine, expande
         <View style={{ paddingHorizontal: 12, paddingBottom: 12, paddingTop: 8 }}>
           <View style={[styles.divider, { backgroundColor: T.border }]} />
           <Text style={[styles.sectionLabel, { color: T.textMuted }]}>
-            {STRINGS.sectionPrefix} {completedCount} {STRINGS.sectionSuffix} {totalCount} {STRINGS.sectionCompleted}
+            {t('client.routine.sectionLabel', { completed: completedCount, total: totalCount })}
           </Text>
           {(routine.exercises ?? []).length === 0 ? (
             <Text style={{ color: T.textMuted, fontSize: 13, textAlign: 'center', paddingVertical: 16 }}>
-              {STRINGS.noExercises}
+              {t('client.routine.noExercises')}
             </Text>
           ) : (
             (routine.exercises ?? []).map((ex) => {
@@ -235,7 +221,7 @@ const RoutineAccordion = React.memo(function RoutineAccordion({ routine, expande
           {allDone && (
             <View style={[styles.completedBanner, { backgroundColor: T.green + '18', borderColor: T.green + '44' }]}>
               <Text style={{ color: T.green, fontWeight: '700', fontSize: 14, textAlign: 'center' }}>
-                🎉 {STRINGS.completedBanner}
+                {`🎉 ${t('client.routine.completedBanner')}`}
               </Text>
             </View>
           )}
@@ -248,6 +234,7 @@ const RoutineAccordion = React.memo(function RoutineAccordion({ routine, expande
 // ─── Main screen ──────────────────────────────────────────────
 export default function RoutineScreen() {
   const T = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuthStore();
   const { mySubscription } = usePlansStore();
@@ -323,7 +310,7 @@ export default function RoutineScreen() {
         delete routineOverrides[exerciseId];
         return { ...prev, [routine.id]: routineOverrides };
       });
-      Alert.alert(STRINGS.errorTitle, e.message ?? STRINGS.errorBody);
+      Alert.alert(t('common.error'), e.message ?? t('client.routine.updateProgressFailed'));
     } finally {
       // 3. Clear the in-flight override once the store has settled
       setOptimisticMap((prev) => {
@@ -345,7 +332,7 @@ export default function RoutineScreen() {
   if (isLoadingClient && !isRefreshing) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['left', 'right']}>
-        <ClientTopBar title={STRINGS.screenTitle} />
+        <ClientTopBar title={t('client.routine.screenTitle')} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={T.accent} size="large" />
         </View>
@@ -356,7 +343,7 @@ export default function RoutineScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <ClientTopBar title={STRINGS.screenTitle} />
+      <ClientTopBar title={t('client.routine.screenTitle')} />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -374,10 +361,10 @@ export default function RoutineScreen() {
           <View style={{ paddingVertical: 80, alignItems: 'center' }}>
             <Text style={{ fontSize: 48, marginBottom: 16 }}>💪</Text>
             <Text style={{ fontSize: 18, fontWeight: '700', color: T.text, marginBottom: 8 }}>
-              {STRINGS.noRoutinesTitle}
+              {t('client.routine.noRoutinesTitle')}
             </Text>
             <Text style={{ fontSize: 14, color: T.textMuted, textAlign: 'center' }}>
-              {STRINGS.noRoutinesBody}
+              {t('client.routine.noRoutinesBody')}
             </Text>
           </View>
         ) : (
@@ -388,12 +375,12 @@ export default function RoutineScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <View>
                     <Text style={{ fontSize: 13, color: T.textSecondary, marginBottom: 2 }}>
-                      {STRINGS.totalProgressLabel}
+                      {t('client.routine.totalProgressLabel')}
                     </Text>
                     <Text style={{ fontSize: 22, fontWeight: '800', color: T.text }}>
                       {totalCompleted}/{totalExercises}
                       <Text style={{ fontSize: 14, color: T.textMuted, fontWeight: '400' }}>
-                        {STRINGS.exercisesUnit}
+                        {t('client.routine.exercisesUnit')}
                       </Text>
                     </Text>
                   </View>

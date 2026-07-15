@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/auth.store';
 import { useTheme } from '@/hooks/useTheme';
 
 export default function PendingApprovalScreen() {
   const { approvalStatus, rejectionReason, signOut } = useAuthStore();
   const T = useTheme();
+  const { t } = useTranslation();
 
   const isRejected = approvalStatus === 'rejected';
 
@@ -26,14 +28,14 @@ export default function PendingApprovalScreen() {
 
         {/* Title */}
         <Text style={{ fontSize: 22, fontWeight: '800', color: T.textPrimary, textAlign: 'center' }}>
-          {isRejected ? 'Acceso denegado' : 'Cuenta pendiente de aprobación'}
+          {isRejected ? t('auth.pendingApproval.deniedTitle') : t('auth.pendingApproval.pendingTitle')}
         </Text>
 
         {/* Description */}
         <Text style={{ fontSize: 15, color: T.textSecondary, textAlign: 'center', lineHeight: 22 }}>
           {isRejected
-            ? 'Tu solicitud de acceso fue rechazada por el administrador.'
-            : 'Tu cuenta fue creada exitosamente. Un administrador debe asignarte un rol antes de que puedas acceder al sistema.'}
+            ? t('auth.pendingApproval.rejectedDescription')
+            : t('auth.pendingApproval.pendingDescription')}
         </Text>
 
         {/* Rejection reason */}
@@ -43,7 +45,7 @@ export default function PendingApprovalScreen() {
             borderWidth: 1, borderColor: T.red + '44',
             padding: 16, width: '100%',
           }}>
-            <Text style={{ fontSize: 12, color: T.red, fontWeight: '700', marginBottom: 4 }}>Motivo:</Text>
+            <Text style={{ fontSize: 12, color: T.red, fontWeight: '700', marginBottom: 4 }}>{t('auth.pendingApproval.reasonLabel')}</Text>
             <Text style={{ fontSize: 14, color: T.textPrimary }}>{rejectionReason}</Text>
           </View>
         )}
@@ -57,7 +59,7 @@ export default function PendingApprovalScreen() {
           }}>
             <Text style={{ fontSize: 18 }}>ℹ️</Text>
             <Text style={{ flex: 1, fontSize: 13, color: T.textSecondary, lineHeight: 19 }}>
-              Recibirás acceso una vez que el administrador apruebe tu cuenta y te asigne un rol.
+              {t('auth.pendingApproval.pendingInfo')}
             </Text>
           </View>
         )}
@@ -70,7 +72,7 @@ export default function PendingApprovalScreen() {
             borderRadius: 12, borderWidth: 1, borderColor: T.border,
           }}
         >
-          <Text style={{ color: T.textSecondary, fontSize: 14, fontWeight: '600' }}>Cerrar sesión</Text>
+          <Text style={{ color: T.textSecondary, fontSize: 14, fontWeight: '600' }}>{t('auth.logout')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

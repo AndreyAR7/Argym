@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { AdminTopBar } from '@/components/admin/AdminTopBar';
 import { StatusBadge } from '@/components/admin/StatusBadge';
@@ -25,17 +26,24 @@ import type { Appointment } from '@/types/appointments';
 
 // ─── Constants ────────────────────────────────────────────────
 const FILTERS = ['Todas', 'Hoy', 'Programadas', 'Completadas', 'Canceladas'];
+const FILTER_LABEL_KEYS: Record<string, string> = {
+  'Todas': 'admin.appointments.filters.all',
+  'Hoy': 'admin.appointments.filters.today',
+  'Programadas': 'admin.appointments.filters.scheduled',
+  'Completadas': 'admin.appointments.filters.completed',
+  'Canceladas': 'admin.appointments.filters.cancelled',
+};
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES = ['00', '15', '30', '45'];
 const DURATIONS = [
-  { label: '30 min', minutes: 30 },
-  { label: '45 min', minutes: 45 },
-  { label: '1 hora', minutes: 60 },
-  { label: '1h 30', minutes: 90 },
-  { label: '2 horas', minutes: 120 },
-  { label: '3 horas', minutes: 180 },
-  { label: '4 horas', minutes: 240 },
-  { label: '5 horas', minutes: 300 },
+  { labelKey: 'admin.appointments.durations.min30', minutes: 30 },
+  { labelKey: 'admin.appointments.durations.min45', minutes: 45 },
+  { labelKey: 'admin.appointments.durations.hour1', minutes: 60 },
+  { labelKey: 'admin.appointments.durations.hour1_30', minutes: 90 },
+  { labelKey: 'admin.appointments.durations.hour2', minutes: 120 },
+  { labelKey: 'admin.appointments.durations.hour3', minutes: 180 },
+  { labelKey: 'admin.appointments.durations.hour4', minutes: 240 },
+  { labelKey: 'admin.appointments.durations.hour5', minutes: 300 },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────
@@ -114,6 +122,7 @@ function HourPicker({ hour, minute, onHour, onMinute, T }: {
 
 // ─── Duration picker ──────────────────────────────────────────
 function DurationPicker({ selected, onSelect, T }: { selected: number | null; onSelect: (m: number) => void; T: any }) {
+  const { t } = useTranslation();
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
       {DURATIONS.map((d) => {
@@ -121,7 +130,7 @@ function DurationPicker({ selected, onSelect, T }: { selected: number | null; on
         return (
           <TouchableOpacity key={d.minutes} onPress={() => onSelect(d.minutes)}
             style={[st.durationBtn, { backgroundColor: active ? T.accent : T.bgCardElevated, borderColor: active ? T.accent : T.border }]}>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: active ? '#fff' : T.text }}>{d.label}</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: active ? '#fff' : T.text }}>{t(d.labelKey)}</Text>
           </TouchableOpacity>
         );
       })}
@@ -132,6 +141,7 @@ function DurationPicker({ selected, onSelect, T }: { selected: number | null; on
 // ─── Main screen ─────────────────────────────────────────────
 export default function AdminAppointmentsScreen() {
   const T = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuthStore();
   const qc = useQueryClient();
@@ -233,19 +243,19 @@ export default function AdminAppointmentsScreen() {
 
     const items: AptListItem[] = [];
     if (past.length > 0) {
-      items.push({ _type: 'header', id: 'h-past', label: 'Pasadas' });
+      items.push({ _type: 'header', id: 'h-past', label: t('admin.appointments.sections.past') });
       past.forEach((a) => items.push({ _type: 'apt', id: a.id, apt: a }));
     }
     if (todayApts.length > 0) {
-      items.push({ _type: 'header', id: 'h-today', label: 'Hoy' });
+      items.push({ _type: 'header', id: 'h-today', label: t('admin.appointments.sections.today') });
       todayApts.forEach((a) => items.push({ _type: 'apt', id: a.id, apt: a }));
     }
     if (upcoming.length > 0) {
-      items.push({ _type: 'header', id: 'h-upcoming', label: 'Programadas' });
+      items.push({ _type: 'header', id: 'h-upcoming', label: t('admin.appointments.sections.upcoming') });
       upcoming.forEach((a) => items.push({ _type: 'apt', id: a.id, apt: a }));
     }
     return items;
-  }, [filtered]);
+  }, [filtered, t]);
 
   // Pagination: show 10 items at a time
   const PAGE_SIZE = 10;
@@ -271,28 +281,28 @@ export default function AdminAppointmentsScreen() {
     const endISO = buildEndISO(startISO, durationMin ?? 60);
 
     const errors: string[] = [];
-    if (!title.trim()) errors.push('Ingresa un título para la cita.');
-    if (selectedClients.length === 0) errors.push('Selecciona al menos un cliente.');
-    if (!durationMin) errors.push('Selecciona una duración.');
+    if (!title.trim()) errors.push(t('admin.appointments.errors.titleRequired'));
+    if (selectedClients.length === 0) errors.push(t('admin.appointments.errors.clientRequired'));
+    if (!durationMin) errors.push(t('admin.appointments.errors.durationRequired'));
 
     const now = new Date();
     const todayDateStr = now.toLocaleDateString('en-CA');
     const startDateStr = startDate.toLocaleDateString('en-CA');
     if (startDateStr < todayDateStr) {
-      errors.push(`No se puede crear una cita en una fecha pasada (${startDateStr}).`);
+      errors.push(t('admin.appointments.errors.pastDate', { date: startDateStr }));
     } else if (startDateStr === todayDateStr) {
       const oneHourAgo = new Date(now.getTime() - 3600000);
       const startDt = new Date(startISO);
       if (startDt < oneHourAgo) {
         const limit = oneHourAgo.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' });
-        errors.push(`La hora de inicio no puede ser anterior a las ${limit} (máximo 1 hora en el pasado).`);
+        errors.push(t('admin.appointments.errors.pastTime', { time: limit }));
       }
     }
 
     if (errors.length > 0) { setFormErrors(errors); return; }
 
     if (!authTenantId) {
-      Alert.alert('Error', 'No se pudo determinar el tenant actual.');
+      Alert.alert(t('common.error'), t('admin.appointments.errors.noTenant'));
       return;
     }
 
@@ -389,23 +399,23 @@ export default function AdminAppointmentsScreen() {
       const count = created.length;
       ToastManager.show({
         message: groupMode === 'group'
-          ? `Cita grupal creada con ${selectedClients.length} participantes`
-          : count === 1 ? 'Cita creada correctamente' : `${count} citas creadas correctamente`,
+          ? t('admin.appointments.toast.groupCreated', { count: selectedClients.length })
+          : count === 1 ? t('admin.appointments.toast.singleCreated') : t('admin.appointments.toast.multipleCreated', { count }),
         type: 'success',
       });
 
       setShowCreate(false);
       resetForm();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'No se pudo crear la cita.';
-      Alert.alert('Error', msg);
+      const msg = err instanceof Error ? err.message : t('admin.appointments.errors.createFailed');
+      Alert.alert(t('common.error'), msg);
     }
   };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <AdminTopBar title="Citas" subtitle={`${scheduledCount} programadas`} actionLabel="+ Nueva" onAction={() => setShowCreate(true)} />
+      <AdminTopBar title={t('navigation.appointments')} subtitle={t('admin.appointments.subtitle', { count: scheduledCount })} actionLabel={t('admin.appointments.newAction')} onAction={() => setShowCreate(true)} />
 
       {/* View toggle */}
       <View style={styles.viewToggle}>
@@ -413,13 +423,13 @@ export default function AdminAppointmentsScreen() {
           onPress={() => setViewMode('list')}
           style={[styles.toggleBtn, { backgroundColor: viewMode === 'list' ? T.accent : T.bgCard, borderColor: viewMode === 'list' ? T.accent : T.border }]}
         >
-          <Text style={{ fontSize: 12, fontWeight: '700', color: viewMode === 'list' ? '#fff' : T.textSecondary }}>☰ Lista</Text>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: viewMode === 'list' ? '#fff' : T.textSecondary }}>{t('admin.appointments.viewToggle.list')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setViewMode('calendar')}
           style={[styles.toggleBtn, { backgroundColor: viewMode === 'calendar' ? T.accent : T.bgCard, borderColor: viewMode === 'calendar' ? T.accent : T.border }]}
         >
-          <Text style={{ fontSize: 12, fontWeight: '700', color: viewMode === 'calendar' ? '#fff' : T.textSecondary }}>📅 Calendario</Text>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: viewMode === 'calendar' ? '#fff' : T.textSecondary }}>{t('admin.appointments.viewToggle.calendar')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -434,7 +444,7 @@ export default function AdminAppointmentsScreen() {
           {FILTERS.map((f) => (
             <TouchableOpacity key={f} onPress={() => setFilter(f)}
               style={[styles.filterChip, { backgroundColor: filter === f ? T.accent : T.bgCard, borderColor: filter === f ? T.accent : T.border }]}>
-              <Text style={[styles.filterChipText, { color: filter === f ? '#fff' : T.textSecondary }]}>{f}</Text>
+              <Text style={[styles.filterChipText, { color: filter === f ? '#fff' : T.textSecondary }]}>{t(FILTER_LABEL_KEYS[f])}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -485,9 +495,9 @@ export default function AdminAppointmentsScreen() {
         <View style={{ padding: 16 }}>{[1, 2, 3].map((i) => <SkeletonCard key={i} lines={2} />)}</View>
       ) : error ? (
         <View style={styles.empty}>
-          <Text style={{ color: T.red, fontSize: 14, textAlign: 'center' }}>Error al cargar citas.</Text>
+          <Text style={{ color: T.red, fontSize: 14, textAlign: 'center' }}>{t('admin.appointments.loadError')}</Text>
           <TouchableOpacity onPress={() => refetch()} style={{ marginTop: 12 }}>
-            <Text style={{ color: T.accent, fontWeight: '700' }}>Reintentar</Text>
+            <Text style={{ color: T.accent, fontWeight: '700' }}>{t('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -499,7 +509,7 @@ export default function AdminAppointmentsScreen() {
           refreshing={false}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={{ color: T.textMuted, fontSize: 14 }}>No hay citas en esta categoría</Text>
+              <Text style={{ color: T.textMuted, fontSize: 14 }}>{t('admin.appointments.emptyList')}</Text>
             </View>
           }
           ListFooterComponent={
@@ -508,7 +518,7 @@ export default function AdminAppointmentsScreen() {
                 onPress={() => setPage((p) => p + 1)}
                 style={[styles.loadMoreBtn, { borderColor: T.border }]}
               >
-                <Text style={{ color: T.accent, fontWeight: '700', fontSize: 13 }}>Cargar más</Text>
+                <Text style={{ color: T.accent, fontWeight: '700', fontSize: 13 }}>{t('admin.appointments.loadMore')}</Text>
               </TouchableOpacity>
             ) : null
           }
@@ -533,7 +543,7 @@ export default function AdminAppointmentsScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.aptTitle, { color: T.text }]}>{apt.title}</Text>
                   <Text style={[styles.aptMeta, { color: T.textSecondary }]}>
-                    {apt.client_name ?? 'Cliente'}{apt.coach_name ? ` · ${apt.coach_name}` : ''}
+                    {apt.client_name ?? t('admin.appointments.card.clientFallback')}{apt.coach_name ? ` · ${apt.coach_name}` : ''}
                   </Text>
                   <Text style={[styles.aptTime, { color: T.textMuted }]}>{formatDateTime(apt.start_time)}</Text>
                 </View>
@@ -551,7 +561,7 @@ export default function AdminAppointmentsScreen() {
             <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
               <View style={styles.handle} />
               <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                <Text style={[styles.sheetTitle, { color: T.text }]}>Nueva cita</Text>
+                <Text style={[styles.sheetTitle, { color: T.text }]}>{t('admin.appointments.form.title')}</Text>
 
                 {/* Errors */}
                 {formErrors.length > 0 && (
@@ -561,23 +571,23 @@ export default function AdminAppointmentsScreen() {
                 )}
 
                 {/* Title */}
-                <Text style={[styles.label, { color: T.textSecondary }]}>Título</Text>
+                <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.appointments.form.titleLabel')}</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                  placeholder="Ej: Sesión de fuerza"
+                  placeholder={t('admin.appointments.form.titlePlaceholder')}
                   placeholderTextColor={T.textMuted}
                   value={title}
                   onChangeText={(v) => { setTitle(v); setFormErrors([]); }}
                 />
 
                 {/* Clients — navigate to dedicated screen */}
-                <Text style={[styles.label, { color: T.textSecondary }]}>Clientes</Text>
+                <Text style={[styles.label, { color: T.textSecondary }]}>{t('navigation.clients')}</Text>
                 <TouchableOpacity
                   onPress={() => router.push('/(admin)/select-clients')}
                   style={[styles.clientTrigger, { backgroundColor: T.bg, borderColor: selectedClients.length > 0 ? T.accent + '66' : T.border }]}
                 >
                   {selectedClients.length === 0 ? (
-                    <Text style={{ color: T.textMuted, fontSize: 15, flex: 1 }}>Buscar cliente...</Text>
+                    <Text style={{ color: T.textMuted, fontSize: 15, flex: 1 }}>{t('admin.appointments.form.clientSearchPlaceholder')}</Text>
                   ) : (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, flex: 1 }}>
                       {selectedClients.map((c) => (
@@ -588,14 +598,14 @@ export default function AdminAppointmentsScreen() {
                     </View>
                   )}
                   <Text style={{ color: T.accent, fontSize: 13, fontWeight: '700' }}>
-                    {selectedClients.length > 0 ? 'Editar →' : 'Seleccionar →'}
+                    {selectedClients.length > 0 ? t('admin.appointments.form.editArrow') : t('admin.appointments.form.selectArrow')}
                   </Text>
                 </TouchableOpacity>
 
                 {/* Modalidad — only show when multiple clients selected */}
                 {selectedClients.length > 1 && (
                   <>
-                    <Text style={[styles.label, { color: T.textSecondary, marginTop: 16 }]}>Modalidad de participación</Text>
+                    <Text style={[styles.label, { color: T.textSecondary, marginTop: 16 }]}>{t('admin.appointments.form.participationModeLabel')}</Text>
                     <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
                       {(['individual', 'group'] as const).map((mode) => {
                         const active = groupMode === mode;
@@ -604,10 +614,10 @@ export default function AdminAppointmentsScreen() {
                             style={{ flex: 1, borderRadius: 12, borderWidth: 1, paddingVertical: 12, alignItems: 'center',
                               backgroundColor: active ? T.accent : T.bgCard, borderColor: active ? T.accent : T.border }}>
                             <Text style={{ fontSize: 14, fontWeight: '700', color: active ? '#fff' : T.textSecondary }}>
-                              {mode === 'individual' ? '👤 Individual' : '👥 Grupal'}
+                              {mode === 'individual' ? t('admin.appointments.form.individualMode') : t('admin.appointments.form.groupMode')}
                             </Text>
                             <Text style={{ fontSize: 10, color: active ? '#ffffffCC' : T.textMuted, marginTop: 2 }}>
-                              {mode === 'individual' ? `${selectedClients.length} citas separadas` : '1 cita compartida'}
+                              {mode === 'individual' ? t('admin.appointments.form.individualModeDesc', { count: selectedClients.length }) : t('admin.appointments.form.groupModeDesc')}
                             </Text>
                           </TouchableOpacity>
                         );
@@ -617,7 +627,7 @@ export default function AdminAppointmentsScreen() {
                 )}
 
                 {/* Coach selector */}
-                <Text style={[styles.label, { color: T.textSecondary, marginTop: 16 }]}>Coach (opcional)</Text>                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+                <Text style={[styles.label, { color: T.textSecondary, marginTop: 16 }]}>{t('admin.appointments.form.coachLabel')}</Text>                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
                   <TouchableOpacity
                     onPress={() => setSelectedCoachId(null)}
                     style={[st.coachChip, {
@@ -626,7 +636,7 @@ export default function AdminAppointmentsScreen() {
                     }]}
                   >
                     <Text style={{ fontSize: 12, fontWeight: '600', color: selectedCoachId === null ? '#fff' : T.textMuted }}>
-                      Sin coach
+                      {t('admin.appointments.form.noCoach')}
                     </Text>
                   </TouchableOpacity>
                   {coaches.filter((c) => c.is_active !== false).map((coach) => {
@@ -649,12 +659,12 @@ export default function AdminAppointmentsScreen() {
                 </ScrollView>
 
                 {/* Start date */}
-                <Text style={[styles.label, { color: T.textSecondary, marginTop: 16 }]}>Inicio</Text>                <Text style={{ color: T.text, fontSize: 14, fontWeight: '600', marginBottom: 8 }}>{formatDateLabel(startDate)}</Text>
+                <Text style={[styles.label, { color: T.textSecondary, marginTop: 16 }]}>{t('admin.appointments.form.startLabel')}</Text>                <Text style={{ color: T.text, fontSize: 14, fontWeight: '600', marginBottom: 8 }}>{formatDateLabel(startDate)}</Text>
                 <DateStrip selected={startDate} onChange={setStartDate} T={T} />
                 <HourPicker hour={startHour} minute={startMin} onHour={setStartHour} onMinute={setStartMin} T={T} />
 
                 {/* Duration */}
-                <Text style={[styles.label, { color: T.textSecondary, marginTop: 16 }]}>Duración</Text>
+                <Text style={[styles.label, { color: T.textSecondary, marginTop: 16 }]}>{t('admin.appointments.form.durationLabel')}</Text>
                 <DurationPicker selected={durationMin} onSelect={setDurationMin} T={T} />
 
                 {/* Summary */}
@@ -670,7 +680,7 @@ export default function AdminAppointmentsScreen() {
                 )}
 
                 {/* Tipo de cita */}
-                <Text style={[styles.label, { color: T.textSecondary, marginTop: 16 }]}>Tipo de cita</Text>
+                <Text style={[styles.label, { color: T.textSecondary, marginTop: 16 }]}>{t('admin.appointments.form.typeLabel')}</Text>
                 <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
                   {(['in_person', 'virtual'] as const).map((type) => {
                     const active = aptType === type;
@@ -679,7 +689,7 @@ export default function AdminAppointmentsScreen() {
                         style={{ flex: 1, borderRadius: 12, borderWidth: 1, paddingVertical: 12, alignItems: 'center',
                           backgroundColor: active ? T.accent : T.bgCard, borderColor: active ? T.accent : T.border }}>
                         <Text style={{ fontSize: 14, fontWeight: '700', color: active ? '#fff' : T.textSecondary }}>
-                          {type === 'in_person' ? '🏋️ Presencial' : '📹 Virtual'}
+                          {type === 'in_person' ? t('admin.appointments.form.inPersonType') : t('admin.appointments.form.virtualType')}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -689,10 +699,10 @@ export default function AdminAppointmentsScreen() {
                 {/* Condicional: ubicación o link */}
                 {aptType === 'in_person' ? (
                   <>
-                    <Text style={[styles.label, { color: T.textSecondary }]}>Ubicación (opcional)</Text>
+                    <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.appointments.form.locationLabel')}</Text>
                     <TextInput
                       style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                      placeholder="Ej: Sala principal, Gimnasio..."
+                      placeholder={t('admin.appointments.form.locationPlaceholder')}
                       placeholderTextColor={T.textMuted}
                       value={location}
                       onChangeText={setLocation}
@@ -700,10 +710,10 @@ export default function AdminAppointmentsScreen() {
                   </>
                 ) : (
                   <>
-                    <Text style={[styles.label, { color: T.textSecondary }]}>Link de reunión (opcional)</Text>
+                    <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.appointments.form.meetingUrlLabel')}</Text>
                     <TextInput
                       style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                      placeholder="https://meet.google.com/..."
+                      placeholder={t('admin.appointments.form.meetingUrlPlaceholder')}
                       placeholderTextColor={T.textMuted}
                       value={meetingUrl}
                       onChangeText={setMeetingUrl}
@@ -714,10 +724,10 @@ export default function AdminAppointmentsScreen() {
                 )}
 
                 {/* Notas */}
-                <Text style={[styles.label, { color: T.textSecondary }]}>Notas (opcional)</Text>
+                <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.appointments.form.notesLabel')}</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text, minHeight: 64, textAlignVertical: 'top' }]}
-                  placeholder="Instrucciones, recordatorios..."
+                  placeholder={t('admin.appointments.form.notesPlaceholder')}
                   placeholderTextColor={T.textMuted}
                   value={notes}
                   onChangeText={setNotes}
@@ -728,7 +738,7 @@ export default function AdminAppointmentsScreen() {
                 <View style={styles.actions}>
                   <TouchableOpacity onPress={() => { setShowCreate(false); resetForm(); }}
                     style={[styles.btn, { borderColor: T.border, borderWidth: 1 }]}>
-                    <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                    <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={handleCreate} disabled={createMutation.isPending || isCheckingConflicts}
                     style={[styles.btn, { backgroundColor: T.accent }]}>
@@ -736,8 +746,8 @@ export default function AdminAppointmentsScreen() {
                       ? <ActivityIndicator color="#fff" size="small" />
                       : <Text style={{ color: '#fff', fontWeight: '700' }}>
                           {groupMode === 'group' && selectedClients.length > 1
-                            ? `Crear cita grupal (${selectedClients.length})`
-                            : selectedClients.length > 1 ? `Crear ${selectedClients.length} citas` : 'Crear cita'}
+                            ? t('admin.appointments.form.submitGroup', { count: selectedClients.length })
+                            : selectedClients.length > 1 ? t('admin.appointments.form.submitMultiple', { count: selectedClients.length }) : t('admin.appointments.form.submitSingle')}
                         </Text>
                     }
                   </TouchableOpacity>

@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { ClientTopBar } from '@/components/client/ClientTopBar';
 import { useTheme } from '@/hooks/useTheme';
 import { useNotifications, useMarkRead, useMarkAllRead } from '@/hooks/useNotifications';
@@ -60,6 +61,7 @@ function NotifItem({
 }
 
 export default function NotificationsScreen() {
+  const { t } = useTranslation();
   const T = useTheme();
   const { user } = useAuthStore();
   const {
@@ -81,7 +83,7 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <ClientTopBar title="Notificaciones" />
+      <ClientTopBar title={t('client.notifications.title')} />
 
       <FlatList
         data={notifications}
@@ -94,7 +96,7 @@ export default function NotificationsScreen() {
           unreadCount > 0 ? (
             <TouchableOpacity onPress={() => markAllRead()} style={styles.markAllRow}>
               <Text style={[styles.markAllText, { color: T.accent }]}>
-                Marcar todas como leídas
+                {t('client.notifications.markAllRead')}
               </Text>
             </TouchableOpacity>
           ) : null
@@ -102,9 +104,9 @@ export default function NotificationsScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>🔔</Text>
-            <Text style={[styles.emptyTitle, { color: T.text }]}>No tienes notificaciones</Text>
+            <Text style={[styles.emptyTitle, { color: T.text }]}>{t('client.notifications.emptyTitle')}</Text>
             <Text style={[styles.emptyDesc, { color: T.textMuted }]}>
-              Las notificaciones de tus citas y actividad aparecerán aquí.
+              {t('client.notifications.emptyDescription')}
             </Text>
           </View>
         }

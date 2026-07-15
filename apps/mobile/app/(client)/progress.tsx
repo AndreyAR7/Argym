@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { ClientTopBar } from '@/components/client/ClientTopBar';
 import { useAuthStore } from '@/store/auth.store';
@@ -18,13 +19,11 @@ const CHART_W = SCREEN_W - 64; // 16 scroll + 16 card * 2
 
 // ─── Tab config ───────────────────────────────────────────────
 const TABS = [
-  { id: 'routines', label: '💪 Rutinas' },
-  { id: 'measures', label: '📏 Medidas' },
-  { id: 'streak',   label: '🔥 Racha'   },
+  { id: 'routines', emoji: '💪', labelKey: 'client.progress.tabs.routines' },
+  { id: 'measures', emoji: '📏', labelKey: 'client.progress.tabs.measures' },
+  { id: 'streak',   emoji: '🔥', labelKey: 'client.progress.tabs.streak'   },
 ] as const;
 type TabId = typeof TABS[number]['id'];
-
-const DAY_ABBR = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
 
 // ─── Bar Chart ────────────────────────────────────────────────
 function BarChart({ data, T }: {
@@ -112,6 +111,7 @@ function Sparkline({ values, color }: { values: number[]; color: string }) {
 
 // ─── Streak Calendar ──────────────────────────────────────────
 function StreakCalendar({ activeDates, T }: { activeDates: string[]; T: any }) {
+  const { t } = useTranslation();
   const today = new Date();
   // Align to Monday of current week, go back 4 more weeks = 5 weeks total
   const dow = today.getDay(); // 0=Sun
@@ -138,7 +138,7 @@ function StreakCalendar({ activeDates, T }: { activeDates: string[]; T: any }) {
     weeks.push(week);
   }
 
-  const dayLabels = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+  const dayLabels = t('client.progress.streak.dayLabels', { returnObjects: true }) as unknown as string[];
 
   return (
     <View>
@@ -173,9 +173,9 @@ function StreakCalendar({ activeDates, T }: { activeDates: string[]; T: any }) {
       ))}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
         <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: T.green }} />
-        <Text style={{ fontSize: 11, color: T.textMuted }}>Día activo</Text>
+        <Text style={{ fontSize: 11, color: T.textMuted }}>{t('client.progress.streak.activeDayLegend')}</Text>
         <View style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: T.bgSurface, borderWidth: 1, borderColor: T.border }} />
-        <Text style={{ fontSize: 11, color: T.textMuted }}>Sin actividad</Text>
+        <Text style={{ fontSize: 11, color: T.textMuted }}>{t('client.progress.streak.noActivityLegend')}</Text>
       </View>
     </View>
   );
@@ -183,10 +183,12 @@ function StreakCalendar({ activeDates, T }: { activeDates: string[]; T: any }) {
 
 // ─── Routines Tab ─────────────────────────────────────────────
 function RoutinesTab({ T }: { T: any }) {
+  const { t } = useTranslation();
   const { dailyProgress, routineStreak } = useProgressStore();
+  const dayAbbr = t('client.progress.dayAbbr', { returnObjects: true }) as unknown as string[];
   const last7 = dailyProgress.slice(-7);
   const barData = last7.map((d) => ({
-    label: DAY_ABBR[new Date(d.date + 'T12:00:00').getDay()],
+    label: dayAbbr[new Date(d.date + 'T12:00:00').getDay()],
     pct: d.pct,
   }));
 
@@ -199,9 +201,9 @@ function RoutinesTab({ T }: { T: any }) {
   return (
     <View style={{ gap: 12 }}>
       <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border }]}>
-        <Text style={[styles.cardTitle, { color: T.text }]}>Actividad últimos 7 días</Text>
+        <Text style={[styles.cardTitle, { color: T.text }]}>{t('client.progress.routines.activityTitle')}</Text>
         <Text style={{ fontSize: 12, color: T.textMuted, marginBottom: 12 }}>
-          {barData.filter((d) => d.pct > 0).length} de 7 días activos
+          {t('client.progress.routines.activeDaysOfWeek', { count: barData.filter((d) => d.pct > 0).length })}
         </Text>
         <BarChart data={barData} T={T} />
       </View>
@@ -209,20 +211,20 @@ function RoutinesTab({ T }: { T: any }) {
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <View style={[styles.statMini, { backgroundColor: T.bgCard, borderColor: T.border }]}>
           <Text style={{ fontSize: 28, fontWeight: '900', color: T.orange }}>{activeDays}</Text>
-          <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2, textAlign: 'center' }}>Días activos</Text>
-          <Text style={{ fontSize: 10, color: T.textMuted, textAlign: 'center' }}>últimas 2 sem.</Text>
+          <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2, textAlign: 'center' }}>{t('client.progress.routines.activeDaysLabel')}</Text>
+          <Text style={{ fontSize: 10, color: T.textMuted, textAlign: 'center' }}>{t('client.progress.routines.last2Weeks')}</Text>
         </View>
         <View style={[styles.statMini, { backgroundColor: T.bgCard, borderColor: T.border }]}>
           <Text style={{ fontSize: 28, fontWeight: '900', color: T.green }}>{avgPct}%</Text>
-          <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2, textAlign: 'center' }}>Promedio</Text>
-          <Text style={{ fontSize: 10, color: T.textMuted, textAlign: 'center' }}>completado</Text>
+          <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2, textAlign: 'center' }}>{t('client.progress.routines.averageLabel')}</Text>
+          <Text style={{ fontSize: 10, color: T.textMuted, textAlign: 'center' }}>{t('client.progress.routines.completedLabel')}</Text>
         </View>
         <View style={[styles.statMini, { backgroundColor: T.bgCard, borderColor: T.border }]}>
           <Text style={{ fontSize: 26, fontWeight: '900', color: T.orange }}>
             {routineStreak?.currentStreak ?? 0}🔥
           </Text>
-          <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2, textAlign: 'center' }}>Racha actual</Text>
-          <Text style={{ fontSize: 10, color: T.textMuted, textAlign: 'center' }}>días seguidos</Text>
+          <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2, textAlign: 'center' }}>{t('client.progress.routines.currentStreakLabel')}</Text>
+          <Text style={{ fontSize: 10, color: T.textMuted, textAlign: 'center' }}>{t('client.progress.routines.consecutiveDaysLabel')}</Text>
         </View>
       </View>
     </View>
@@ -247,21 +249,22 @@ function CompRow({ label, value, unit, color, T }: {
 
 // ─── Before / After comparison card ──────────────────────────
 function ComparisonCard({ measurements, T }: { measurements: BodyMeasurement[]; T: any }) {
+  const { t } = useTranslation();
   if (measurements.length < 2) return null;
   const latest = measurements[0];
   const first  = measurements[measurements.length - 1];
 
   type MetricDef = { label: string; key: keyof BodyMeasurement; unit: string; lowerIsBetter: boolean | null };
   const metrics: MetricDef[] = [
-    { label: 'Peso',        key: 'weight_kg',    unit: 'kg', lowerIsBetter: true  },
-    { label: '% Grasa',     key: 'body_fat_pct', unit: '%',  lowerIsBetter: true  },
-    { label: 'Masa magra',  key: 'muscle_mass_kg', unit: 'kg', lowerIsBetter: false },
-    { label: 'Cintura',     key: 'waist_cm',     unit: 'cm', lowerIsBetter: true  },
-    { label: 'Abdomen',     key: 'abdomen_cm',   unit: 'cm', lowerIsBetter: true  },
-    { label: 'Cadera',      key: 'hip_cm',       unit: 'cm', lowerIsBetter: null  },
-    { label: 'Brazo',       key: 'arm_cm',       unit: 'cm', lowerIsBetter: false },
-    { label: 'Muslo',       key: 'thigh_cm',     unit: 'cm', lowerIsBetter: false },
-    { label: 'Pantorrilla', key: 'calf_cm',      unit: 'cm', lowerIsBetter: false },
+    { label: t('measurements.labels.weight'),        key: 'weight_kg',    unit: 'kg', lowerIsBetter: true  },
+    { label: t('client.progress.metrics.bodyFatPctShort'), key: 'body_fat_pct', unit: '%',  lowerIsBetter: true  },
+    { label: t('measurements.labels.leanMass'),  key: 'muscle_mass_kg', unit: 'kg', lowerIsBetter: false },
+    { label: t('measurements.labels.waist'),     key: 'waist_cm',     unit: 'cm', lowerIsBetter: true  },
+    { label: t('client.progress.metrics.abdomen'),     key: 'abdomen_cm',   unit: 'cm', lowerIsBetter: true  },
+    { label: t('measurements.labels.hip'),      key: 'hip_cm',       unit: 'cm', lowerIsBetter: null  },
+    { label: t('measurements.labels.arm'),       key: 'arm_cm',       unit: 'cm', lowerIsBetter: false },
+    { label: t('client.progress.metrics.thigh'),       key: 'thigh_cm',     unit: 'cm', lowerIsBetter: false },
+    { label: t('client.progress.metrics.calf'), key: 'calf_cm',      unit: 'cm', lowerIsBetter: false },
   ];
 
   const rows = metrics.filter((m) => first[m.key] != null && latest[m.key] != null);
@@ -269,7 +272,7 @@ function ComparisonCard({ measurements, T }: { measurements: BodyMeasurement[]; 
 
   return (
     <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border }]}>
-      <Text style={[styles.cardTitle, { color: T.text, marginBottom: 4 }]}>Inicio vs Ahora</Text>
+      <Text style={[styles.cardTitle, { color: T.text, marginBottom: 4 }]}>{t('client.progress.comparison.title')}</Text>
       <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 12 }}>
         {new Date(first.measured_at + 'T12:00:00').toLocaleDateString('es-CR', { day: 'numeric', month: 'short', year: 'numeric' })}
         {' → '}
@@ -308,6 +311,7 @@ function ComparisonCard({ measurements, T }: { measurements: BodyMeasurement[]; 
 
 // ─── Medidas Tab ──────────────────────────────────────────────
 function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
+  const { t } = useTranslation();
   const { measurements, thisWeekMeasurement } = useProgressStore();
   const latest = measurements[0];
   const weekRange = getCurrentWeekRange();
@@ -338,10 +342,10 @@ function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
       {hasThisWeek && (
         <View style={[styles.card, { backgroundColor: T.orange + '12', borderColor: T.orange + '44' }]}>
           <Text style={{ fontSize: 13, color: T.orange, fontWeight: '700', marginBottom: 2 }}>
-            📅 Medición de esta semana registrada
+            📅 {t('client.progress.measures.thisWeekRegisteredTitle')}
           </Text>
           <Text style={{ fontSize: 12, color: T.textMuted }}>
-            Semana {weekRange.start} — {weekRange.end}. Puedes editar los datos de esta semana.
+            {t('client.progress.measures.thisWeekRange', { start: weekRange.start, end: weekRange.end })}
           </Text>
         </View>
       )}
@@ -350,7 +354,7 @@ function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
       {latest && (
         <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <Text style={[styles.cardTitle, { color: T.text }]}>Composición corporal</Text>
+            <Text style={[styles.cardTitle, { color: T.text }]}>{t('client.progress.measures.bodyCompositionTitle')}</Text>
             <Text style={{ fontSize: 11, color: T.textMuted }}>
               {new Date(latest.measured_at + 'T12:00:00').toLocaleDateString('es-CR', { day: 'numeric', month: 'short', year: 'numeric' })}
             </Text>
@@ -361,19 +365,19 @@ function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
             {latest.weight_kg != null && (
               <View style={[styles.measureBadge, { borderColor: T.orange + '44', backgroundColor: T.orange + '18' }]}>
                 <Text style={{ fontSize: 22, fontWeight: '900', color: T.orange }}>{latest.weight_kg}</Text>
-                <Text style={{ fontSize: 10, color: T.textMuted }}>Peso (kg)</Text>
+                <Text style={{ fontSize: 10, color: T.textMuted }}>{t('client.progress.measures.weightKgLabel')}</Text>
               </View>
             )}
             {latest.height_cm != null && (
               <View style={[styles.measureBadge, { borderColor: T.accent + '44', backgroundColor: T.accent + '18' }]}>
                 <Text style={{ fontSize: 22, fontWeight: '900', color: T.accent }}>{latest.height_cm}</Text>
-                <Text style={{ fontSize: 10, color: T.textMuted }}>Estatura (cm)</Text>
+                <Text style={{ fontSize: 10, color: T.textMuted }}>{t('client.progress.measures.heightCmLabel')}</Text>
               </View>
             )}
             {comp?.bmi != null && comp.bmiCategory && (
               <View style={[styles.measureBadge, { borderColor: comp.bmiCategory.color + '44', backgroundColor: comp.bmiCategory.color + '18' }]}>
                 <Text style={{ fontSize: 22, fontWeight: '900', color: comp.bmiCategory.color }}>{comp.bmi}</Text>
-                <Text style={{ fontSize: 10, color: T.textMuted }}>IMC</Text>
+                <Text style={{ fontSize: 10, color: T.textMuted }}>{t('measurements.labels.bmi')}</Text>
                 <Text style={{ fontSize: 9, color: comp.bmiCategory.color, fontWeight: '700' }}>{comp.bmiCategory.label}</Text>
               </View>
             )}
@@ -383,12 +387,12 @@ function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
           {(comp?.fatMassKg != null || comp?.leanMassKg != null || latest.body_fat_pct != null) && (
             <View style={{ marginBottom: hasCircumferences ? 12 : 0 }}>
               <Text style={{ fontSize: 11, fontWeight: '700', color: T.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>
-                Composición
+                {t('client.progress.measures.compositionSectionLabel')}
               </Text>
-              <CompRow label="Masa grasa"            value={comp?.fatMassKg ?? null}  unit="kg" color={T.orange} T={T} />
-              <CompRow label="% Grasa corporal"      value={comp?.fatPct ?? null}     unit="%" color={T.orange} T={T} />
-              <CompRow label="Masa magra"            value={comp?.leanMassKg ?? null} unit="kg" color={T.green} T={T} />
-              <CompRow label="% Masa magra"          value={comp?.leanPct ?? null}    unit="%" color={T.green} T={T} />
+              <CompRow label={t('measurements.labels.fatMass')}       value={comp?.fatMassKg ?? null}  unit="kg" color={T.orange} T={T} />
+              <CompRow label={t('measurements.labels.bodyFat')}       value={comp?.fatPct ?? null}     unit="%" color={T.orange} T={T} />
+              <CompRow label={t('measurements.labels.leanMass')}      value={comp?.leanMassKg ?? null} unit="kg" color={T.green} T={T} />
+              <CompRow label={t('client.progress.measures.leanMassPct')} value={comp?.leanPct ?? null}    unit="%" color={T.green} T={T} />
             </View>
           )}
 
@@ -396,17 +400,17 @@ function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
           {hasCircumferences && (
             <View>
               <Text style={{ fontSize: 11, fontWeight: '700', color: T.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 }}>
-                Circunferencias
+                {t('client.progress.measures.circumferencesLabel')}
               </Text>
-              <CompRow label="Cuello"       value={latest.neck_cm}     unit="cm" color={T.accent} T={T} />
-              <CompRow label="Hombros"      value={latest.shoulder_cm} unit="cm" color={T.accent} T={T} />
-              <CompRow label="Pecho"        value={latest.chest_cm}    unit="cm" color={T.accent} T={T} />
-              <CompRow label="Cintura"      value={latest.waist_cm}    unit="cm" color={T.accent} T={T} />
-              <CompRow label="Abdomen"      value={latest.abdomen_cm}  unit="cm" color={T.accent} T={T} />
-              <CompRow label="Cadera"       value={latest.hip_cm}      unit="cm" color={T.accent} T={T} />
-              <CompRow label="Brazo"        value={latest.arm_cm}      unit="cm" color={T.accent} T={T} />
-              <CompRow label="Muslo"        value={latest.thigh_cm}    unit="cm" color={T.accent} T={T} />
-              <CompRow label="Pantorrilla"  value={latest.calf_cm}     unit="cm" color={T.accent} T={T} />
+              <CompRow label={t('measurements.labels.neck')}          value={latest.neck_cm}     unit="cm" color={T.accent} T={T} />
+              <CompRow label={t('client.progress.metrics.shoulder')}  value={latest.shoulder_cm} unit="cm" color={T.accent} T={T} />
+              <CompRow label={t('client.progress.metrics.chest')}    value={latest.chest_cm}    unit="cm" color={T.accent} T={T} />
+              <CompRow label={t('measurements.labels.waist')}         value={latest.waist_cm}    unit="cm" color={T.accent} T={T} />
+              <CompRow label={t('client.progress.metrics.abdomen')}  value={latest.abdomen_cm}  unit="cm" color={T.accent} T={T} />
+              <CompRow label={t('measurements.labels.hip')}           value={latest.hip_cm}      unit="cm" color={T.accent} T={T} />
+              <CompRow label={t('measurements.labels.arm')}           value={latest.arm_cm}      unit="cm" color={T.accent} T={T} />
+              <CompRow label={t('client.progress.metrics.thigh')}    value={latest.thigh_cm}    unit="cm" color={T.accent} T={T} />
+              <CompRow label={t('client.progress.metrics.calf')}     value={latest.calf_cm}     unit="cm" color={T.accent} T={T} />
             </View>
           )}
         </View>
@@ -416,17 +420,17 @@ function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
       {weightHistory.length >= 2 && (
         <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Text style={[styles.cardTitle, { color: T.text }]}>Evolución de peso</Text>
+            <Text style={[styles.cardTitle, { color: T.text }]}>{t('client.progress.measures.weightEvolutionTitle')}</Text>
             {weightChange != null && (
               <Text style={{ fontSize: 13, fontWeight: '700', color: weightChange < 0 ? T.green : weightChange > 0 ? T.orange : T.textMuted }}>
-                {weightChange > 0 ? '+' : ''}{weightChange.toFixed(1)} kg
+                {weightChange > 0 ? '+' : ''}{weightChange.toFixed(1)} {t('measurements.labels.kg')}
               </Text>
             )}
           </View>
           <Sparkline values={weightHistory} color={T.orange} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
-            <Text style={{ fontSize: 11, color: T.textMuted }}>Mín: {Math.min(...weightHistory)} kg</Text>
-            <Text style={{ fontSize: 11, color: T.textMuted }}>Máx: {Math.max(...weightHistory)} kg</Text>
+            <Text style={{ fontSize: 11, color: T.textMuted }}>{t('client.progress.measures.min')}: {Math.min(...weightHistory)} {t('measurements.labels.kg')}</Text>
+            <Text style={{ fontSize: 11, color: T.textMuted }}>{t('client.progress.measures.max')}: {Math.max(...weightHistory)} {t('measurements.labels.kg')}</Text>
           </View>
         </View>
       )}
@@ -440,14 +444,14 @@ function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
         style={{ backgroundColor: T.orange, borderRadius: 12, padding: 14, alignItems: 'center' }}
       >
         <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>
-          {hasThisWeek ? '✏️ Editar medición de esta semana' : '+ Registrar medición de hoy'}
+          {hasThisWeek ? `✏️ ${t('client.progress.measures.editThisWeek')}` : `+ ${t('client.progress.measures.registerToday')}`}
         </Text>
       </TouchableOpacity>
 
       {!hasThisWeek && measurements.length > 0 && (
         <View style={{ paddingHorizontal: 4 }}>
           <Text style={{ fontSize: 11, color: T.textMuted, textAlign: 'center' }}>
-            Solo se permite 1 medición por semana (lun–dom). Podés editar la de esta semana en cualquier momento.
+            {t('client.progress.measures.weeklyLimitNote')}
           </Text>
         </View>
       )}
@@ -455,16 +459,16 @@ function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
       {/* History list */}
       {measurements.length > 0 ? (
         <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border }]}>
-          <Text style={[styles.cardTitle, { color: T.text, marginBottom: 12 }]}>Historial</Text>
+          <Text style={[styles.cardTitle, { color: T.text, marginBottom: 12 }]}>{t('client.progress.measures.historyTitle')}</Text>
           {measurements.slice(0, 12).map((m, idx) => {
             const c = computeBodyComposition(m);
             const circumStr = [
-              m.waist_cm   ? `Cin: ${m.waist_cm}` : null,
-              m.abdomen_cm ? `Abd: ${m.abdomen_cm}` : null,
-              m.hip_cm     ? `Cad: ${m.hip_cm}` : null,
-              m.arm_cm     ? `Bra: ${m.arm_cm}` : null,
-              m.thigh_cm   ? `Mus: ${m.thigh_cm}` : null,
-              m.calf_cm    ? `Pan: ${m.calf_cm}` : null,
+              m.waist_cm   ? `${t('client.progress.measures.abbr.waist')}: ${m.waist_cm}` : null,
+              m.abdomen_cm ? `${t('client.progress.measures.abbr.abdomen')}: ${m.abdomen_cm}` : null,
+              m.hip_cm     ? `${t('client.progress.measures.abbr.hip')}: ${m.hip_cm}` : null,
+              m.arm_cm     ? `${t('client.progress.measures.abbr.arm')}: ${m.arm_cm}` : null,
+              m.thigh_cm   ? `${t('client.progress.measures.abbr.thigh')}: ${m.thigh_cm}` : null,
+              m.calf_cm    ? `${t('client.progress.measures.abbr.calf')}: ${m.calf_cm}` : null,
             ].filter(Boolean).join(' · ');
             return (
               <View key={m.id} style={{
@@ -479,20 +483,20 @@ function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
                     </Text>
                     {m.notes ? <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{m.notes}</Text> : null}
                     {circumStr ? (
-                      <Text style={{ fontSize: 10, color: T.textMuted, marginTop: 3 }}>{circumStr} cm</Text>
+                      <Text style={{ fontSize: 10, color: T.textMuted, marginTop: 3 }}>{circumStr} {t('measurements.labels.cm')}</Text>
                     ) : null}
                   </View>
                   <View style={{ alignItems: 'flex-end', gap: 2 }}>
                     {m.weight_kg != null && (
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: T.orange }}>{m.weight_kg} kg</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: T.orange }}>{m.weight_kg} {t('measurements.labels.kg')}</Text>
                     )}
                     {c.bmi != null && c.bmiCategory && (
                       <Text style={{ fontSize: 11, color: c.bmiCategory.color, fontWeight: '600' }}>
-                        IMC {c.bmi} · {c.bmiCategory.label}
+                        {t('measurements.labels.bmi')} {c.bmi} · {c.bmiCategory.label}
                       </Text>
                     )}
                     {m.body_fat_pct != null && (
-                      <Text style={{ fontSize: 10, color: T.textMuted }}>{m.body_fat_pct}% grasa</Text>
+                      <Text style={{ fontSize: 10, color: T.textMuted }}>{m.body_fat_pct}% {t('client.progress.measures.fatAbbr')}</Text>
                     )}
                   </View>
                 </View>
@@ -503,9 +507,9 @@ function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
       ) : (
         <View style={{ paddingVertical: 40, alignItems: 'center' }}>
           <Text style={{ fontSize: 40, marginBottom: 12 }}>📏</Text>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: T.text, marginBottom: 6 }}>Sin mediciones aún</Text>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: T.text, marginBottom: 6 }}>{t('client.progress.measures.emptyTitle')}</Text>
           <Text style={{ fontSize: 13, color: T.textMuted, textAlign: 'center', paddingHorizontal: 20 }}>
-            Registrá tu peso y medidas para hacer seguimiento de tu composición corporal.
+            {t('client.progress.measures.emptyBody')}
           </Text>
         </View>
       )}
@@ -515,53 +519,54 @@ function MedidasTab({ onAdd, T }: { onAdd: () => void; T: any }) {
 
 // ─── Racha Tab ────────────────────────────────────────────────
 function RachaTab({ T }: { T: any }) {
+  const { t } = useTranslation();
   const { routineStreak, dailyProgress } = useProgressStore();
   const current = routineStreak?.currentStreak ?? 0;
   const longest = routineStreak?.longestStreak ?? 0;
   const totalActive = dailyProgress.filter((d) => d.pct > 0).length;
 
-  const msg = current === 0 ? 'Empieza hoy tu racha'
-    : current < 3   ? '¡Buen inicio, sigue así!'
-    : current < 7   ? '¡Vas muy bien!'
-    : current < 14  ? '¡Semanas seguidas!'
-    : current < 30  ? '¡Increíble constancia!'
-    : '¡Leyenda del gym!';
+  const msg = current === 0 ? t('client.progress.streak.msg.start')
+    : current < 3   ? t('client.progress.streak.msg.goodStart')
+    : current < 7   ? t('client.progress.streak.msg.goingWell')
+    : current < 14  ? t('client.progress.streak.msg.weeksInARow')
+    : current < 30  ? t('client.progress.streak.msg.incredible')
+    : t('client.progress.streak.msg.legend');
 
   return (
     <View style={{ gap: 12 }}>
       <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.orange + '44', alignItems: 'center', paddingVertical: 28 }]}>
         <Text style={{ fontSize: 56 }}>🔥</Text>
         <Text style={{ fontSize: 72, fontWeight: '900', color: T.orange, lineHeight: 82 }}>{current}</Text>
-        <Text style={{ fontSize: 16, fontWeight: '700', color: T.text }}>días de racha</Text>
+        <Text style={{ fontSize: 16, fontWeight: '700', color: T.text }}>{t('client.progress.streak.daysLabel')}</Text>
         <Text style={{ fontSize: 13, color: T.textMuted, marginTop: 4 }}>{msg}</Text>
       </View>
 
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <View style={[styles.card, { flex: 1, backgroundColor: T.bgCard, borderColor: T.border, alignItems: 'center' }]}>
           <Text style={{ fontSize: 30, fontWeight: '900', color: T.orange }}>{current}</Text>
-          <Text style={{ fontSize: 11, color: T.textMuted, textAlign: 'center', marginTop: 2 }}>Racha actual</Text>
+          <Text style={{ fontSize: 11, color: T.textMuted, textAlign: 'center', marginTop: 2 }}>{t('client.progress.routines.currentStreakLabel')}</Text>
         </View>
         <View style={[styles.card, { flex: 1, backgroundColor: T.bgCard, borderColor: T.border, alignItems: 'center' }]}>
           <Text style={{ fontSize: 30, fontWeight: '900', color: T.green }}>{longest}</Text>
-          <Text style={{ fontSize: 11, color: T.textMuted, textAlign: 'center', marginTop: 2 }}>Mejor racha</Text>
+          <Text style={{ fontSize: 11, color: T.textMuted, textAlign: 'center', marginTop: 2 }}>{t('client.progress.streak.bestStreakLabel')}</Text>
         </View>
         <View style={[styles.card, { flex: 1, backgroundColor: T.bgCard, borderColor: T.border, alignItems: 'center' }]}>
           <Text style={{ fontSize: 30, fontWeight: '900', color: T.accent }}>{totalActive}</Text>
-          <Text style={{ fontSize: 11, color: T.textMuted, textAlign: 'center', marginTop: 2 }}>Días activos</Text>
-          <Text style={{ fontSize: 10, color: T.textMuted, textAlign: 'center' }}>últimas 2 sem.</Text>
+          <Text style={{ fontSize: 11, color: T.textMuted, textAlign: 'center', marginTop: 2 }}>{t('client.progress.routines.activeDaysLabel')}</Text>
+          <Text style={{ fontSize: 10, color: T.textMuted, textAlign: 'center' }}>{t('client.progress.routines.last2Weeks')}</Text>
         </View>
       </View>
 
       <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border }]}>
-        <Text style={[styles.cardTitle, { color: T.text, marginBottom: 14 }]}>Últimas 5 semanas</Text>
+        <Text style={[styles.cardTitle, { color: T.text, marginBottom: 14 }]}>{t('client.progress.streak.last5WeeksTitle')}</Text>
         <StreakCalendar activeDates={routineStreak?.activeDates ?? []} T={T} />
       </View>
 
       {current === 0 && (
         <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.orange + '33' }]}>
-          <Text style={{ fontSize: 14, fontWeight: '700', color: T.text, marginBottom: 4 }}>💡 ¿Cómo funciona la racha?</Text>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: T.text, marginBottom: 4 }}>💡 {t('client.progress.streak.howItWorksTitle')}</Text>
           <Text style={{ fontSize: 13, color: T.textMuted, lineHeight: 20 }}>
-            Completa al menos un ejercicio de tu rutina cada día para mantener tu racha activa. Si un día no entrenas, la racha se reinicia.
+            {t('client.progress.streak.howItWorksBody')}
           </Text>
         </View>
       )}
@@ -572,6 +577,7 @@ function RachaTab({ T }: { T: any }) {
 // ─── Main Screen ──────────────────────────────────────────────
 export default function ProgressScreen() {
   const T = useTheme();
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const { isLoading, error, measurements, thisWeekMeasurement, loadAll, addMeasurement } = useProgressStore();
   const [activeTab, setActiveTab] = useState<TabId>('routines');
@@ -609,7 +615,7 @@ export default function ProgressScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <ClientTopBar title="Mi Progreso" />
+      <ClientTopBar title={t('client.progress.title')} />
 
       {/* Tab pills */}
       <View style={[styles.tabRow, { borderBottomColor: T.border }]}>
@@ -625,7 +631,7 @@ export default function ProgressScreen() {
             ]}
           >
             <Text style={{ fontSize: 12, fontWeight: '700', color: activeTab === tab.id ? '#fff' : T.textMuted }}>
-              {tab.label}
+              {tab.emoji} {t(tab.labelKey)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -639,7 +645,7 @@ export default function ProgressScreen() {
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {error ? (
             <View style={{ padding: 16, borderRadius: 10, backgroundColor: T.redSoft, marginBottom: 8 }}>
-              <Text style={{ color: T.red, fontSize: 13 }}>Error al cargar datos: {error}</Text>
+              <Text style={{ color: T.red, fontSize: 13 }}>{t('client.progress.loadError', { error })}</Text>
             </View>
           ) : null}
 

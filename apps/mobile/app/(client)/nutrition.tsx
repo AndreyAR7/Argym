@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, StyleSheet, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { ClientTopBar } from '@/components/client/ClientTopBar';
 import { useAuthStore } from '@/store/auth.store';
@@ -15,6 +16,7 @@ function MacroBar({
 }: {
   label: string; value: number; unit?: string; max: number; color: string; T: any;
 }) {
+  const { t } = useTranslation();
   const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
   return (
     <View style={{ flex: 1 }}>
@@ -27,7 +29,7 @@ function MacroBar({
       <View style={[styles.macroBg, { backgroundColor: T.border }]}>
         <View style={[styles.macroFill, { width: `${pct}%` as any, backgroundColor: color }]} />
       </View>
-      <Text style={[styles.macroPct, { color: T.textMuted }]}>{pct}% del objetivo</Text>
+      <Text style={[styles.macroPct, { color: T.textMuted }]}>{t('client.nutrition.ofTargetPct', { pct })}</Text>
     </View>
   );
 }
@@ -46,14 +48,15 @@ function StatChip({ label, value, color, bg, T }: {
 
 // ─── Empty state ──────────────────────────────────────────────
 function EmptyState({ T }: { T: any }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyIcon}>🥗</Text>
       <Text style={[styles.emptyTitle, { color: T.text }]}>
-        Sin plan nutricional
+        {t('client.nutrition.empty.title')}
       </Text>
       <Text style={[styles.emptyMessage, { color: T.textMuted }]}>
-        Tu coach aún no te ha asignado un plan nutricional. Consulta con tu coach.
+        {t('client.nutrition.empty.message')}
       </Text>
     </View>
   );
@@ -61,6 +64,7 @@ function EmptyState({ T }: { T: any }) {
 
 // ─── Main screen ─────────────────────────────────────────────
 export default function NutritionScreen() {
+  const { t } = useTranslation();
   const T = useTheme();
   const { user } = useAuthStore();
 
@@ -74,7 +78,7 @@ export default function NutritionScreen() {
     setError(null);
     fetchClientNutritionPlan(user.tenant_id, user.id)
       .then((data) => setAssignment(data))
-      .catch(() => setError('No se pudo cargar tu plan nutricional. Intenta de nuevo.'))
+      .catch(() => setError(t('client.nutrition.error')))
       .finally(() => setLoading(false));
   }, [user?.id, user?.tenant_id]);
 
@@ -85,7 +89,7 @@ export default function NutritionScreen() {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['left', 'right']}>
         <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-        <ClientTopBar title="Nutrición" />
+        <ClientTopBar title={t('navigation.nutrition')} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={T.accent} size="large" />
         </View>
@@ -98,7 +102,7 @@ export default function NutritionScreen() {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['left', 'right']}>
         <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-        <ClientTopBar title="Nutrición" />
+        <ClientTopBar title={t('navigation.nutrition')} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
           <Text style={{ fontSize: 36, marginBottom: 16 }}>⚠️</Text>
           <Text style={{ fontSize: 15, color: T.textMuted, textAlign: 'center', lineHeight: 22 }}>
@@ -123,7 +127,7 @@ export default function NutritionScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <ClientTopBar title="Nutrición" />
+      <ClientTopBar title={t('navigation.nutrition')} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
@@ -140,7 +144,7 @@ export default function NutritionScreen() {
               {plan.goal ? (
                 <View style={[styles.goalBadge, { backgroundColor: T.accent + '20', borderColor: T.accent + '40' }]}>
                   <Text style={[styles.goalText, { color: T.accent }]}>
-                    Objetivo: {plan.goal}
+                    {t('client.nutrition.goalLabel', { goal: plan.goal })}
                   </Text>
                 </View>
               ) : null}
@@ -153,7 +157,7 @@ export default function NutritionScreen() {
 
             {/* ── Calorie target card ── */}
             <View style={[styles.calCard, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
-              <Text style={[styles.cardSectionLabel, { color: T.textMuted }]}>OBJETIVO CALÓRICO DIARIO</Text>
+              <Text style={[styles.cardSectionLabel, { color: T.textMuted }]}>{t('client.nutrition.dailyCalorieTarget')}</Text>
               <View style={styles.calRow}>
                 <View style={{ flex: 1 }}>
                   <View style={styles.calValueRow}>
@@ -161,7 +165,7 @@ export default function NutritionScreen() {
                     <Text style={[styles.calUnit, { color: T.textMuted }]}>kcal</Text>
                   </View>
                   <Text style={[styles.calSubtitle, { color: T.textSecondary }]}>
-                    por día
+                    {t('client.nutrition.perDay')}
                   </Text>
                 </View>
                 <View style={[styles.calCircle, { backgroundColor: T.greenSoft }]}>
@@ -172,9 +176,9 @@ export default function NutritionScreen() {
               {/* Macro calorie breakdown chips */}
               {(protein > 0 || carbs > 0 || fat > 0) && (
                 <View style={styles.chipRow}>
-                  <StatChip label="Proteína" value={`${calsFromProtein} kcal`} color={T.accent} bg={T.accent + '18'} T={T} />
-                  <StatChip label="Carbos" value={`${calsFromCarbs} kcal`} color={T.orange} bg={T.orange + '18'} T={T} />
-                  <StatChip label="Grasas" value={`${calsFromFat} kcal`} color={T.gold} bg={T.gold + '18'} T={T} />
+                  <StatChip label={t('client.nutrition.protein')} value={`${calsFromProtein} kcal`} color={T.accent} bg={T.accent + '18'} T={T} />
+                  <StatChip label={t('client.nutrition.carbsShort')} value={`${calsFromCarbs} kcal`} color={T.orange} bg={T.orange + '18'} T={T} />
+                  <StatChip label={t('client.nutrition.fat')} value={`${calsFromFat} kcal`} color={T.gold} bg={T.gold + '18'} T={T} />
                 </View>
               )}
             </View>
@@ -182,10 +186,10 @@ export default function NutritionScreen() {
             {/* ── Macronutrients card ── */}
             {(protein > 0 || carbs > 0 || fat > 0) && (
               <View style={[styles.macrosCard, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
-                <Text style={[styles.cardSectionLabel, { color: T.textMuted }]}>MACRONUTRIENTES OBJETIVO</Text>
+                <Text style={[styles.cardSectionLabel, { color: T.textMuted }]}>{t('client.nutrition.macroTargets')}</Text>
 
                 <MacroBar
-                  label="Proteína"
+                  label={t('client.nutrition.protein')}
                   value={protein}
                   max={250}
                   color={T.accent}
@@ -193,7 +197,7 @@ export default function NutritionScreen() {
                 />
                 <View style={{ height: 14 }} />
                 <MacroBar
-                  label="Carbohidratos"
+                  label={t('client.nutrition.carbs')}
                   value={carbs}
                   max={400}
                   color={T.orange}
@@ -201,7 +205,7 @@ export default function NutritionScreen() {
                 />
                 <View style={{ height: 14 }} />
                 <MacroBar
-                  label="Grasas"
+                  label={t('client.nutrition.fat')}
                   value={fat}
                   max={120}
                   color={T.gold}
@@ -210,7 +214,7 @@ export default function NutritionScreen() {
 
                 {/* Total grams summary */}
                 <View style={[styles.totalRow, { borderTopColor: T.border }]}>
-                  <Text style={[styles.totalLabel, { color: T.textMuted }]}>Total macros</Text>
+                  <Text style={[styles.totalLabel, { color: T.textMuted }]}>{t('client.nutrition.totalMacros')}</Text>
                   <Text style={[styles.totalValue, { color: T.text }]}>
                     {protein + carbs + fat}g
                   </Text>
@@ -223,7 +227,7 @@ export default function NutritionScreen() {
               <View style={[styles.noteCard, { backgroundColor: T.bgCard, borderColor: T.accent + '33', borderRadius: T.radiusMd }]}>
                 <Text style={styles.noteIcon}>💬</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.noteLabel, { color: T.accent }]}>Nota de tu coach</Text>
+                  <Text style={[styles.noteLabel, { color: T.accent }]}>{t('client.nutrition.coachNote')}</Text>
                   <Text style={[styles.noteText, { color: T.textSecondary }]}>{assignment.note}</Text>
                 </View>
               </View>
@@ -231,12 +235,12 @@ export default function NutritionScreen() {
 
             {/* ── Tips card ── */}
             <View style={[styles.tipsCard, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
-              <Text style={[styles.cardSectionLabel, { color: T.textMuted }]}>CONSEJOS GENERALES</Text>
+              <Text style={[styles.cardSectionLabel, { color: T.textMuted }]}>{t('client.nutrition.generalTips')}</Text>
               {[
-                'Bebe al menos 2 litros de agua al día.',
-                'Distribuye tus comidas en 4-5 tomas al día.',
-                'Prioriza proteínas en cada comida para mantener tu masa muscular.',
-                'Evita azúcares procesados y alimentos ultraprocesados.',
+                t('client.nutrition.tips.hydration'),
+                t('client.nutrition.tips.mealFrequency'),
+                t('client.nutrition.tips.proteinPriority'),
+                t('client.nutrition.tips.avoidSugar'),
               ].map((tip, i) => (
                 <View key={i} style={styles.tipRow}>
                   <View style={[styles.tipDot, { backgroundColor: T.accent }]} />

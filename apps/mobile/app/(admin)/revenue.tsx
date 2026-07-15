@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as XLSX from 'xlsx';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { AdminTopBar } from '@/components/admin/AdminTopBar';
 import { useAuthStore } from '@/store/auth.store';
@@ -157,9 +158,9 @@ async function buildComparativeXLSX(
 }
 
 const RANGE_OPTIONS = [
-  { label: 'Últimos 3 meses',  months: 3  },
-  { label: 'Últimos 6 meses',  months: 6  },
-  { label: 'Últimos 12 meses', months: 12 },
+  { labelKey: 'admin.revenue.rangeOptions.last3Months',  months: 3  },
+  { labelKey: 'admin.revenue.rangeOptions.last6Months',  months: 6  },
+  { labelKey: 'admin.revenue.rangeOptions.last12Months', months: 12 },
 ];
 
 // ── Sub-components ─────────────────────────────────────────────────
@@ -187,13 +188,14 @@ function SectionTitle({ title, sub }: { title: string; sub?: string }) {
 
 function TrendChart({ data }: { data: MonthTrend[] }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const maxCRC = Math.max(...data.map((d) => d.totalCRC), 1);
   const maxUSD = Math.max(...data.map((d) => d.totalUSD), 1);
   const showUSD = data.some((d) => d.totalUSD > 0);
 
   return (
     <View style={[styles.trendBox, { backgroundColor: T.bgCard, borderColor: T.border }]}>
-      <SectionTitle title="Tendencia de ingresos" sub="Últimos 6 meses" />
+      <SectionTitle title={t('admin.revenue.trend.title')} sub={t('admin.revenue.trend.subtitle')} />
       <View style={styles.trendBars}>
         {data.map((d) => (
           <View key={d.month} style={styles.trendCol}>
@@ -234,6 +236,7 @@ function TrendChart({ data }: { data: MonthTrend[] }) {
 
 function PlanRow({ plan, maxRevenue }: { plan: PlanRevenueSummary; maxRevenue: number }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const pct = maxRevenue > 0 ? plan.revenue / maxRevenue : 0;
   return (
     <View style={[styles.planRow, { borderBottomColor: T.border }]}>
@@ -245,7 +248,7 @@ function PlanRow({ plan, maxRevenue }: { plan: PlanRevenueSummary; maxRevenue: n
       </View>
       <View style={{ alignItems: 'flex-end', marginLeft: 12 }}>
         <Text style={[styles.planRevenue, { color: T.accent }]}>{fmtMoney(plan.revenue, plan.currency)}</Text>
-        <Text style={[styles.planCount, { color: T.textMuted }]}>{plan.count} suscrip.</Text>
+        <Text style={[styles.planCount, { color: T.textMuted }]}>{plan.count} {t('admin.revenue.byPlan.subscriptionsAbbr')}</Text>
       </View>
     </View>
   );
@@ -253,6 +256,7 @@ function PlanRow({ plan, maxRevenue }: { plan: PlanRevenueSummary; maxRevenue: n
 
 function ClientRow({ client, rank }: { client: TopClient; rank: number }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const medalColors = ['#F59E0B', '#9CA3AF', '#92400E'];
   const rankColor   = rank <= 3 ? medalColors[rank - 1] : T.textMuted;
   const initials    = client.fullName.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase();
@@ -266,7 +270,7 @@ function ClientRow({ client, rank }: { client: TopClient; rank: number }) {
       <View style={{ flex: 1 }}>
         <Text style={[styles.clientName, { color: T.text }]}>{client.fullName}</Text>
         <Text style={[styles.clientMeta, { color: T.textMuted }]}>
-          {client.activePlansCount} plan{client.activePlansCount !== 1 ? 'es' : ''} · desde {fmtDate(client.activeSince)}
+          {t('admin.revenue.topClients.planCount', { count: client.activePlansCount })} · {t('admin.revenue.topClients.since')} {fmtDate(client.activeSince)}
         </Text>
       </View>
       <Text style={[styles.clientTotal, { color: T.green }]}>
@@ -280,6 +284,7 @@ function ClientRow({ client, rank }: { client: TopClient; rank: number }) {
 
 export default function AdminRevenueScreen() {
   const T = useTheme();
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const tenantId = user?.tenant_id ?? '';
 
@@ -305,14 +310,14 @@ export default function AdminRevenueScreen() {
       const uri = cacheDir + filename;
       await FileSystem.writeAsStringAsync(uri, base64, { encoding: FileSystem.EncodingType.Base64 });
       const canShare = await Sharing.isAvailableAsync();
-      if (!canShare) { Alert.alert('No disponible', 'Compartir no está disponible en este dispositivo.'); return; }
+      if (!canShare) { Alert.alert(t('admin.revenue.alerts.shareUnavailableTitle'), t('admin.revenue.alerts.shareUnavailableMsg')); return; }
       await Sharing.shareAsync(uri, {
         mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        dialogTitle: `Comparativa ${rangeMonths} meses`,
+        dialogTitle: t('admin.revenue.export.comparativeDialogTitle', { count: rangeMonths }),
         UTI: 'com.microsoft.excel.xlsx',
       });
     } catch (e: any) {
-      Alert.alert('Error', `No se pudo generar el archivo comparativo: ${e?.message ?? ''}`);
+      Alert.alert(t('common.error'), t('admin.revenue.alerts.comparativeExportError', { message: e?.message ?? '' }));
     } finally {
       setIsExporting(false);
       setExportRange(null);
@@ -328,7 +333,7 @@ export default function AdminRevenueScreen() {
   const handleExport = async () => {
     if (!report) return;
     if (report.rawSubscriptions.length === 0) {
-      Alert.alert('Sin datos', 'No hay suscripciones en este período para exportar.');
+      Alert.alert(t('admin.revenue.alerts.noDataTitle'), t('admin.revenue.alerts.noDataMsg'));
       return;
     }
     try {
@@ -394,17 +399,17 @@ export default function AdminRevenueScreen() {
 
       const canShare = await Sharing.isAvailableAsync();
       if (!canShare) {
-        Alert.alert('No disponible', 'Compartir archivos no está disponible en este dispositivo.');
+        Alert.alert(t('admin.revenue.alerts.shareUnavailableTitle'), t('admin.revenue.alerts.shareFilesUnavailableMsg'));
         return;
       }
 
       await Sharing.shareAsync(uri, {
         mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        dialogTitle: `Ingresos ${formatMonthFull(selectedMonth)}`,
+        dialogTitle: t('admin.revenue.export.currentMonthDialogTitle', { month: formatMonthFull(selectedMonth) }),
         UTI: 'com.microsoft.excel.xlsx',
       });
     } catch (e: any) {
-      Alert.alert('Error', `No se pudo generar el archivo Excel: ${e?.message ?? ''}`);
+      Alert.alert(t('common.error'), t('admin.revenue.alerts.excelExportError', { message: e?.message ?? '' }));
     }
   };
 
@@ -413,7 +418,7 @@ export default function AdminRevenueScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <AdminTopBar title="Ingresos" subtitle="Análisis financiero" />
+      <AdminTopBar title={t('admin.revenue.title')} subtitle={t('admin.revenue.subtitle')} />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -442,13 +447,13 @@ export default function AdminRevenueScreen() {
         {isLoading ? (
           <View style={{ paddingVertical: 60, alignItems: 'center' }}>
             <ActivityIndicator color={T.accent} size="large" />
-            <Text style={{ color: T.textMuted, marginTop: 12, fontSize: 13 }}>Cargando reporte...</Text>
+            <Text style={{ color: T.textMuted, marginTop: 12, fontSize: 13 }}>{t('admin.revenue.loadingReport')}</Text>
           </View>
         ) : !report ? (
           <View style={{ paddingVertical: 60, alignItems: 'center' }}>
-            <Text style={{ color: T.red, fontSize: 14 }}>No se pudo cargar el reporte</Text>
+            <Text style={{ color: T.red, fontSize: 14 }}>{t('admin.revenue.loadError')}</Text>
             <TouchableOpacity onPress={() => refetch()} style={{ marginTop: 12 }}>
-              <Text style={{ color: T.accent, fontWeight: '600' }}>Reintentar</Text>
+              <Text style={{ color: T.accent, fontWeight: '600' }}>{t('common.retry')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -456,27 +461,27 @@ export default function AdminRevenueScreen() {
             {/* ── KPI Grid ── */}
             <View style={styles.kpiGrid}>
               <KpiCard
-                label="Ingresos (₡)"
+                label={t('admin.revenue.kpi.crcLabel')}
                 value={fmtMoney(report.totalCRC, 'CRC')}
-                sub="en colones"
+                sub={t('admin.revenue.kpi.crcSub')}
                 accent={T.green}
               />
               <KpiCard
-                label="Ingresos ($)"
+                label={t('admin.revenue.kpi.usdLabel')}
                 value={report.totalUSD > 0 ? fmtMoney(report.totalUSD, 'USD') : '—'}
-                sub="en dólares"
+                sub={t('admin.revenue.kpi.usdSub')}
                 accent={T.accent}
               />
               <KpiCard
-                label="Nuevas suscrip."
+                label={t('admin.revenue.kpi.newSubsLabel')}
                 value={report.newSubscriptionsThisMonth}
-                sub={`este mes`}
+                sub={t('admin.revenue.kpi.thisMonth')}
                 accent={T.orange}
               />
               <KpiCard
-                label="Clientes con plan"
+                label={t('admin.revenue.kpi.clientsWithPlanLabel')}
                 value={report.uniqueClientsWithPlan}
-                sub={`${report.activeSubscriptionsTotal} subs activas`}
+                sub={t('admin.revenue.kpi.activeSubsSub', { count: report.activeSubscriptionsTotal })}
                 accent={T.purple}
               />
             </View>
@@ -487,11 +492,11 @@ export default function AdminRevenueScreen() {
             {/* ── By plan ── */}
             <View style={[styles.section, { backgroundColor: T.bgCard, borderColor: T.border }]}>
               <SectionTitle
-                title="Ingresos por plan"
-                sub={`${formatMonthFull(selectedMonth)} · ${report.newSubscriptionsThisMonth} suscripción${report.newSubscriptionsThisMonth !== 1 ? 'es' : ''} nuevas`}
+                title={t('admin.revenue.byPlan.title')}
+                sub={t('admin.revenue.byPlan.subtitle', { month: formatMonthFull(selectedMonth), count: report.newSubscriptionsThisMonth })}
               />
               {report.byPlan.length === 0 ? (
-                <Text style={[styles.emptyText, { color: T.textMuted }]}>Sin ingresos este mes</Text>
+                <Text style={[styles.emptyText, { color: T.textMuted }]}>{t('admin.revenue.byPlan.empty')}</Text>
               ) : (
                 report.byPlan.map((plan) => (
                   <PlanRow key={plan.planId} plan={plan} maxRevenue={maxPlanRevenue} />
@@ -502,11 +507,11 @@ export default function AdminRevenueScreen() {
             {/* ── Top 10 clients ── */}
             <View style={[styles.section, { backgroundColor: T.bgCard, borderColor: T.border }]}>
               <SectionTitle
-                title="Top 10 clientes"
-                sub="Por monto total pagado · planes activos"
+                title={t('admin.revenue.topClients.title')}
+                sub={t('admin.revenue.topClients.subtitle')}
               />
               {report.topClients.length === 0 ? (
-                <Text style={[styles.emptyText, { color: T.textMuted }]}>Sin clientes con planes activos</Text>
+                <Text style={[styles.emptyText, { color: T.textMuted }]}>{t('admin.revenue.topClients.empty')}</Text>
               ) : (
                 report.topClients.map((client, i) => (
                   <ClientRow key={client.userId} client={client} rank={i + 1} />
@@ -516,21 +521,21 @@ export default function AdminRevenueScreen() {
 
             {/* ── Summary totals (all active) ── */}
             <View style={[styles.section, { backgroundColor: T.bgCard, borderColor: T.border }]}>
-              <SectionTitle title="Resumen acumulado" sub="Todas las suscripciones activas" />
+              <SectionTitle title={t('admin.revenue.summary.title')} sub={t('admin.revenue.summary.subtitle')} />
               <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, { color: T.textSecondary }]}>Total clientes con plan activo</Text>
+                <Text style={[styles.summaryLabel, { color: T.textSecondary }]}>{t('admin.revenue.summary.totalClients')}</Text>
                 <Text style={[styles.summaryValue, { color: T.text }]}>{report.uniqueClientsWithPlan}</Text>
               </View>
               <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, { color: T.textSecondary }]}>Total suscripciones activas</Text>
+                <Text style={[styles.summaryLabel, { color: T.textSecondary }]}>{t('admin.revenue.summary.totalActiveSubs')}</Text>
                 <Text style={[styles.summaryValue, { color: T.text }]}>{report.activeSubscriptionsTotal}</Text>
               </View>
               <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, { color: T.textSecondary }]}>Promedio por cliente</Text>
+                <Text style={[styles.summaryLabel, { color: T.textSecondary }]}>{t('admin.revenue.summary.avgPerClient')}</Text>
                 <Text style={[styles.summaryValue, { color: T.text }]}>
                   {report.uniqueClientsWithPlan > 0
                     ? (report.activeSubscriptionsTotal / report.uniqueClientsWithPlan).toFixed(1)
-                    : '—'} planes
+                    : '—'} {t('admin.revenue.summary.plansUnit')}
                 </Text>
               </View>
             </View>
@@ -542,9 +547,9 @@ export default function AdminRevenueScreen() {
             >
               <Text style={{ fontSize: 18 }}>📥</Text>
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={[styles.exportTitle, { color: T.text }]}>Exportar mes actual (.xlsx)</Text>
+                <Text style={[styles.exportTitle, { color: T.text }]}>{t('admin.revenue.export.currentMonthTitle')}</Text>
                 <Text style={[styles.exportSub, { color: T.textMuted }]}>
-                  {report.rawSubscriptions.length} registro{report.rawSubscriptions.length !== 1 ? 's' : ''} · {formatMonthFull(selectedMonth)}
+                  {t('admin.revenue.export.currentMonthSub', { count: report.rawSubscriptions.length, month: formatMonthFull(selectedMonth) })}
                 </Text>
               </View>
               <Text style={[styles.exportArrow, { color: T.accent }]}>→</Text>
@@ -557,9 +562,9 @@ export default function AdminRevenueScreen() {
             >
               <Text style={{ fontSize: 18 }}>📊</Text>
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={[styles.exportTitle, { color: T.text }]}>Exportar comparativa multi-mes</Text>
+                <Text style={[styles.exportTitle, { color: T.text }]}>{t('admin.revenue.export.comparativeTitle')}</Text>
                 <Text style={[styles.exportSub, { color: T.textMuted }]}>
-                  Análisis por plan, tendencia y top clientes
+                  {t('admin.revenue.export.comparativeSub')}
                 </Text>
               </View>
               <Text style={[styles.exportArrow, { color: T.purple }]}>→</Text>
@@ -571,16 +576,16 @@ export default function AdminRevenueScreen() {
       <Modal visible={showCompModal} transparent animationType="fade" onRequestClose={() => !isExporting && setShowCompModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalBox, { backgroundColor: T.bgCard, borderColor: T.border }]}>
-            <Text style={[styles.modalTitle, { color: T.text }]}>Exportar comparativa</Text>
+            <Text style={[styles.modalTitle, { color: T.text }]}>{t('admin.revenue.modal.title')}</Text>
             <Text style={[styles.modalSub, { color: T.textMuted }]}>
-              Genera un Excel con 5 hojas:{'\n'}Resumen · Ingresos por Plan · Suscripciones · Top Clientes · Datos Brutos
+              {t('admin.revenue.modal.subtitle')}
             </Text>
 
             {isExporting ? (
               <View style={{ alignItems: 'center', paddingVertical: 24 }}>
                 <ActivityIndicator color={T.accent} size="large" />
                 <Text style={{ color: T.textMuted, marginTop: 12, fontSize: 13 }}>
-                  Generando comparativa de {exportRange} meses...
+                  {t('admin.revenue.modal.generating', { count: exportRange ?? 0 })}
                 </Text>
               </View>
             ) : (
@@ -594,7 +599,7 @@ export default function AdminRevenueScreen() {
                       style={[styles.rangeBtn, { borderColor: T.border, backgroundColor: T.bg }]}
                     >
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.rangeBtnLabel, { color: T.text }]}>{opt.label}</Text>
+                        <Text style={[styles.rangeBtnLabel, { color: T.text }]}>{t(opt.labelKey)}</Text>
                         <Text style={[styles.rangeBtnSub, { color: T.textMuted }]}>
                           {formatMonthFull(months[0])} → {formatMonthFull(months[months.length - 1])}
                         </Text>
@@ -607,7 +612,7 @@ export default function AdminRevenueScreen() {
                   onPress={() => setShowCompModal(false)}
                   style={[styles.cancelBtn, { borderColor: T.border }]}
                 >
-                  <Text style={{ color: T.textMuted, fontWeight: '600' }}>Cancelar</Text>
+                  <Text style={{ color: T.textMuted, fontWeight: '600' }}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
               </>
             )}

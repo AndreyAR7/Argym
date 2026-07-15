@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { ClientTopBar } from '@/components/client/ClientTopBar';
 import { AppointmentCard } from '@/components/client/AppointmentCard';
@@ -54,6 +55,7 @@ function DateStrip({ selected, onChange, T }: { selected: Date; onChange: (d: Da
 }
 
 export default function ClientAppointments() {
+  const { t } = useTranslation();
   const T = useTheme();
   const router = useRouter();
   const { user } = useAuthStore();
@@ -93,19 +95,19 @@ export default function ClientAppointments() {
 
     const items: AptItem[] = [];
     if (past.length > 0) {
-      items.push({ _type: 'header', id: 'h-past', label: 'Pasadas' });
+      items.push({ _type: 'header', id: 'h-past', label: t('client.appointments.sections.past') });
       past.forEach((a: Appointment) => items.push({ _type: 'apt', id: a.id, apt: a }));
     }
     if (todayApts.length > 0) {
-      items.push({ _type: 'header', id: 'h-today', label: 'Hoy' });
+      items.push({ _type: 'header', id: 'h-today', label: t('client.appointments.sections.today') });
       todayApts.forEach((a: Appointment) => items.push({ _type: 'apt', id: a.id, apt: a }));
     }
     if (upcoming.length > 0) {
-      items.push({ _type: 'header', id: 'h-upcoming', label: 'Programadas' });
+      items.push({ _type: 'header', id: 'h-upcoming', label: t('client.appointments.sections.upcoming') });
       upcoming.forEach((a: Appointment) => items.push({ _type: 'apt', id: a.id, apt: a }));
     }
     return items;
-  }, [visible]);
+  }, [visible, t]);
 
   const paginatedList = sectionedList.slice(0, page * PAGE_SIZE);
   const hasMore = paginatedList.length < sectionedList.length;
@@ -133,7 +135,7 @@ export default function ClientAppointments() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <ClientTopBar title="Mis Citas" />
+      <ClientTopBar title={t('client.appointments.title')} />
 
       {/* View toggle */}
       <View style={[styles.toggleRow, { borderBottomColor: T.border }]}>
@@ -145,7 +147,7 @@ export default function ClientAppointments() {
           }]}
         >
           <Text style={{ fontSize: 12, fontWeight: '700', color: viewMode === 'list' ? '#fff' : T.textSecondary }}>
-            ☰ Lista
+            ☰ {t('client.appointments.listView')}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -156,7 +158,7 @@ export default function ClientAppointments() {
           }]}
         >
           <Text style={{ fontSize: 12, fontWeight: '700', color: viewMode === 'calendar' ? '#fff' : T.textSecondary }}>
-            📅 Calendario
+            📅 {t('client.appointments.calendarView')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -188,10 +190,10 @@ export default function ClientAppointments() {
       ) : error ? (
         <View style={{ alignItems: 'center', paddingVertical: 40 }}>
           <Text style={{ color: T.red, fontSize: 14, textAlign: 'center', marginBottom: 12 }}>
-            No se pudieron cargar las citas.
+            {t('client.appointments.loadError')}
           </Text>
           <TouchableOpacity onPress={() => refetch()}>
-            <Text style={{ color: T.accent, fontWeight: '700' }}>Reintentar</Text>
+            <Text style={{ color: T.accent, fontWeight: '700' }}>{t('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -204,8 +206,8 @@ export default function ClientAppointments() {
           ListEmptyComponent={
             <EmptyState
               icon="📅"
-              title="Sin citas programadas"
-              description="Tu coach programará tu próxima sesión pronto."
+              title={t('client.appointments.emptyTitle')}
+              description={t('client.appointments.emptyDescription')}
             />
           }
           ListFooterComponent={
@@ -214,7 +216,7 @@ export default function ClientAppointments() {
                 onPress={() => setPage((p) => p + 1)}
                 style={[styles.loadMoreBtn, { borderColor: T.border }]}
               >
-                <Text style={{ color: T.accent, fontWeight: '700', fontSize: 13 }}>Cargar más</Text>
+                <Text style={{ color: T.accent, fontWeight: '700', fontSize: 13 }}>{t('client.appointments.loadMore')}</Text>
               </TouchableOpacity>
             ) : null
           }
@@ -232,7 +234,7 @@ export default function ClientAppointments() {
                 <AppointmentCard
                   appointment={{
                     title: apt.title,
-                    coach_name: apt.coach_name ?? 'Coach',
+                    coach_name: apt.coach_name ?? t('client.appointments.defaultCoachName'),
                     start_time: apt.start_time,
                     location: apt.location ?? undefined,
                     meeting_url: apt.meeting_url ?? undefined,

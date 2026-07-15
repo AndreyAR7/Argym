@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { getExerciseDemoSignedUrl } from '@/services/routines.service';
 
@@ -18,6 +19,7 @@ export default function ExerciseDemoScreen() {
   }>();
   const router = useRouter();
   const T = useTheme();
+  const { t } = useTranslation();
 
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,13 +49,13 @@ export default function ExerciseDemoScreen() {
 
   useEffect(() => {
     if (!storagePath) {
-      setError('Video no disponible.');
+      setError(t('client.exerciseDemo.videoUnavailable'));
       setLoading(false);
       return;
     }
     getExerciseDemoSignedUrl(storagePath)
       .then((url) => { setSignedUrl(url); setLoading(false); })
-      .catch((e) => { setError(e.message ?? 'Error cargando video.'); setLoading(false); });
+      .catch((e) => { setError(e.message ?? t('client.exerciseDemo.loadError')); setLoading(false); });
   }, [storagePath]);
 
   return (
@@ -64,7 +66,7 @@ export default function ExerciseDemoScreen() {
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator color="#fff" size="large" />
-            <Text style={{ color: '#aaa', marginTop: 12, fontSize: 13 }}>Cargando demo...</Text>
+            <Text style={{ color: '#aaa', marginTop: 12, fontSize: 13 }}>{t('client.exerciseDemo.loading')}</Text>
           </View>
         ) : error ? (
           <View style={styles.center}>
@@ -101,10 +103,10 @@ export default function ExerciseDemoScreen() {
             </View>
           ) : null}
           <Text style={{ fontSize: 22, fontWeight: '800', color: T.text, marginBottom: 4 }}>
-            {name ?? 'Demo del ejercicio'}
+            {name ?? t('client.exerciseDemo.defaultTitle')}
           </Text>
           <Text style={{ fontSize: 13, color: T.textMuted }}>
-            Video de demostración técnica
+            {t('client.exerciseDemo.subtitle')}
           </Text>
         </View>
       </SafeAreaView>

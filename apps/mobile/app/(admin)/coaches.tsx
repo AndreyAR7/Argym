@@ -4,6 +4,7 @@ import {
   Modal, TextInput, ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { AdminTopBar } from '@/components/admin/AdminTopBar';
 import { SearchBar } from '@/components/admin/SearchBar';
@@ -17,6 +18,7 @@ import type { ProfileRecord, UpdateProfileInput } from '@/services/profiles.serv
 // ── Coach row ─────────────────────────────────────────────────
 function CoachRow({ coach, onPress }: { coach: ProfileRecord; onPress: () => void }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const initials = (coach.full_name ?? '?').split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
   const isActive = coach.is_active !== false;
   return (
@@ -30,7 +32,7 @@ function CoachRow({ coach, onPress }: { coach: ProfileRecord; onPress: () => voi
       </View>
       <View style={[styles.statusPill, { backgroundColor: isActive ? T.greenSoft : T.bgCard, borderColor: isActive ? T.green + '55' : T.border }]}>
         <Text style={{ fontSize: 11, fontWeight: '700', color: isActive ? T.green : T.textMuted }}>
-          {isActive ? 'Activo' : 'Inactivo'}
+          {isActive ? t('common.active') : t('common.inactive')}
         </Text>
       </View>
     </TouchableOpacity>
@@ -47,6 +49,7 @@ function EditCoachModal({
   onSaved: () => void;
 }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const updateMutation = useUpdateProfile('coach');
   const toggleMutation = useToggleProfileActive('coach');
 
@@ -62,18 +65,18 @@ function EditCoachModal({
 
   const handleSave = async () => {
     if (!coach) return;
-    if (!fullName.trim()) { Alert.alert('Error', 'El nombre es requerido.'); return; }
+    if (!fullName.trim()) { Alert.alert(t('common.error'), t('admin.coaches.nameRequired')); return; }
     const input: UpdateProfileInput = {
       full_name: fullName.trim(),
       phone: phone.trim() || undefined,
     };
     try {
       await updateMutation.mutateAsync({ id: coach.id, input });
-      ToastManager.show({ message: 'Coach actualizado', type: 'success' });
+      ToastManager.show({ message: t('admin.coaches.updatedToast'), type: 'success' });
       onSaved();
       onClose();
     } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'No se pudo actualizar.');
+      Alert.alert(t('common.error'), err.message ?? t('admin.coaches.updateFailed'));
     }
   };
 
@@ -81,20 +84,22 @@ function EditCoachModal({
     if (!coach) return;
     const next = !coach.is_active;
     Alert.alert(
-      next ? 'Activar coach' : 'Desactivar coach',
-      `¿Deseas ${next ? 'activar' : 'desactivar'} a ${coach.full_name}?`,
+      next ? t('admin.coaches.activateTitle') : t('admin.coaches.deactivateTitle'),
+      next
+        ? t('admin.coaches.activateConfirm', { name: coach.full_name })
+        : t('admin.coaches.deactivateConfirm', { name: coach.full_name }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Confirmar',
+          text: t('common.confirm'),
           onPress: async () => {
             try {
               await toggleMutation.mutateAsync({ id: coach.id, isActive: next });
-              ToastManager.show({ message: next ? 'Coach activado' : 'Coach desactivado', type: 'info' });
+              ToastManager.show({ message: next ? t('admin.coaches.activatedToast') : t('admin.coaches.deactivatedToast'), type: 'info' });
               onSaved();
               onClose();
             } catch (err: any) {
-              Alert.alert('Error', err.message ?? 'No se pudo cambiar el estado.');
+              Alert.alert(t('common.error'), err.message ?? t('admin.coaches.toggleFailed'));
             }
           },
         },
@@ -111,35 +116,35 @@ function EditCoachModal({
           <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
             <View style={styles.handle} />
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <Text style={[styles.sheetTitle, { color: T.text }]}>Editar coach</Text>
+              <Text style={[styles.sheetTitle, { color: T.text }]}>{t('admin.coaches.editTitle')}</Text>
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Nombre completo</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('auth.fullName')}</Text>
               <TextInput
                 style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
                 value={fullName}
                 onChangeText={setFullName}
-                placeholder="Nombre completo"
+                placeholder={t('auth.fullName')}
                 placeholderTextColor={T.textMuted}
               />
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Teléfono</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.coaches.phone')}</Text>
               <TextInput
                 style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
                 value={phone}
                 onChangeText={setPhone}
-                placeholder="+506 8888-8888"
+                placeholder={t('admin.coaches.phonePlaceholder')}
                 placeholderTextColor={T.textMuted}
                 keyboardType="phone-pad"
               />
 
               <View style={styles.actions}>
                 <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1 }]}>
-                  <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSave} disabled={isBusy} style={[styles.btn, { backgroundColor: T.accent }]}>
                   {updateMutation.isPending
                     ? <ActivityIndicator color="#fff" size="small" />
-                    : <Text style={{ color: '#fff', fontWeight: '700' }}>Guardar</Text>
+                    : <Text style={{ color: '#fff', fontWeight: '700' }}>{t('common.save')}</Text>
                   }
                 </TouchableOpacity>
               </View>
@@ -156,7 +161,7 @@ function EditCoachModal({
                   {toggleMutation.isPending
                     ? <ActivityIndicator color={coach.is_active ? T.red : T.green} size="small" />
                     : <Text style={{ color: coach.is_active ? T.red : T.green, fontWeight: '700', fontSize: 14 }}>
-                        {coach.is_active ? '⛔ Desactivar coach' : '✅ Activar coach'}
+                        {coach.is_active ? `⛔ ${t('admin.coaches.deactivateCoach')}` : `✅ ${t('admin.coaches.activateCoach')}`}
                       </Text>
                   }
                 </TouchableOpacity>
@@ -181,14 +186,15 @@ interface PendingUser {
 
 function PendingCoachRow({ item, adminId, onDone }: { item: PendingUser; adminId: string; onDone: () => void }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const initials = item.full_name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
 
   const approve = () => {
-    Alert.alert('Aprobar coach', `¿Aprobar a ${item.full_name} como coach?`, [
-      { text: 'Cancelar', style: 'cancel' },
+    Alert.alert(t('admin.coaches.approveTitle'), t('admin.coaches.approveMessage', { name: item.full_name }), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Aprobar', onPress: async () => {
+        text: t('admin.coaches.approve'), onPress: async () => {
           setBusy(true);
           try {
             const { error } = await supabase.rpc('approve_user', {
@@ -197,9 +203,9 @@ function PendingCoachRow({ item, adminId, onDone }: { item: PendingUser; adminId
               p_admin_id: adminId,
             });
             if (error) throw error;
-            ToastManager.show({ message: `${item.full_name} aprobado como coach`, type: 'success' });
+            ToastManager.show({ message: t('admin.coaches.approvedToast', { name: item.full_name }), type: 'success' });
             onDone();
-          } catch (e: any) { Alert.alert('Error', e.message); }
+          } catch (e: any) { Alert.alert(t('common.error'), e.message); }
           finally { setBusy(false); }
         },
       },
@@ -207,10 +213,10 @@ function PendingCoachRow({ item, adminId, onDone }: { item: PendingUser; adminId
   };
 
   const reject = () => {
-    Alert.alert('Rechazar solicitud', `¿Rechazar a ${item.full_name}?`, [
-      { text: 'Cancelar', style: 'cancel' },
+    Alert.alert(t('admin.coaches.rejectTitle'), t('admin.coaches.rejectMessage', { name: item.full_name }), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Rechazar', style: 'destructive', onPress: async () => {
+        text: t('admin.coaches.reject'), style: 'destructive', onPress: async () => {
           setBusy(true);
           try {
             const { error } = await supabase.rpc('reject_user', {
@@ -219,9 +225,9 @@ function PendingCoachRow({ item, adminId, onDone }: { item: PendingUser; adminId
               p_admin_id: adminId,
             });
             if (error) throw error;
-            ToastManager.show({ message: `${item.full_name} rechazado`, type: 'info' });
+            ToastManager.show({ message: t('admin.coaches.rejectedToast', { name: item.full_name }), type: 'info' });
             onDone();
-          } catch (e: any) { Alert.alert('Error', e.message); }
+          } catch (e: any) { Alert.alert(t('common.error'), e.message); }
           finally { setBusy(false); }
         },
       },
@@ -235,7 +241,7 @@ function PendingCoachRow({ item, adminId, onDone }: { item: PendingUser; adminId
       </View>
       <View style={{ flex: 1 }}>
         <Text style={[styles.name, { color: T.text }]}>{item.full_name}</Text>
-        <Text style={[styles.meta, { color: T.textSecondary }]}>Solicita: coach</Text>
+        <Text style={[styles.meta, { color: T.textSecondary }]}>{t('admin.coaches.requestsCoach')}</Text>
         <Text style={[styles.meta, { color: T.textMuted }]}>
           {new Date(item.created_at).toLocaleDateString('es-CR', { day: 'numeric', month: 'short', year: 'numeric' })}
         </Text>
@@ -243,11 +249,11 @@ function PendingCoachRow({ item, adminId, onDone }: { item: PendingUser; adminId
       <View style={{ gap: 6 }}>
         <TouchableOpacity onPress={approve} disabled={busy}
           style={{ backgroundColor: T.green, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
-          {busy ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>✓ Aprobar</Text>}
+          {busy ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>{`✓ ${t('admin.coaches.approve')}`}</Text>}
         </TouchableOpacity>
         <TouchableOpacity onPress={reject} disabled={busy}
           style={{ borderWidth: 1, borderColor: T.red + '55', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
-          <Text style={{ color: T.red, fontSize: 12, fontWeight: '700' }}>✕ Rechazar</Text>
+          <Text style={{ color: T.red, fontSize: 12, fontWeight: '700' }}>{`✕ ${t('admin.coaches.reject')}`}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -259,6 +265,7 @@ function CreateCoachModal({
   visible, onClose, onCreated,
 }: { visible: boolean; onClose: () => void; onCreated: () => void }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const createMutation = useCreateUser('coach');
 
   const [fullName, setFullName] = useState('');
@@ -269,9 +276,9 @@ function CreateCoachModal({
   const reset = () => { setFullName(''); setEmail(''); setPhone(''); setPassword(''); };
 
   const handleCreate = async () => {
-    if (!fullName.trim()) { Alert.alert('Error', 'El nombre es requerido.'); return; }
-    if (!email.trim()) { Alert.alert('Error', 'El email es requerido.'); return; }
-    if (!password.trim() || password.length < 6) { Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres.'); return; }
+    if (!fullName.trim()) { Alert.alert(t('common.error'), t('admin.coaches.nameRequired')); return; }
+    if (!email.trim()) { Alert.alert(t('common.error'), t('admin.coaches.emailRequired')); return; }
+    if (!password.trim() || password.length < 6) { Alert.alert(t('common.error'), t('admin.coaches.passwordTooShort')); return; }
     try {
       await createMutation.mutateAsync({
         email: email.trim().toLowerCase(),
@@ -280,12 +287,12 @@ function CreateCoachModal({
         role: 'coach',
         phone: phone.trim() || undefined,
       });
-      ToastManager.show({ message: 'Coach creado correctamente', type: 'success' });
+      ToastManager.show({ message: t('admin.coaches.createdToast'), type: 'success' });
       reset();
       onCreated();
       onClose();
     } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'No se pudo crear el coach.');
+      Alert.alert(t('common.error'), err.message ?? t('admin.coaches.createFailed'));
     }
   };
 
@@ -296,28 +303,28 @@ function CreateCoachModal({
           <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
             <View style={styles.handle} />
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <Text style={[styles.sheetTitle, { color: T.text }]}>Nuevo coach</Text>
+              <Text style={[styles.sheetTitle, { color: T.text }]}>{t('admin.coaches.newCoachTitle')}</Text>
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Nombre completo *</Text>
-              <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]} value={fullName} onChangeText={setFullName} placeholder="Nombre completo" placeholderTextColor={T.textMuted} />
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.coaches.fullNameLabel')}</Text>
+              <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]} value={fullName} onChangeText={setFullName} placeholder={t('auth.fullName')} placeholderTextColor={T.textMuted} />
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Email *</Text>
-              <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]} value={email} onChangeText={setEmail} placeholder="coach@email.com" placeholderTextColor={T.textMuted} autoCapitalize="none" keyboardType="email-address" />
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.coaches.emailLabel')}</Text>
+              <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]} value={email} onChangeText={setEmail} placeholder={t('admin.coaches.emailPlaceholder')} placeholderTextColor={T.textMuted} autoCapitalize="none" keyboardType="email-address" />
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Contraseña temporal *</Text>
-              <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]} value={password} onChangeText={setPassword} placeholder="Mínimo 6 caracteres" placeholderTextColor={T.textMuted} secureTextEntry />
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.coaches.tempPasswordLabel')}</Text>
+              <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]} value={password} onChangeText={setPassword} placeholder={t('admin.coaches.minCharsPlaceholder')} placeholderTextColor={T.textMuted} secureTextEntry />
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Teléfono</Text>
-              <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]} value={phone} onChangeText={setPhone} placeholder="+506 8888-8888" placeholderTextColor={T.textMuted} keyboardType="phone-pad" />
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.coaches.phone')}</Text>
+              <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]} value={phone} onChangeText={setPhone} placeholder={t('admin.coaches.phonePlaceholder')} placeholderTextColor={T.textMuted} keyboardType="phone-pad" />
 
               <View style={styles.actions}>
                 <TouchableOpacity onPress={() => { reset(); onClose(); }} style={[styles.btn, { borderColor: T.border, borderWidth: 1 }]}>
-                  <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleCreate} disabled={createMutation.isPending} style={[styles.btn, { backgroundColor: T.accent }]}>
                   {createMutation.isPending
                     ? <ActivityIndicator color="#fff" size="small" />
-                    : <Text style={{ color: '#fff', fontWeight: '700' }}>Crear coach</Text>
+                    : <Text style={{ color: '#fff', fontWeight: '700' }}>{t('admin.coaches.createCoach')}</Text>
                   }
                 </TouchableOpacity>
               </View>
@@ -333,6 +340,7 @@ function CreateCoachModal({
 // ── Main screen ───────────────────────────────────────────────
 export default function AdminCoachesScreen() {
   const T = useTheme();
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('Activos');
@@ -367,6 +375,12 @@ export default function AdminCoachesScreen() {
   const activeCount = coaches.filter((c) => c.is_active !== false).length;
   const pendingCount = pendingUsers.length;
 
+  const FILTER_LABELS: Record<typeof filter, string> = {
+    Activos: t('admin.coaches.filterActive'),
+    Inactivos: t('admin.coaches.filterInactive'),
+    Pendientes: t('admin.coaches.filterPending'),
+  };
+
   const openEdit = (coach: ProfileRecord) => {
     setEditTarget(coach);
     setShowEdit(true);
@@ -376,9 +390,9 @@ export default function AdminCoachesScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
       <AdminTopBar
-        title="Coaches"
-        subtitle={filter === 'Pendientes' ? `${pendingCount} pendientes` : `${activeCount} activos`}
-        actionLabel="+ Nuevo"
+        title={t('admin.coaches.screenTitle')}
+        subtitle={filter === 'Pendientes' ? t('admin.coaches.pendingCountLabel', { count: pendingCount }) : t('admin.coaches.activeCountLabel', { count: activeCount })}
+        actionLabel={t('admin.coaches.newButton')}
         onAction={() => setShowCreate(true)}
       />
 
@@ -389,7 +403,7 @@ export default function AdminCoachesScreen() {
             <TouchableOpacity key={f} onPress={() => setFilter(f)}
               style={[styles.statusPill, { backgroundColor: filter === f ? T.accent : T.bgCard, borderColor: filter === f ? T.accent : T.border }]}>
               <Text style={{ fontSize: 12, fontWeight: '600', color: filter === f ? '#fff' : T.textSecondary }}>
-                {f}{f === 'Pendientes' && pendingCount > 0 ? ` (${pendingCount})` : ''}
+                {FILTER_LABELS[f]}{f === 'Pendientes' && pendingCount > 0 ? ` (${pendingCount})` : ''}
               </Text>
             </TouchableOpacity>
           ))}
@@ -402,7 +416,7 @@ export default function AdminCoachesScreen() {
             <><SkeletonCard lines={2} /><SkeletonCard lines={2} /></>
           ) : pendingUsers.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={{ color: T.textMuted, fontSize: 14 }}>No hay coaches pendientes de aprobación</Text>
+              <Text style={{ color: T.textMuted, fontSize: 14 }}>{t('admin.coaches.noPending')}</Text>
             </View>
           ) : (
             pendingUsers.map((item) => (
@@ -416,7 +430,7 @@ export default function AdminCoachesScreen() {
       ) : (
         <>
           <View style={{ padding: 16, paddingBottom: 0 }}>
-            <SearchBar value={search} onChangeText={setSearch} placeholder="Buscar por nombre o teléfono..." />
+            <SearchBar value={search} onChangeText={setSearch} placeholder={t('admin.coaches.searchPlaceholder')} />
           </View>
           {isLoading ? (
             <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
@@ -426,10 +440,10 @@ export default function AdminCoachesScreen() {
           ) : error ? (
             <View style={styles.empty}>
               <Text style={{ color: T.red, fontSize: 14, textAlign: 'center', marginBottom: 12 }}>
-                No se pudieron cargar los coaches.
+                {t('admin.coaches.loadError')}
               </Text>
               <TouchableOpacity onPress={() => refetch()}>
-                <Text style={{ color: T.accent, fontWeight: '700' }}>Reintentar</Text>
+                <Text style={{ color: T.accent, fontWeight: '700' }}>{t('common.retry')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -441,7 +455,7 @@ export default function AdminCoachesScreen() {
               ListEmptyComponent={
                 <View style={styles.empty}>
                   <Text style={{ color: T.textMuted, fontSize: 14 }}>
-                    {search ? 'Sin resultados' : 'No hay coaches registrados'}
+                    {search ? t('common.noResults') : t('admin.coaches.noCoaches')}
                   </Text>
                 </View>
               }

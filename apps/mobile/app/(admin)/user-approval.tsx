@@ -4,6 +4,7 @@ import {
   StyleSheet, StatusBar, ActivityIndicator, Alert, TextInput, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { AdminTopBar } from '@/components/admin/AdminTopBar';
 import { StatusBadge } from '@/components/admin/StatusBadge';
@@ -13,12 +14,6 @@ import { showToast } from '@/components/ui/Toast';
 
 const ROLES = ['client', 'coach', 'admin'] as const;
 type Role = typeof ROLES[number];
-
-const ROLE_LABELS: Record<Role, string> = {
-  client: 'Cliente',
-  coach: 'Coach',
-  admin: 'Admin',
-};
 
 interface PendingUser {
   id: string;
@@ -31,7 +26,9 @@ interface PendingUser {
 }
 
 export default function UserApprovalScreen() {
+  const { t } = useTranslation();
   const T = useTheme();
+  const roleLabel = (role: Role) => t(`admin.userApproval.roles.${role}`);
   const { user } = useAuthStore();
   const [users, setUsers] = useState<PendingUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +72,7 @@ export default function UserApprovalScreen() {
   useEffect(() => { loadUsers(); }, [filter]);
 
   const approveOne = async (pendingUser: PendingUser, role: Role) => {
-    if (!user?.id) { Alert.alert('Error', 'Sesión no válida'); return; }
+    if (!user?.id) { Alert.alert(t('common.error'), t('admin.userApproval.errors.invalidSession')); return; }
     const { error } = await supabase.rpc('approve_user', {
       p_user_id: pendingUser.id,
       p_role_name: role,
@@ -87,20 +84,20 @@ export default function UserApprovalScreen() {
   const handleApprove = (pendingUser: PendingUser) => {
     const role = getRole(pendingUser.id);
     Alert.alert(
-      'Aprobar usuario',
-      `Asignar rol "${ROLE_LABELS[role]}" a ${pendingUser.full_name}?`,
+      t('admin.userApproval.approveTitle'),
+      t('admin.userApproval.approveMessage', { role: roleLabel(role), name: pendingUser.full_name }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Aprobar',
+          text: t('admin.userApproval.approve'),
           onPress: async () => {
             setActionLoading(true);
             try {
               await approveOne(pendingUser, role);
-              showToast(`${pendingUser.full_name} ahora tiene acceso al sistema.`);
+              showToast(t('admin.userApproval.approvedToast', { name: pendingUser.full_name }));
               loadUsers();
             } catch (err: any) {
-              Alert.alert('Error', err.message ?? 'No se pudo aprobar el usuario.');
+              Alert.alert(t('common.error'), err.message ?? t('admin.userApproval.errors.approveFailed'));
             } finally {
               setActionLoading(false);
             }
@@ -111,16 +108,16 @@ export default function UserApprovalScreen() {
   };
 
   const handleApproveAll = () => {
-    if (!user?.id) { Alert.alert('Error', 'Sesión no válida'); return; }
+    if (!user?.id) { Alert.alert(t('common.error'), t('admin.userApproval.errors.invalidSession')); return; }
     const pending = users.filter((u) => u.approval_status === 'pending');
     if (pending.length === 0) return;
     Alert.alert(
-      'Aprobar todos',
-      `¿Aprobar ${pending.length} usuario(s) pendiente(s)? Se usará el rol seleccionado para cada uno (por defecto: Cliente).`,
+      t('admin.userApproval.approveAllTitle'),
+      t('admin.userApproval.approveAllMessage', { count: pending.length }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: `Aprobar ${pending.length}`,
+          text: t('admin.userApproval.approveCount', { count: pending.length }),
           onPress: async () => {
             setApproveAllLoading(true);
             const errors: string[] = [];
@@ -133,9 +130,9 @@ export default function UserApprovalScreen() {
             }
             setApproveAllLoading(false);
             if (errors.length > 0) {
-              Alert.alert('Completado con errores', errors.join('\n'));
+              Alert.alert(t('admin.userApproval.completedWithErrorsTitle'), errors.join('\n'));
             } else {
-              showToast(`${pending.length} usuario(s) aprobado(s).`);
+              showToast(t('admin.userApproval.approvedCountToast', { count: pending.length }));
             }
             loadUsers();
           },
@@ -146,22 +143,22 @@ export default function UserApprovalScreen() {
 
   const handleRejectConfirm = async () => {
     if (!rejectTarget) return;
-    if (!user?.id) { Alert.alert('Error', 'Sesión no válida'); return; }
+    if (!user?.id) { Alert.alert(t('common.error'), t('admin.userApproval.errors.invalidSession')); return; }
     setActionLoading(true);
     try {
       const { error } = await supabase.rpc('reject_user', {
         p_user_id: rejectTarget.id,
-        p_reason: rejectReason.trim() || 'Sin motivo especificado',
+        p_reason: rejectReason.trim() || t('admin.userApproval.noReasonSpecified'),
         p_admin_id: user.id,
       });
       if (error) throw error;
       setRejectModal(false);
       setRejectReason('');
       setRejectTarget(null);
-      showToast(`La solicitud de ${rejectTarget.full_name} fue rechazada.`);
+      showToast(t('admin.userApproval.rejectedToast', { name: rejectTarget.full_name }));
       loadUsers();
     } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'No se pudo rechazar el usuario.');
+      Alert.alert(t('common.error'), err.message ?? t('admin.userApproval.errors.rejectFailed'));
     } finally {
       setActionLoading(false);
     }
@@ -176,8 +173,11 @@ export default function UserApprovalScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
       <AdminTopBar
-        title="Aprobación de usuarios"
-        subtitle={`${users.length} ${filter === 'pending' ? 'pendientes' : filter === 'approved' ? 'aprobados' : 'rechazados'}`}
+        title={t('admin.userApproval.title')}
+        subtitle={t('admin.userApproval.subtitle', {
+          count: users.length,
+          status: t(`admin.userApproval.subtitleStatus.${filter}`),
+        })}
       />
 
       {/* Filter tabs */}
@@ -189,7 +189,7 @@ export default function UserApprovalScreen() {
             style={[styles.tab, filter === f && { backgroundColor: T.accent }]}
           >
             <Text style={[styles.tabText, { color: filter === f ? '#fff' : T.textSecondary }]}>
-              {f === 'pending' ? 'Pendientes' : f === 'approved' ? 'Aprobados' : 'Rechazados'}
+              {t(`admin.userApproval.tabs.${f}`)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -204,7 +204,7 @@ export default function UserApprovalScreen() {
         >
           {approveAllLoading
             ? <ActivityIndicator color="#fff" size="small" />
-            : <Text style={styles.approveAllText}>✓ Aprobar todos ({pendingCount})</Text>
+            : <Text style={styles.approveAllText}>✓ {t('admin.userApproval.approveAllBtn', { count: pendingCount })}</Text>
           }
         </TouchableOpacity>
       )}
@@ -222,11 +222,7 @@ export default function UserApprovalScreen() {
                 {filter === 'pending' ? '🎉' : filter === 'approved' ? '✅' : '❌'}
               </Text>
               <Text style={{ color: T.textSecondary, fontSize: 14, textAlign: 'center' }}>
-                {filter === 'pending'
-                  ? 'No hay usuarios pendientes de aprobación'
-                  : filter === 'approved'
-                  ? 'No hay usuarios aprobados aún'
-                  : 'No hay usuarios rechazados'}
+                {t(`admin.userApproval.empty.${filter}`)}
               </Text>
             </View>
           }
@@ -242,7 +238,7 @@ export default function UserApprovalScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.name, { color: T.text }]}>{item.full_name}</Text>
                   <Text style={[styles.meta, { color: T.textSecondary }]}>
-                    Registrado: {formatDate(item.created_at)}
+                    {t('admin.userApproval.registeredOn', { date: formatDate(item.created_at) })}
                   </Text>
                 </View>
                 <StatusBadge status={item.approval_status} size="sm" />
@@ -251,7 +247,7 @@ export default function UserApprovalScreen() {
               {/* Role selector — only for pending */}
               {item.approval_status === 'pending' && (
                 <View style={styles.roleSection}>
-                  <Text style={[styles.roleLabel, { color: T.textSecondary }]}>Asignar rol:</Text>
+                  <Text style={[styles.roleLabel, { color: T.textSecondary }]}>{t('admin.userApproval.assignRole')}</Text>
                   <View style={styles.roleRow}>
                     {ROLES.map((role) => {
                       const active = getRole(item.id) === role;
@@ -268,7 +264,7 @@ export default function UserApprovalScreen() {
                           ]}
                         >
                           <Text style={[styles.roleChipText, { color: active ? T.accent : T.textSecondary }]}>
-                            {ROLE_LABELS[role]}
+                            {roleLabel(role)}
                           </Text>
                         </TouchableOpacity>
                       );
@@ -285,14 +281,14 @@ export default function UserApprovalScreen() {
                     disabled={actionLoading || approveAllLoading}
                     style={[styles.approveBtn, { backgroundColor: '#10B981' }]}
                   >
-                    <Text style={styles.btnText}>✓ Aprobar</Text>
+                    <Text style={styles.btnText}>✓ {t('admin.userApproval.approve')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => { setRejectTarget(item); setRejectModal(true); }}
                     disabled={actionLoading || approveAllLoading}
                     style={[styles.rejectBtn, { borderColor: '#FF4D6D44' }]}
                   >
-                    <Text style={[styles.btnText, { color: '#FF4D6D' }]}>✕ Rechazar</Text>
+                    <Text style={[styles.btnText, { color: '#FF4D6D' }]}>✕ {t('admin.userApproval.reject')}</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -305,13 +301,13 @@ export default function UserApprovalScreen() {
       <Modal visible={rejectModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: T.bgCard }]}>
-            <Text style={[styles.modalTitle, { color: T.text }]}>Rechazar usuario</Text>
+            <Text style={[styles.modalTitle, { color: T.text }]}>{t('admin.userApproval.rejectModalTitle')}</Text>
             <Text style={[styles.modalDesc, { color: T.textSecondary }]}>
-              ¿Rechazar la solicitud de {rejectTarget?.full_name}?
+              {t('admin.userApproval.rejectModalDesc', { name: rejectTarget?.full_name })}
             </Text>
             <TextInput
               style={[styles.reasonInput, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-              placeholder="Motivo del rechazo (opcional)"
+              placeholder={t('admin.userApproval.rejectReasonPlaceholder')}
               placeholderTextColor={T.textSecondary}
               value={rejectReason}
               onChangeText={setRejectReason}
@@ -322,7 +318,7 @@ export default function UserApprovalScreen() {
                 onPress={() => { setRejectModal(false); setRejectReason(''); }}
                 style={[styles.modalBtn, { borderColor: T.border, borderWidth: 1 }]}
               >
-                <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleRejectConfirm}
@@ -331,7 +327,7 @@ export default function UserApprovalScreen() {
               >
                 {actionLoading
                   ? <ActivityIndicator color="#fff" size="small" />
-                  : <Text style={{ color: '#fff', fontWeight: '700' }}>Rechazar</Text>
+                  : <Text style={{ color: '#fff', fontWeight: '700' }}>{t('admin.userApproval.reject')}</Text>
                 }
               </TouchableOpacity>
             </View>

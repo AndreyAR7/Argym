@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar, Alert, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { AdminTopBar } from '@/components/admin/AdminTopBar';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/auth.store';
@@ -10,6 +11,7 @@ import { useBranches, type BranchWithStats } from '@/hooks/useBranches';
 // ─── Branch card ──────────────────────────────────────────────
 function BranchCard({ branch }: { branch: BranchWithStats }) {
   const T = useTheme();
+  const { t } = useTranslation();
   return (
     <View style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border }]}>
       <View style={styles.cardHeader}>
@@ -22,21 +24,27 @@ function BranchCard({ branch }: { branch: BranchWithStats }) {
             <Text style={[styles.cardPhone, { color: T.textMuted }]}>{branch.phone}</Text>
           )}
           <Text style={[styles.cardPhone, { color: T.textMuted }]}>
-            {branch.client_count} {branch.client_count === 1 ? 'cliente' : 'clientes'} · {branch.coach_count} {branch.coach_count === 1 ? 'coach' : 'coaches'}
+            {branch.client_count === 1
+              ? t('admin.branches.clientCountOne', { count: branch.client_count })
+              : t('admin.branches.clientCountOther', { count: branch.client_count })}
+            {' · '}
+            {branch.coach_count === 1
+              ? t('admin.branches.coachCountOne', { count: branch.coach_count })
+              : t('admin.branches.coachCountOther', { count: branch.coach_count })}
           </Text>
         </View>
         <View style={[styles.badge, { backgroundColor: branch.is_active ? T.green + '22' : T.red + '22' }]}>
           <Text style={[styles.badgeText, { color: branch.is_active ? T.green : T.red }]}>
-            {branch.is_active ? 'Activa' : 'Inactiva'}
+            {branch.is_active ? t('admin.branches.statusActive') : t('admin.branches.statusInactive')}
           </Text>
         </View>
       </View>
       <View style={[styles.divider, { backgroundColor: T.border }]} />
       <TouchableOpacity
-        onPress={() => Alert.alert('Ver QR', 'Función disponible próximamente.')}
+        onPress={() => Alert.alert(t('admin.branches.viewQr'), t('admin.branches.viewQrMessage'))}
         style={[styles.qrBtn, { borderColor: T.accent + '55' }]}
       >
-        <Text style={{ fontSize: 13, color: T.accent, fontWeight: '700' }}>Ver QR</Text>
+        <Text style={{ fontSize: 13, color: T.accent, fontWeight: '700' }}>{t('admin.branches.viewQr')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -45,6 +53,7 @@ function BranchCard({ branch }: { branch: BranchWithStats }) {
 // ─── Main screen ──────────────────────────────────────────────
 export default function AdminBranchesScreen() {
   const T = useTheme();
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const { tenant } = useTenantStore();
   const { data: branches = [], isLoading, isRefetching, refetch } = useBranches(user?.tenant_id);
@@ -54,13 +63,13 @@ export default function AdminBranchesScreen() {
   };
 
   const handleAdd = () => {
-    Alert.alert('Agregar sucursal', 'Disponible en la plataforma web.', [{ text: 'Entendido' }]);
+    Alert.alert(t('admin.branches.addBranchTitle'), t('admin.branches.addBranchMessage'), [{ text: t('admin.branches.understood') }]);
   };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <AdminTopBar title="Sucursales" subtitle={tenant?.name ?? undefined} />
+      <AdminTopBar title={t('admin.branches.title')} subtitle={tenant?.name ?? undefined} />
 
       <ScrollView
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
@@ -69,10 +78,12 @@ export default function AdminBranchesScreen() {
       >
         {/* Section header */}
         <View style={styles.sectionRow}>
-          <Text style={[styles.sectionTitle, { color: T.textMuted }]}>Mis sucursales</Text>
+          <Text style={[styles.sectionTitle, { color: T.textMuted }]}>{t('admin.branches.myBranches')}</Text>
           <View style={[styles.sectionLine, { backgroundColor: T.border }]} />
           <Text style={[styles.sectionCount, { color: T.textMuted }]}>
-            {branches.length} {branches.length === 1 ? 'sucursal' : 'sucursales'}
+            {branches.length === 1
+              ? t('admin.branches.branchCountOne', { count: branches.length })
+              : t('admin.branches.branchCountOther', { count: branches.length })}
           </Text>
         </View>
 
@@ -83,8 +94,8 @@ export default function AdminBranchesScreen() {
         ) : branches.length === 0 ? (
           <View style={styles.empty}>
             <Text style={{ fontSize: 36, marginBottom: 8 }}>🏢</Text>
-            <Text style={[styles.emptyText, { color: T.textMuted }]}>No hay sucursales registradas</Text>
-            <Text style={[styles.emptySubText, { color: T.textMuted }]}>Agrega tu primera sucursal desde la plataforma web</Text>
+            <Text style={[styles.emptyText, { color: T.textMuted }]}>{t('admin.branches.noBranches')}</Text>
+            <Text style={[styles.emptySubText, { color: T.textMuted }]}>{t('admin.branches.noBranchesHint')}</Text>
           </View>
         ) : (
           branches.map((branch) => <BranchCard key={branch.id} branch={branch} />)

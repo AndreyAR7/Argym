@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { usePlansStore } from '@/store/plans.store';
 import { useAuthStore } from '@/store/auth.store';
@@ -20,19 +21,20 @@ function daysLeft(iso: string): number {
   return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000));
 }
 
-function typeLabel(type: Promotion['type']): string {
-  if (type === 'discount') return 'DESCUENTO';
-  if (type === 'bundle') return 'BUNDLE';
-  return 'ANUNCIO';
+function typeLabel(type: Promotion['type'], t: (key: string) => string): string {
+  if (type === 'discount') return t('client.promotions.type.discount');
+  if (type === 'bundle') return t('client.promotions.type.bundle');
+  return t('client.promotions.type.announcement');
 }
 
-function badgeLabel(promo: Promotion): string {
-  if (promo.discount_percentage) return `${promo.discount_percentage}% OFF`;
+function badgeLabel(promo: Promotion, t: (key: string, opts?: any) => string): string {
+  if (promo.discount_percentage) return t('client.promotions.percentOff', { percent: promo.discount_percentage });
   if (promo.discount_amount) return `-${promo.discount_amount}`;
-  return typeLabel(promo.type);
+  return typeLabel(promo.type, t);
 }
 
 function PromoCard({ promo, onPress }: { promo: Promotion; onPress: (p: Promotion) => void }) {
+  const { t } = useTranslation();
   const T = useTheme();
   const days = promo.end_date ? daysLeft(promo.end_date) : null;
   const isDiscount = promo.type === 'discount';
@@ -50,10 +52,10 @@ function PromoCard({ promo, onPress }: { promo: Promotion; onPress: (p: Promotio
 
         <View style={styles.topRow}>
           <View style={[styles.badge, { backgroundColor: isDiscount ? '#7C3AED' : T.accent }]}>
-            <Text style={styles.badgeText}>{badgeLabel(promo)}</Text>
+            <Text style={styles.badgeText}>{badgeLabel(promo, t)}</Text>
           </View>
           <Text style={[styles.typeTag, { color: isDiscount ? '#A78BFA' : T.textSecondary }]}>
-            {typeLabel(promo.type)}
+            {typeLabel(promo.type, t)}
           </Text>
         </View>
 
@@ -68,14 +70,14 @@ function PromoCard({ promo, onPress }: { promo: Promotion; onPress: (p: Promotio
             <View style={styles.countdownRow}>
               <Text style={styles.countdownIcon}>⏱</Text>
               <Text style={styles.countdown}>
-                {days === 0 ? 'Último día' : `${days} ${days === 1 ? 'día restante' : 'días restantes'}`}
+                {days === 0 ? t('client.promotions.lastDay') : t('client.promotions.daysLeft', { count: days })}
               </Text>
             </View>
           ) : (
-            <Text style={styles.noExpiry}>Sin fecha de vencimiento</Text>
+            <Text style={styles.noExpiry}>{t('client.promotions.noExpiry')}</Text>
           )}
           <View style={[styles.ctaBtn, { backgroundColor: isDiscount ? '#7C3AED' : T.accent }]}>
-            <Text style={styles.ctaText}>Ver planes →</Text>
+            <Text style={styles.ctaText}>{t('client.promotions.viewPlans')}</Text>
           </View>
         </View>
       </LinearGradient>
@@ -84,6 +86,7 @@ function PromoCard({ promo, onPress }: { promo: Promotion; onPress: (p: Promotio
 }
 
 export default function ClientPromotionsScreen() {
+  const { t } = useTranslation();
   const T = useTheme();
   const { user } = useAuthStore();
   const { promotions, isLoadingPromos, fetchPromotions, fetchMySubscription, mySubscriptions } = usePlansStore();
@@ -117,14 +120,14 @@ export default function ClientPromotionsScreen() {
       : null;
 
   const handlePaymentConfirm = async (plan: Plan, promoId?: string) => {
-    if (!user) throw new Error('Usuario no autenticado');
+    if (!user) throw new Error(t('client.promotions.errors.notAuthenticated'));
 
     const { data: { session: authSession } } = await supabase.auth.getSession();
     const token = authSession?.access_token;
-    if (!token) throw new Error('No autenticado');
+    if (!token) throw new Error(t('client.promotions.errors.notAuthenticatedShort'));
 
     const siteUrl = process.env.EXPO_PUBLIC_SITE_URL;
-    if (!siteUrl) throw new Error('EXPO_PUBLIC_SITE_URL no configurado');
+    if (!siteUrl) throw new Error(t('client.promotions.errors.siteUrlNotConfigured'));
 
     const res = await fetch(`${siteUrl}/api/stripe/checkout`, {
       method: 'POST',
@@ -137,7 +140,7 @@ export default function ClientPromotionsScreen() {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error ?? `Error ${res.status}`);
+      throw new Error(err.error ?? `${t('common.error')} ${res.status}`);
     }
 
     const { url } = await res.json();
@@ -148,7 +151,7 @@ export default function ClientPromotionsScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <ClientTopBar title="Promociones" />
+      <ClientTopBar title={t('client.promotions.title')} />
 
       {isLoadingPromos ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -161,20 +164,20 @@ export default function ClientPromotionsScreen() {
           contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
           ListHeaderComponent={
             <View style={{ marginBottom: 16 }}>
-              <Text style={[styles.pageTitle, { color: T.text }]}>Ofertas activas</Text>
+              <Text style={[styles.pageTitle, { color: T.text }]}>{t('client.promotions.activeOffers')}</Text>
               <Text style={[styles.pageSubtitle, { color: T.textSecondary }]}>
                 {activePromos.length === 0
-                  ? 'Sin promociones activas'
-                  : `${activePromos.length} ${activePromos.length === 1 ? 'promoción disponible' : 'promociones disponibles'}`}
+                  ? t('client.promotions.noneActive')
+                  : t('client.promotions.availableCount', { count: activePromos.length })}
               </Text>
             </View>
           }
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={{ fontSize: 40, marginBottom: 12 }}>🎁</Text>
-              <Text style={[styles.emptyTitle, { color: T.text }]}>Sin promociones activas</Text>
+              <Text style={[styles.emptyTitle, { color: T.text }]}>{t('client.promotions.noneActive')}</Text>
               <Text style={[styles.emptyDesc, { color: T.textMuted }]}>
-                Cuando haya ofertas disponibles aparecerán aquí.
+                {t('client.promotions.emptyDesc')}
               </Text>
             </View>
           }
@@ -214,7 +217,7 @@ export default function ClientPromotionsScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.plansLabel, { color: T.textMuted }]}>PLANES DISPONIBLES</Text>
+            <Text style={[styles.plansLabel, { color: T.textMuted }]}>{t('client.promotions.availablePlans')}</Text>
 
             {offerPlansLoading ? (
               <View style={{ paddingVertical: 40, alignItems: 'center' }}>
@@ -222,7 +225,7 @@ export default function ClientPromotionsScreen() {
               </View>
             ) : offerPlans.length === 0 ? (
               <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-                <Text style={{ color: T.textMuted, fontSize: 14 }}>No hay planes configurados para esta oferta.</Text>
+                <Text style={{ color: T.textMuted, fontSize: 14 }}>{t('client.promotions.noPlansForOffer')}</Text>
               </View>
             ) : (
               <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>

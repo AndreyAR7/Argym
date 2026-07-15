@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar, Switch, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { AdminTopBar } from '@/components/admin/AdminTopBar';
 import { StatusBadge } from '@/components/admin/StatusBadge';
@@ -11,7 +12,8 @@ import { useAdminStats } from '@/hooks/useAdminStats';
 import { supabase } from '@/lib/supabase';
 import type { Promotion } from '@/store/plans.store';
 
-const TABS = ['Planes', 'Promociones'];
+const TABS = ['plans', 'promotions'] as const;
+type MonetizationTab = typeof TABS[number];
 
 function formatRevenue(amount: number): string {
   if (amount >= 1_000_000) return `₡${(amount / 1_000_000).toFixed(1)}M`;
@@ -20,9 +22,10 @@ function formatRevenue(amount: number): string {
 }
 
 export default function AdminMonetizationScreen() {
+  const { t } = useTranslation();
   const T = useTheme();
   const router = useRouter();
-  const [tab, setTab] = useState('Planes');
+  const [tab, setTab] = useState<MonetizationTab>('plans');
   const { user } = useAuthStore();
   const { plans, fetchPlans, togglePlan, togglePromotion } = usePlansStore();
 
@@ -61,60 +64,60 @@ export default function AdminMonetizationScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
       <AdminTopBar
-        title="Monetización"
-        subtitle="Planes · Promociones"
-        actionLabel={tab === 'Planes' ? '+ Plan' : '+ Promo'}
-        onAction={() => router.push(tab === 'Planes' ? '/(admin)/plans/create' : '/(admin)/promotions/create')}
+        title={t('admin.monetization.title')}
+        subtitle={t('admin.monetization.subtitle')}
+        actionLabel={tab === 'plans' ? t('admin.monetization.actions.addPlan') : t('admin.monetization.actions.addPromo')}
+        onAction={() => router.push(tab === 'plans' ? '/(admin)/plans/create' : '/(admin)/promotions/create')}
       />
 
       {/* Revenue summary */}
       <View style={[styles.revCard, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
         <View style={styles.revItem}>
-          <Text style={[styles.revLabel, { color: T.textMuted }]}>MRR</Text>
+          <Text style={[styles.revLabel, { color: T.textMuted }]}>{t('admin.monetization.revenue.mrr')}</Text>
           <Text style={[styles.revValue, { color: T.text }]}>{formatRevenue(stats?.monthlyRevenue ?? 0)}</Text>
         </View>
         <View style={[styles.revDivider, { backgroundColor: T.border }]} />
         <View style={styles.revItem}>
-          <Text style={[styles.revLabel, { color: T.textMuted }]}>Planes activos</Text>
+          <Text style={[styles.revLabel, { color: T.textMuted }]}>{t('admin.monetization.revenue.activePlans')}</Text>
           <Text style={[styles.revValue, { color: T.green }]}>{plans.filter((p) => p.is_active).length}</Text>
         </View>
         <View style={[styles.revDivider, { backgroundColor: T.border }]} />
         <View style={styles.revItem}>
-          <Text style={[styles.revLabel, { color: T.textMuted }]}>Promos activas</Text>
+          <Text style={[styles.revLabel, { color: T.textMuted }]}>{t('admin.monetization.revenue.activePromos')}</Text>
           <Text style={[styles.revValue, { color: T.orange }]}>{stats?.activePromotions ?? allPromos.filter((p) => p.is_active).length}</Text>
         </View>
         <View style={[styles.revDivider, { backgroundColor: T.border }]} />
         <View style={styles.revItem}>
-          <Text style={[styles.revLabel, { color: T.textMuted }]}>Por cobrar</Text>
+          <Text style={[styles.revLabel, { color: T.textMuted }]}>{t('admin.monetization.revenue.pendingCollection')}</Text>
           <Text style={[styles.revValue, { color: T.red }]}>{stats?.expiringSubscriptions ?? 0}</Text>
         </View>
       </View>
 
       <View style={[styles.tabRow, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
-        {TABS.map((t) => (
+        {TABS.map((tabKey) => (
           <TouchableOpacity
-            key={t}
-            onPress={() => setTab(t)}
-            style={[styles.tabBtn, tab === t && { backgroundColor: T.accent }, { borderRadius: T.radiusSm }]}
+            key={tabKey}
+            onPress={() => setTab(tabKey)}
+            style={[styles.tabBtn, tab === tabKey && { backgroundColor: T.accent }, { borderRadius: T.radiusSm }]}
           >
-            <Text style={[styles.tabText, { color: tab === t ? '#fff' : T.textMuted }]}>{t}</Text>
+            <Text style={[styles.tabText, { color: tab === tabKey ? '#fff' : T.textMuted }]}>{t(`admin.monetization.tabs.${tabKey}`)}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false}>
         {/* ── PLANES ── */}
-        {tab === 'Planes' && (
+        {tab === 'plans' && (
           <>
             {plans.length === 0 && (
               <View style={styles.empty}>
                 <Text style={{ fontSize: 40, marginBottom: 12 }}>💳</Text>
-                <Text style={[styles.emptyTitle, { color: T.textMuted }]}>Sin planes creados</Text>
+                <Text style={[styles.emptyTitle, { color: T.textMuted }]}>{t('admin.monetization.plans.empty')}</Text>
                 <TouchableOpacity
                   onPress={() => router.push('/(admin)/plans/create')}
                   style={[styles.emptyBtn, { backgroundColor: T.accent, borderRadius: T.radiusMd }]}
                 >
-                  <Text style={styles.emptyBtnText}>Crear primer plan</Text>
+                  <Text style={styles.emptyBtnText}>{t('admin.monetization.plans.createFirst')}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -129,7 +132,7 @@ export default function AdminMonetizationScreen() {
                     <Text style={[styles.planPrice, { color: plan.is_active ? T.accent : T.textMuted }]}>
                       {plan.currency} {plan.price.toLocaleString()}
                       <Text style={[styles.planCycle, { color: T.textMuted }]}>
-                        /{plan.billing_cycle === 'monthly' ? 'mes' : plan.billing_cycle === 'yearly' ? 'año' : 'único'}
+                        /{plan.billing_cycle === 'monthly' ? t('admin.monetization.billingCycle.monthly') : plan.billing_cycle === 'yearly' ? t('admin.monetization.billingCycle.yearly') : t('admin.monetization.billingCycle.oneTime')}
                       </Text>
                     </Text>
                   </View>
@@ -144,11 +147,11 @@ export default function AdminMonetizationScreen() {
                     <Text key={i} style={[styles.featureItem, { color: T.textSecondary }]}>✓ {f.name}</Text>
                   ))}
                   {plan.features.length > 3 && (
-                    <Text style={{ fontSize: 11, color: T.textMuted }}>+{plan.features.length - 3} más</Text>
+                    <Text style={{ fontSize: 11, color: T.textMuted }}>{t('admin.monetization.plans.moreFeatures', { count: plan.features.length - 3 })}</Text>
                   )}
                 </View>
                 <TouchableOpacity onPress={() => router.push({ pathname: '/(admin)/plans/edit' as any, params: { id: plan.id } })}>
-                  <Text style={{ fontSize: 13, color: T.accent, fontWeight: '600' }}>Editar plan →</Text>
+                  <Text style={{ fontSize: 13, color: T.accent, fontWeight: '600' }}>{t('admin.monetization.plans.editAction')}</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -156,18 +159,18 @@ export default function AdminMonetizationScreen() {
         )}
 
         {/* ── PROMOCIONES ── */}
-        {tab === 'Promociones' && (
+        {tab === 'promotions' && (
           <>
             {loadingPromos && <ActivityIndicator color={T.accent} style={{ marginTop: 24 }} />}
             {!loadingPromos && allPromos.length === 0 && (
               <View style={styles.empty}>
                 <Text style={{ fontSize: 40, marginBottom: 12 }}>🏷️</Text>
-                <Text style={[styles.emptyTitle, { color: T.textMuted }]}>Sin promociones</Text>
+                <Text style={[styles.emptyTitle, { color: T.textMuted }]}>{t('admin.monetization.promotions.empty')}</Text>
                 <TouchableOpacity
                   onPress={() => router.push('/(admin)/promotions/create')}
                   style={[styles.emptyBtn, { backgroundColor: T.accent, borderRadius: T.radiusMd }]}
                 >
-                  <Text style={styles.emptyBtnText}>Crear primera promoción</Text>
+                  <Text style={styles.emptyBtnText}>{t('admin.monetization.promotions.createFirst')}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -186,22 +189,22 @@ export default function AdminMonetizationScreen() {
                       </Text>
                       {promo.discount_percentage != null && (
                         <Text style={{ fontSize: 14, fontWeight: '700', color: promo.is_active && !expired ? T.purple : T.textMuted }}>
-                          {promo.discount_percentage}% de descuento
+                          {t('admin.monetization.promotions.discountPercent', { percent: promo.discount_percentage })}
                         </Text>
                       )}
                       {promo.discount_amount != null && promo.discount_percentage == null && (
                         <Text style={{ fontSize: 14, fontWeight: '700', color: promo.is_active && !expired ? T.purple : T.textMuted }}>
-                          ₡{promo.discount_amount.toLocaleString()} de descuento
+                          {t('admin.monetization.promotions.discountAmount', { amount: promo.discount_amount.toLocaleString() })}
                         </Text>
                       )}
                       {promo.end_date && (
                         <Text style={{ fontSize: 11, color: expired ? T.red : T.textMuted, marginTop: 2 }}>
-                          {expired ? 'Venció: ' : 'Hasta: '}
+                          {t(expired ? 'admin.monetization.promotions.expiredLabel' : 'admin.monetization.promotions.untilLabel')}
                           {new Date(promo.end_date).toLocaleDateString('es-CR')}
                         </Text>
                       )}
                       {!promo.end_date && (
-                        <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>Sin fecha de vencimiento</Text>
+                        <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{t('admin.monetization.promotions.noExpiration')}</Text>
                       )}
                     </View>
                     <View style={{ alignItems: 'flex-end', gap: 8 }}>
@@ -218,7 +221,7 @@ export default function AdminMonetizationScreen() {
                     onPress={() => router.push({ pathname: '/(admin)/promotions/edit' as any, params: { id: promo.id } })}
                     style={{ marginTop: 8 }}
                   >
-                    <Text style={{ fontSize: 13, color: T.accent, fontWeight: '600' }}>Editar promoción →</Text>
+                    <Text style={{ fontSize: 13, color: T.accent, fontWeight: '600' }}>{t('admin.monetization.promotions.editAction')}</Text>
                   </TouchableOpacity>
                 </View>
               );

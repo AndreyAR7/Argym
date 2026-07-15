@@ -5,6 +5,7 @@ import {
   TextInput, KeyboardAvoidingView, Platform, RefreshControl,
   useWindowDimensions,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { showToast, ToastNotification } from '@/components/ui/Toast';
 import { ActionSheet, type SheetAction } from '@/components/ui/ActionSheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,11 +33,7 @@ import { ROUTINE_LEVEL_LABELS, ROUTINE_PLAN_LABELS, ROUTINE_PLAN_OPTIONS, ROUTIN
 const TABS = ['Rutinas', 'Nutrición', 'Videos'];
 
 const LEVEL_OPTIONS: VideoLevel[] = ['beginner', 'intermediate', 'advanced'];
-const LEVEL_LABELS: Record<VideoLevel, string> = {
-  beginner: 'Principiante', intermediate: 'Intermedio', advanced: 'Avanzado',
-};
 const PLAN_OPTIONS: VideoPlan[] = ['basic', 'medium', 'premium'];
-const PLAN_LABELS: Record<VideoPlan, string> = { basic: 'Básico', medium: 'Medio', premium: 'Premium' };
 const THUMB_COLORS = ['#6C63FF', '#00D68F', '#FF8C42', '#FF4D6D', '#4DA6FF', '#F59E0B', '#10B981'];
 
 // ─── Create/Edit Routine Modal ────────────────────────────────
@@ -44,6 +41,7 @@ function RoutineFormModal({ routine, visible, onClose, onSaved, tenantId }: {
   routine?: Routine | null; visible: boolean; onClose: () => void; onSaved: () => void; tenantId: string;
 }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const { addRoutine, editRoutine } = useRoutinesStore();
   const [name, setName] = useState('');
@@ -72,7 +70,7 @@ function RoutineFormModal({ routine, visible, onClose, onSaved, tenantId }: {
     setAllowedLevels((prev) => prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l]);
 
   const handleSave = async () => {
-    if (!name.trim()) { Alert.alert('Error', 'El nombre es requerido.'); return; }
+    if (!name.trim()) { Alert.alert(t('common.error'), t('admin.content.errors.nameRequired')); return; }
     setSaving(true);
     try {
       if (isEdit && routine) {
@@ -88,7 +86,7 @@ function RoutineFormModal({ routine, visible, onClose, onSaved, tenantId }: {
         });
       }
       onSaved(); onClose();
-    } catch (e: any) { Alert.alert('Error', e.message); }
+    } catch (e: any) { Alert.alert(t('common.error'), e.message); }
     finally { setSaving(false); }
   };
 
@@ -99,17 +97,17 @@ function RoutineFormModal({ routine, visible, onClose, onSaved, tenantId }: {
           <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
             <View style={styles.handle} />
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={[styles.sheetTitle, { color: T.text }]}>{isEdit ? 'Editar rutina' : 'Nueva rutina'}</Text>
+              <Text style={[styles.sheetTitle, { color: T.text }]}>{isEdit ? t('admin.content.routines.editTitle') : t('admin.content.routines.newTitle')}</Text>
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Nombre *</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.fields.nameRequired')}</Text>
               <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                value={name} onChangeText={setName} placeholder="Ej: Fuerza — Tren Superior" placeholderTextColor={T.textMuted} />
+                value={name} onChangeText={setName} placeholder={t('admin.content.routines.namePlaceholder')} placeholderTextColor={T.textMuted} />
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Descripción</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.fields.description')}</Text>
               <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text, minHeight: 64, textAlignVertical: 'top' }]}
-                value={description} onChangeText={setDescription} placeholder="Descripción de la rutina..." placeholderTextColor={T.textMuted} multiline />
+                value={description} onChangeText={setDescription} placeholder={t('admin.content.routines.descriptionPlaceholder')} placeholderTextColor={T.textMuted} multiline />
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Nivel de rutina</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.routines.levelLabel')}</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
                 {ROUTINE_LEVEL_OPTIONS.map((l) => (
                   <TouchableOpacity key={`rl-${l}`} onPress={() => setLevel(l)}
@@ -119,7 +117,7 @@ function RoutineFormModal({ routine, visible, onClose, onSaved, tenantId }: {
                 ))}
               </View>
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Plan con acceso (vacío = todos)</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.routines.allowedPlanLabel')}</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
                 {ROUTINE_PLAN_OPTIONS.map((p) => (
                   <TouchableOpacity key={`rp-${p}`} onPress={() => togglePlan(p)}
@@ -129,7 +127,7 @@ function RoutineFormModal({ routine, visible, onClose, onSaved, tenantId }: {
                 ))}
               </View>
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Niveles con acceso (vacío = todos)</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.fields.allowedLevels')}</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
                 {ROUTINE_LEVEL_OPTIONS.map((l) => (
                   <TouchableOpacity key={`ral-${l}`} onPress={() => toggleAccessLevel(l)}
@@ -140,16 +138,16 @@ function RoutineFormModal({ routine, visible, onClose, onSaved, tenantId }: {
               </View>
 
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                <Text style={[styles.label, { color: T.textSecondary, marginBottom: 0 }]}>Plantilla reutilizable</Text>
+                <Text style={[styles.label, { color: T.textSecondary, marginBottom: 0 }]}>{t('admin.content.routines.reusableTemplate')}</Text>
                 <Switch value={isTemplate} onValueChange={setIsTemplate} trackColor={{ true: T.accent, false: T.border }} />
               </View>
 
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
-                  <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.btn, { backgroundColor: T.accent, flex: 1 }]}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? 'Guardando...' : 'Guardar'}</Text>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? t('admin.content.saving') : t('common.save')}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -166,6 +164,7 @@ function ExerciseFormModal({ routineId, tenantId, exercise, visible, onClose, on
   visible: boolean; onClose: () => void; onSaved: () => void;
 }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const { editExercise } = useRoutinesStore();
   const [name, setName] = useState('');
   const [muscle, setMuscle] = useState<ExerciseMuscle>('General');
@@ -232,7 +231,7 @@ function ExerciseFormModal({ routineId, tenantId, exercise, visible, onClose, on
   };
 
   const handleSave = async () => {
-    if (!name.trim()) { Alert.alert('Error', 'El nombre es requerido.'); return; }
+    if (!name.trim()) { Alert.alert(t('common.error'), t('admin.content.errors.nameRequired')); return; }
     setSaving(true);
     try {
       const basicFields = {
@@ -266,12 +265,12 @@ function ExerciseFormModal({ routineId, tenantId, exercise, visible, onClose, on
 
       // Upload new demo video if selected
       if (localDemoUri) {
-        setUploadMsg('Subiendo video demo...');
+        setUploadMsg(t('admin.content.exercises.uploadingDemo'));
         const ext = localDemoUri.split('.').pop()?.split('?')[0] ?? 'mp4';
         const storagePath = await uploadExerciseDemoVideo(
           tenantId, exerciseId,
           { uri: localDemoUri, mimeType: localDemoMime, extension: ext },
-          (pct) => setUploadMsg(`Subiendo video... ${pct}%`),
+          (pct) => setUploadMsg(t('admin.content.exercises.uploadingProgress', { percent: pct })),
         );
         await updateExercise(exerciseId, {
           demo_video_storage_path: storagePath,
@@ -281,7 +280,7 @@ function ExerciseFormModal({ routineId, tenantId, exercise, visible, onClose, on
       }
 
       onSaved(); onClose();
-    } catch (e: any) { Alert.alert('Error', e.message); }
+    } catch (e: any) { Alert.alert(t('common.error'), e.message); }
     finally { setSaving(false); setUploadMsg(''); }
   };
 
@@ -294,11 +293,11 @@ function ExerciseFormModal({ routineId, tenantId, exercise, visible, onClose, on
           <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
             <View style={styles.handle} />
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={[styles.sheetTitle, { color: T.text }]}>{isEdit ? 'Editar ejercicio' : 'Nuevo ejercicio'}</Text>
-              <Text style={[styles.label, { color: T.textSecondary }]}>Nombre *</Text>
+              <Text style={[styles.sheetTitle, { color: T.text }]}>{isEdit ? t('admin.content.exercises.editTitle') : t('admin.content.exercises.newTitle')}</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.fields.nameRequired')}</Text>
               <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                value={name} onChangeText={setName} placeholder="Ej: Press de Banca" placeholderTextColor={T.textMuted} />
-              <Text style={[styles.label, { color: T.textSecondary }]}>Músculo</Text>
+                value={name} onChangeText={setName} placeholder={t('admin.content.exercises.namePlaceholder')} placeholderTextColor={T.textMuted} />
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.exercises.muscleLabel')}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
                 {MUSCLE_OPTIONS.map((m) => (
                   <TouchableOpacity key={m} onPress={() => setMuscle(m)}
@@ -308,7 +307,7 @@ function ExerciseFormModal({ routineId, tenantId, exercise, visible, onClose, on
                 ))}
               </ScrollView>
               <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
-                {[{ label: 'Series', value: sets, set: setSets }, { label: 'Reps', value: reps, set: setReps }, { label: 'Descanso (s)', value: rest, set: setRest }].map((f) => (
+                {[{ label: t('admin.content.exercises.setsLabel'), value: sets, set: setSets }, { label: t('admin.content.exercises.repsLabel'), value: reps, set: setReps }, { label: t('admin.content.exercises.restLabel'), value: rest, set: setRest }].map((f) => (
                   <View key={f.label} style={{ flex: 1 }}>
                     <Text style={[styles.label, { color: T.textSecondary }]}>{f.label}</Text>
                     <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text, marginBottom: 0 }]}
@@ -316,25 +315,25 @@ function ExerciseFormModal({ routineId, tenantId, exercise, visible, onClose, on
                   </View>
                 ))}
               </View>
-              <Text style={[styles.label, { color: T.textSecondary }]}>Notas</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.exercises.notesLabel')}</Text>
               <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                value={notes} onChangeText={setNotes} placeholder="Instrucciones opcionales..." placeholderTextColor={T.textMuted} />
+                value={notes} onChangeText={setNotes} placeholder={t('admin.content.exercises.notesPlaceholder')} placeholderTextColor={T.textMuted} />
 
               {/* ── Video de demostración ── */}
-              <Text style={[styles.label, { color: T.textSecondary }]}>Video de demostración</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.exercises.demoVideoLabel')}</Text>
               {hasDemo ? (
                 <View style={[styles.demoVideoRow, { backgroundColor: T.bg, borderColor: T.green + '66' }]}>
                   <Text style={{ fontSize: 22 }}>🎬</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 13, fontWeight: '700', color: T.green }}>
-                      {localDemoUri ? 'Video listo para guardar' : 'Video guardado ✓'}
+                      {localDemoUri ? t('admin.content.exercises.demoReadyToSave') : t('admin.content.exercises.demoSaved')}
                     </Text>
                     <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>
-                      {localDemoUri ? 'Se subirá al guardar el ejercicio' : 'Los clientes podrán verlo en su rutina'}
+                      {localDemoUri ? t('admin.content.exercises.demoWillUpload') : t('admin.content.exercises.demoVisibleToClients')}
                     </Text>
                   </View>
                   <TouchableOpacity onPress={handleRemoveDemo} style={{ padding: 4 }}>
-                    <Text style={{ fontSize: 11, color: T.red, fontWeight: '700' }}>Eliminar</Text>
+                    <Text style={{ fontSize: 11, color: T.red, fontWeight: '700' }}>{t('common.delete')}</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
@@ -342,12 +341,12 @@ function ExerciseFormModal({ routineId, tenantId, exercise, visible, onClose, on
                   <TouchableOpacity onPress={pickDemoVideo}
                     style={[styles.demoBtn, { flex: 1, borderColor: T.border, backgroundColor: T.bg }]}>
                     <Text style={{ fontSize: 20 }}>📁</Text>
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: T.textSecondary, marginTop: 4 }}>Galería</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: T.textSecondary, marginTop: 4 }}>{t('admin.content.exercises.gallery')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={recordDemoVideo}
                     style={[styles.demoBtn, { flex: 1, borderColor: T.accent + '66', backgroundColor: T.accent + '10' }]}>
                     <Text style={{ fontSize: 20 }}>🎥</Text>
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: T.accent, marginTop: 4 }}>Grabar</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: T.accent, marginTop: 4 }}>{t('admin.content.exercises.record')}</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -362,10 +361,10 @@ function ExerciseFormModal({ routineId, tenantId, exercise, visible, onClose, on
 
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
-                  <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.btn, { backgroundColor: T.accent, flex: 1 }]}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? (uploadMsg || 'Guardando...') : 'Guardar'}</Text>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? (uploadMsg || t('admin.content.saving')) : t('common.save')}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -394,8 +393,21 @@ function ClientPickerSheet({
   onRetry?: () => void; resetKey?: number;
 }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [levelFilter, setLevelFilter] = useState<PickerLevel>('all');
+
+  const LEVEL_LABELS: Record<VideoLevel, string> = {
+    beginner: t('admin.content.levels.beginner'),
+    intermediate: t('admin.content.levels.intermediate'),
+    advanced: t('admin.content.levels.advanced'),
+  };
+  const PICKER_LEVEL_LABELS: Record<PickerLevel, string> = {
+    all: t('admin.content.all'),
+    beginner: t('admin.content.levels.beginner'),
+    intermediate: t('admin.content.levels.intermediate'),
+    advanced: t('admin.content.levels.advanced'),
+  };
 
   useEffect(() => { setSearch(''); setLevelFilter('all'); }, [resetKey]);
 
@@ -424,7 +436,7 @@ function ClientPickerSheet({
     return (
       <View style={{ paddingVertical: 32, alignItems: 'center' }}>
         <ActivityIndicator color={T.accent} />
-        <Text style={{ color: T.textMuted, fontSize: 13, marginTop: 8 }}>Cargando clientes...</Text>
+        <Text style={{ color: T.textMuted, fontSize: 13, marginTop: 8 }}>{t('admin.content.clientPicker.loading')}</Text>
       </View>
     );
   }
@@ -433,11 +445,11 @@ function ClientPickerSheet({
     return (
       <View style={{ paddingVertical: 24, alignItems: 'center', gap: 8 }}>
         <Text style={{ color: T.red, fontSize: 13, textAlign: 'center' }}>
-          Error al cargar clientes.{'\n'}{(error as any)?.message}
+          {t('admin.content.clientPicker.loadError')}{'\n'}{(error as any)?.message}
         </Text>
         {onRetry && (
           <TouchableOpacity onPress={onRetry}>
-            <Text style={{ color: T.accent, fontWeight: '700' }}>Reintentar</Text>
+            <Text style={{ color: T.accent, fontWeight: '700' }}>{t('common.retry')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -451,7 +463,7 @@ function ClientPickerSheet({
         <TextInput
           value={search}
           onChangeText={setSearch}
-          placeholder="Buscar por nombre..."
+          placeholder={t('admin.content.clientPicker.searchPlaceholder')}
           placeholderTextColor={T.textMuted}
           style={{ flex: 1, color: T.text, fontSize: 14 }}
         />
@@ -476,7 +488,7 @@ function ClientPickerSheet({
               }]}>
               <Text style={{ fontSize: 13 }}>{tab.emoji}</Text>
               <Text style={{ fontSize: 12, fontWeight: active ? '700' : '500', color: active ? T.accent : T.textSecondary }}>
-                {tab.label}
+                {PICKER_LEVEL_LABELS[tab.key]}
               </Text>
               <View style={[pickerStyles.countBadge, { backgroundColor: active ? T.accent : T.bgCard }]}>
                 <Text style={{ fontSize: 10, fontWeight: '700', color: active ? '#fff' : T.textMuted }}>{count}</Text>
@@ -491,7 +503,7 @@ function ClientPickerSheet({
           <View style={{ paddingVertical: 24, alignItems: 'center' }}>
             <Text style={{ fontSize: 28, marginBottom: 8 }}>👤</Text>
             <Text style={{ color: T.textMuted, fontSize: 13, textAlign: 'center' }}>
-              {search.trim() ? 'Sin resultados para tu búsqueda.' : 'Sin clientes en este nivel.'}
+              {search.trim() ? t('admin.content.clientPicker.noSearchResults') : t('admin.content.clientPicker.noClientsInLevel')}
             </Text>
           </View>
         ) : (
@@ -566,6 +578,7 @@ function AssignRoutineModal({ routine, visible, onClose, tenantId }: {
   routine: Routine | null; visible: boolean; onClose: () => void; tenantId: string;
 }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const { data: clients = [], isLoading: loadingClients, error: clientsError, refetch } = useClientsWithPlan();
   const { assignRoutine } = useRoutinesStore();
@@ -580,9 +593,9 @@ function AssignRoutineModal({ routine, visible, onClose, tenantId }: {
     setSaving(true);
     try {
       await assignRoutine(routine.id, selectedId, tenantId, user.id);
-      showToast('Rutina asignada correctamente');
+      showToast(t('admin.content.routines.assignedSuccess'));
       onClose();
-    } catch (e: any) { Alert.alert('Error', e.message); }
+    } catch (e: any) { Alert.alert(t('common.error'), e.message); }
     finally { setSaving(false); }
   };
 
@@ -591,7 +604,7 @@ function AssignRoutineModal({ routine, visible, onClose, tenantId }: {
       <View style={styles.modalOverlay}>
         <View style={[styles.sheet, { backgroundColor: T.bgCard, height: '82%' }]}>
           <View style={styles.handle} />
-          <Text style={[styles.sheetTitle, { color: T.text }]}>Asignar rutina</Text>
+          <Text style={[styles.sheetTitle, { color: T.text }]}>{t('admin.content.routines.assignTitle')}</Text>
           {routine && (
             <Text style={{ fontSize: 13, color: T.textSecondary, marginBottom: 12, marginTop: -12 }}>
               {routine.name}
@@ -604,10 +617,10 @@ function AssignRoutineModal({ routine, visible, onClose, tenantId }: {
           />
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
             <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
-              <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+              <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={handleAssign} disabled={!selectedId || saving} style={[styles.btn, { backgroundColor: selectedId ? T.accent : T.bgCard, flex: 1, opacity: selectedId ? 1 : 0.5 }]}>
-              <Text style={{ color: selectedId ? '#fff' : T.textMuted, fontWeight: '700' }}>{saving ? 'Asignando...' : 'Asignar'}</Text>
+              <Text style={{ color: selectedId ? '#fff' : T.textMuted, fontWeight: '700' }}>{saving ? t('admin.content.assigning') : t('admin.content.assign')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -621,6 +634,17 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
   video: Video | null; visible: boolean; onClose: () => void; onSaved: () => void;
 }) {
   const T = useTheme();
+  const { t } = useTranslation();
+  const LEVEL_LABELS: Record<VideoLevel, string> = {
+    beginner: t('admin.content.levels.beginner'),
+    intermediate: t('admin.content.levels.intermediate'),
+    advanced: t('admin.content.levels.advanced'),
+  };
+  const PLAN_LABELS: Record<VideoPlan, string> = {
+    basic: t('admin.content.plans.basic'),
+    medium: t('admin.content.plans.medium'),
+    premium: t('admin.content.plans.premium'),
+  };
   const { editVideo } = useVideosStore();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -649,7 +673,7 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
     setAllowedLevels((prev) => prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l]);
 
   const handleSave = async () => {
-    if (!video || !title.trim()) { Alert.alert('Error', 'El título es requerido.'); return; }
+    if (!video || !title.trim()) { Alert.alert(t('common.error'), t('admin.content.errors.titleRequired')); return; }
     setSaving(true);
     try {
       await editVideo(video.id, {
@@ -662,7 +686,7 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
         is_free: isFree,
       });
       onSaved(); onClose();
-    } catch (e: any) { Alert.alert('Error', e.message); }
+    } catch (e: any) { Alert.alert(t('common.error'), e.message); }
     finally { setSaving(false); }
   };
 
@@ -673,17 +697,17 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
           <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
             <View style={styles.handle} />
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={[styles.sheetTitle, { color: T.text }]}>Editar video</Text>
+              <Text style={[styles.sheetTitle, { color: T.text }]}>{t('admin.content.videos.editTitle')}</Text>
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Título *</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.fields.titleRequired')}</Text>
               <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                value={title} onChangeText={setTitle} placeholder="Título del video" placeholderTextColor={T.textMuted} />
+                value={title} onChangeText={setTitle} placeholder={t('admin.content.videos.titlePlaceholder')} placeholderTextColor={T.textMuted} />
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Descripción</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.fields.description')}</Text>
               <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text, minHeight: 64, textAlignVertical: 'top' }]}
-                value={description} onChangeText={setDescription} placeholder="Descripción..." placeholderTextColor={T.textMuted} multiline />
+                value={description} onChangeText={setDescription} placeholder={t('admin.content.fields.descriptionPlaceholderShort')} placeholderTextColor={T.textMuted} multiline />
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Nivel del video</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.videos.levelLabel')}</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
                 {LEVEL_OPTIONS.map((l) => (
                   <TouchableOpacity key={`edit-level-${l}`} onPress={() => setLevel(l)}
@@ -693,7 +717,7 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
                 ))}
               </View>
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Planes con acceso (vacío = todos)</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.fields.allowedPlans')}</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
                 {PLAN_OPTIONS.map((p) => (
                   <TouchableOpacity key={`edit-plan-${p}`} onPress={() => togglePlan(p)}
@@ -703,7 +727,7 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
                 ))}
               </View>
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Niveles con acceso (vacío = todos)</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.fields.allowedLevels')}</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
                 {LEVEL_OPTIONS.map((l) => (
                   <TouchableOpacity key={`edit-access-${l}`} onPress={() => toggleLevel(l)}
@@ -714,24 +738,24 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
               </View>
 
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <Text style={[styles.label, { color: T.textSecondary, marginBottom: 0 }]}>Destacado</Text>
+                <Text style={[styles.label, { color: T.textSecondary, marginBottom: 0 }]}>{t('admin.content.videos.featured')}</Text>
                 <Switch value={isFeatured} onValueChange={setIsFeatured} trackColor={{ true: T.accent, false: T.border }} />
               </View>
 
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.label, { color: T.textSecondary, marginBottom: 0 }]}>Acceso libre</Text>
-                  <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 16 }}>Visible para todos sin suscripción</Text>
+                  <Text style={[styles.label, { color: T.textSecondary, marginBottom: 0 }]}>{t('admin.content.videos.freeAccess')}</Text>
+                  <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 16 }}>{t('admin.content.videos.freeAccessHint')}</Text>
                 </View>
                 <Switch value={isFree} onValueChange={setIsFree} trackColor={{ true: T.green, false: T.border }} />
               </View>
 
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
-                  <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.btn, { backgroundColor: T.accent, flex: 1 }]}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? 'Guardando...' : 'Guardar'}</Text>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? t('admin.content.saving') : t('common.save')}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -750,6 +774,12 @@ function AssignVideoModal({ video, visible, onClose, onSaved }: {
   video: Video | null; visible: boolean; onClose: () => void; onSaved?: () => void;
 }) {
   const T = useTheme();
+  const { t } = useTranslation();
+  const LEVEL_LABELS: Record<VideoLevel, string> = {
+    beginner: t('admin.content.levels.beginner'),
+    intermediate: t('admin.content.levels.intermediate'),
+    advanced: t('admin.content.levels.advanced'),
+  };
   const { user } = useAuthStore();
   const { data: clients = [], isLoading: loadingClients, error: clientsError, refetch } = useClientsWithPlan();
   const { editVideo } = useVideosStore();
@@ -778,12 +808,12 @@ function AssignVideoModal({ video, visible, onClose, onSaved }: {
     try {
       await editVideo(video.id, { allowed_levels: selectedLevels });
       const msg = selectedLevels.length === 0
-        ? 'Acceso por nivel desactivado'
-        : `Acceso global: ${selectedLevels.map((l) => LEVEL_LABELS[l]).join(', ')}`;
+        ? t('admin.content.videos.levelAccessDisabled')
+        : t('admin.content.videos.globalAccessMsg', { levels: selectedLevels.map((l) => LEVEL_LABELS[l]).join(', ') });
       showToast(msg);
       onSaved?.();
       onClose();
-    } catch (e: any) { Alert.alert('Error', e.message); }
+    } catch (e: any) { Alert.alert(t('common.error'), e.message); }
     finally { setSaving(false); }
   };
 
@@ -792,9 +822,9 @@ function AssignVideoModal({ video, visible, onClose, onSaved }: {
     setSaving(true);
     try {
       await assignVideoToClient(video.id, selectedId, user.tenant_id, user.id);
-      showToast('Video asignado al cliente');
+      showToast(t('admin.content.videos.assignedToClient'));
       onClose();
-    } catch (e: any) { Alert.alert('Error', e.message); }
+    } catch (e: any) { Alert.alert(t('common.error'), e.message); }
     finally { setSaving(false); }
   };
 
@@ -803,7 +833,7 @@ function AssignVideoModal({ video, visible, onClose, onSaved }: {
       <View style={styles.modalOverlay}>
         <View style={[styles.sheet, { backgroundColor: T.bgCard, height: '85%' }]}>
           <View style={styles.handle} />
-          <Text style={[styles.sheetTitle, { color: T.text }]}>Asignar video</Text>
+          <Text style={[styles.sheetTitle, { color: T.text }]}>{t('admin.content.videos.assignTitle')}</Text>
           {video && (
             <Text style={{ fontSize: 12, color: T.textSecondary, marginTop: -16, marginBottom: 16 }} numberOfLines={1}>
               {video.title}
@@ -817,7 +847,7 @@ function AssignVideoModal({ video, visible, onClose, onSaved }: {
               backgroundColor: mode === 'level' ? T.accent : 'transparent',
             }}>
               <Text style={{ fontSize: 12, fontWeight: '700', color: mode === 'level' ? '#fff' : T.textMuted }}>
-                🎯 Por Nivel
+                🎯 {t('admin.content.videos.byLevelMode')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setMode('direct')} style={{
@@ -825,7 +855,7 @@ function AssignVideoModal({ video, visible, onClose, onSaved }: {
               backgroundColor: mode === 'direct' ? T.accent : 'transparent',
             }}>
               <Text style={{ fontSize: 12, fontWeight: '700', color: mode === 'direct' ? '#fff' : T.textMuted }}>
-                👤 Usuario Directo
+                👤 {t('admin.content.videos.directUserMode')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -834,10 +864,10 @@ function AssignVideoModal({ video, visible, onClose, onSaved }: {
           {mode === 'level' && (
             <>
               <Text style={{ fontSize: 13, color: T.textSecondary, marginBottom: 4 }}>
-                Elige los niveles con acceso global a este video.
+                {t('admin.content.videos.levelModeDescription')}
               </Text>
               <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 16 }}>
-                Sin selección = solo clientes con asignación directa pueden verlo.
+                {t('admin.content.videos.levelModeHint')}
               </Text>
               <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24 }}>
                 {LEVEL_OPTIONS.map((l) => {
@@ -866,11 +896,11 @@ function AssignVideoModal({ video, visible, onClose, onSaved }: {
               </View>
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
-                  <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleAssignByLevel} disabled={saving}
                   style={[styles.btn, { backgroundColor: T.accent, flex: 1 }]}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? 'Guardando...' : 'Guardar acceso'}</Text>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? t('admin.content.saving') : t('admin.content.videos.saveAccess')}</Text>
                 </TouchableOpacity>
               </View>
             </>
@@ -886,11 +916,11 @@ function AssignVideoModal({ video, visible, onClose, onSaved }: {
               />
               <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
                 <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
-                  <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleAssignDirect} disabled={!selectedId || saving}
                   style={[styles.btn, { backgroundColor: selectedId ? T.accent : T.bgCard, flex: 1, opacity: selectedId ? 1 : 0.5 }]}>
-                  <Text style={{ color: selectedId ? '#fff' : T.textMuted, fontWeight: '700' }}>{saving ? 'Asignando...' : 'Asignar'}</Text>
+                  <Text style={{ color: selectedId ? '#fff' : T.textMuted, fontWeight: '700' }}>{saving ? t('admin.content.assigning') : t('admin.content.assign')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -906,6 +936,17 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
   visible: boolean; onClose: () => void; tenantId: string;
 }) {
   const T = useTheme();
+  const { t } = useTranslation();
+  const LEVEL_LABELS: Record<VideoLevel, string> = {
+    beginner: t('admin.content.levels.beginner'),
+    intermediate: t('admin.content.levels.intermediate'),
+    advanced: t('admin.content.levels.advanced'),
+  };
+  const PLAN_LABELS: Record<VideoPlan, string> = {
+    basic: t('admin.content.plans.basic'),
+    medium: t('admin.content.plans.medium'),
+    premium: t('admin.content.plans.premium'),
+  };
   const { user } = useAuthStore();
   const { addVideo, editVideo, changeVideoStatus } = useVideosStore();
 
@@ -969,14 +1010,14 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
 
   const handleSave = async () => {
     const errs: string[] = [];
-    if (!title.trim()) errs.push('El título es obligatorio.');
+    if (!title.trim()) errs.push(t('admin.content.videos.titleRequiredError'));
     if (errs.length) { setErrors(errs); return; }
 
     setStep('uploading');
 
     try {
       // 1. Create video record in draft state
-      setUploadProgress('Creando registro...');
+      setUploadProgress(t('admin.content.videos.creatingRecord'));
       const created = await addVideo({
         tenant_id: tenantId,
         title: title.trim(),
@@ -1003,21 +1044,21 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
 
       // 2. Upload video file if selected
       if (videoFile) {
-        setUploadProgress('Subiendo video... 0%');
+        setUploadProgress(t('admin.content.videos.uploadingProgress', { percent: 0 }));
         await changeVideoStatus(created.id, 'uploading', user?.id ?? '');
         const ext = videoFile.name.split('.').pop() ?? 'mp4';
         const { path } = await uploadVideoFile(
           tenantId,
           created.id,
           { uri: videoFile.uri, mimeType: videoFile.mimeType, extension: ext, size: videoFile.size },
-          (pct) => setUploadProgress(`Subiendo video... ${pct}%`),
+          (pct) => setUploadProgress(t('admin.content.videos.uploadingProgress', { percent: pct })),
         );
         await editVideo(created.id, { video_storage_path: path });
       }
 
       // 3. Upload thumbnail if selected
       if (thumbFile) {
-        setUploadProgress('Subiendo miniatura...');
+        setUploadProgress(t('admin.content.videos.uploadingThumbnail'));
         const thumbPath = await uploadThumbnail(tenantId, created.id, {
           uri: thumbFile.uri,
           mimeType: thumbFile.mimeType,
@@ -1027,12 +1068,12 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
       }
 
       // 4. Publish
-      setUploadProgress('Publicando...');
+      setUploadProgress(t('admin.content.videos.publishing'));
       await changeVideoStatus(created.id, 'published', user?.id ?? '');
 
       setStep('done');
     } catch (e: any) {
-      Alert.alert('Error al subir', e.message ?? 'Ocurrió un error inesperado.');
+      Alert.alert(t('admin.content.videos.uploadErrorTitle'), e.message ?? t('errors.generic'));
       setStep('meta');
     }
   };
@@ -1049,7 +1090,7 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
               <View style={{ alignItems: 'center', paddingVertical: 40 }}>
                 <ActivityIndicator color={T.accent} size="large" />
                 <Text style={{ color: T.text, fontSize: 16, fontWeight: '700', marginTop: 16 }}>{uploadProgress}</Text>
-                <Text style={{ color: T.textMuted, fontSize: 13, marginTop: 8 }}>No cierres esta pantalla</Text>
+                <Text style={{ color: T.textMuted, fontSize: 13, marginTop: 8 }}>{t('admin.content.videos.dontClose')}</Text>
               </View>
             )}
 
@@ -1057,10 +1098,10 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
             {step === 'done' && (
               <View style={{ alignItems: 'center', paddingVertical: 40 }}>
                 <Text style={{ fontSize: 48 }}>✅</Text>
-                <Text style={{ color: T.text, fontSize: 18, fontWeight: '800', marginTop: 16 }}>Video publicado</Text>
+                <Text style={{ color: T.text, fontSize: 18, fontWeight: '800', marginTop: 16 }}>{t('admin.content.videos.published')}</Text>
                 <TouchableOpacity onPress={() => { reset(); onClose(); }}
                   style={[styles.btn, { backgroundColor: T.accent, marginTop: 24, paddingHorizontal: 32 }]}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>Listo</Text>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>{t('common.done')}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -1068,7 +1109,7 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
             {/* Form state */}
             {step === 'meta' && (
               <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                <Text style={[styles.sheetTitle, { color: T.text }]}>Nuevo video</Text>
+                <Text style={[styles.sheetTitle, { color: T.text }]}>{t('admin.content.videos.newTitle')}</Text>
 
                 {errors.length > 0 && (
                   <View style={[styles.errorBox, { backgroundColor: T.redSoft, borderColor: T.red + '55' }]}>
@@ -1077,13 +1118,13 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
                 )}
 
                 {/* Video file picker */}
-                <Text style={[styles.label, { color: T.textSecondary }]}>Archivo de video</Text>
+                <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.videos.fileLabel')}</Text>
                 <TouchableOpacity onPress={pickVideo}
                   style={[styles.filePicker, { borderColor: videoFile ? T.accent : T.border, backgroundColor: T.bg }]}>
                   <Text style={{ fontSize: 20 }}>🎬</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: videoFile ? T.text : T.textMuted, fontSize: 14, fontWeight: videoFile ? '600' : '400' }}>
-                      {videoFile ? videoFile.name : 'Seleccionar video (MP4, MOV, WebM)'}
+                      {videoFile ? videoFile.name : t('admin.content.videos.selectVideoPlaceholder')}
                     </Text>
                     {videoFile?.size ? (
                       <Text style={{ color: T.textMuted, fontSize: 11, marginTop: 2 }}>
@@ -1092,43 +1133,43 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
                     ) : null}
                   </View>
                   <Text style={{ color: T.accent, fontWeight: '700', fontSize: 13 }}>
-                    {videoFile ? 'Cambiar' : 'Elegir'}
+                    {videoFile ? t('admin.content.change') : t('admin.content.choose')}
                   </Text>
                 </TouchableOpacity>
 
                 {/* Thumbnail picker */}
-                <Text style={[styles.label, { color: T.textSecondary }]}>Miniatura (opcional)</Text>
+                <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.videos.thumbnailLabel')}</Text>
                 <TouchableOpacity onPress={pickThumbnail}
                   style={[styles.filePicker, { borderColor: thumbFile ? T.accent : T.border, backgroundColor: T.bg }]}>
                   <Text style={{ fontSize: 20 }}>🖼️</Text>
                   <Text style={{ flex: 1, color: thumbFile ? T.text : T.textMuted, fontSize: 14 }}>
-                    {thumbFile ? 'Miniatura seleccionada' : 'Seleccionar imagen (16:9)'}
+                    {thumbFile ? t('admin.content.videos.thumbnailSelected') : t('admin.content.videos.selectImagePlaceholder')}
                   </Text>
                   <Text style={{ color: T.accent, fontWeight: '700', fontSize: 13 }}>
-                    {thumbFile ? 'Cambiar' : 'Elegir'}
+                    {thumbFile ? t('admin.content.change') : t('admin.content.choose')}
                   </Text>
                 </TouchableOpacity>
 
-                <Text style={[styles.label, { color: T.textSecondary }]}>Título *</Text>
+                <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.fields.titleRequired')}</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                  placeholder="Ej: Técnica de sentadilla"
+                  placeholder={t('admin.content.videos.titleExamplePlaceholder')}
                   placeholderTextColor={T.textMuted}
                   value={title}
                   onChangeText={(v) => { setTitle(v); setErrors([]); }}
                 />
 
-                <Text style={[styles.label, { color: T.textSecondary }]}>Descripción</Text>
+                <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.fields.description')}</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text, minHeight: 72, textAlignVertical: 'top' }]}
-                  placeholder="Descripción breve..."
+                  placeholder={t('admin.content.videos.descriptionPlaceholder')}
                   placeholderTextColor={T.textMuted}
                   value={description}
                   onChangeText={setDescription}
                   multiline
                 />
 
-                <Text style={[styles.label, { color: T.textSecondary }]}>Nivel del video</Text>
+                <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.videos.levelLabel')}</Text>
                 <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
                   {LEVEL_OPTIONS.map((l) => (
                     <TouchableOpacity key={l} onPress={() => setLevel(l)}
@@ -1138,7 +1179,7 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
                   ))}
                 </View>
 
-                <Text style={[styles.label, { color: T.textSecondary }]}>Planes con acceso (vacío = todos)</Text>
+                <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.fields.allowedPlans')}</Text>
                 <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
                   {PLAN_OPTIONS.map((p) => (
                     <TouchableOpacity key={p} onPress={() => togglePlan(p)}
@@ -1148,7 +1189,7 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
                   ))}
                 </View>
 
-                <Text style={[styles.label, { color: T.textSecondary }]}>Niveles con acceso (vacío = todos)</Text>
+                <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.fields.allowedLevels')}</Text>
                 <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
                   {LEVEL_OPTIONS.map((l) => (
                     <TouchableOpacity key={l} onPress={() => toggleLevel(l)}
@@ -1158,7 +1199,7 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
                   ))}
                 </View>
 
-                <Text style={[styles.label, { color: T.textSecondary }]}>Color de miniatura (fallback)</Text>
+                <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.videos.thumbnailColorLabel')}</Text>
                 <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
                   {THUMB_COLORS.map((c) => (
                     <TouchableOpacity key={c} onPress={() => setThumbColor(c)}
@@ -1167,14 +1208,14 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
                 </View>
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <Text style={[styles.label, { color: T.textSecondary, marginBottom: 0 }]}>Marcar como destacado</Text>
+                  <Text style={[styles.label, { color: T.textSecondary, marginBottom: 0 }]}>{t('admin.content.videos.markFeatured')}</Text>
                   <Switch value={isFeatured} onValueChange={setIsFeatured} trackColor={{ true: T.accent, false: T.border }} />
                 </View>
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.label, { color: T.textSecondary, marginBottom: 0 }]}>Acceso libre</Text>
-                    <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 16 }}>Visible para todos sin suscripción</Text>
+                    <Text style={[styles.label, { color: T.textSecondary, marginBottom: 0 }]}>{t('admin.content.videos.freeAccess')}</Text>
+                    <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 16 }}>{t('admin.content.videos.freeAccessHint')}</Text>
                   </View>
                   <Switch value={isFree} onValueChange={setIsFree} trackColor={{ true: T.green, false: T.border }} />
                 </View>
@@ -1182,12 +1223,12 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
                 <View style={{ flexDirection: 'row', gap: 12, marginBottom: 8 }}>
                   <TouchableOpacity onPress={() => { reset(); onClose(); }}
                     style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
-                    <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                    <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={handleSave}
                     style={[styles.btn, { backgroundColor: T.accent, flex: 1 }]}>
                     <Text style={{ color: '#fff', fontWeight: '700' }}>
-                      {videoFile ? 'Subir y publicar' : 'Guardar borrador'}
+                      {videoFile ? t('admin.content.videos.uploadAndPublish') : t('admin.content.videos.saveDraft')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -1205,6 +1246,7 @@ function NutritionFormModal({ plan, visible, onClose, onSaved, tenantId }: {
   plan?: NutritionPlan | null; visible: boolean; onClose: () => void; onSaved: () => void; tenantId: string;
 }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const { addPlan, editPlan } = useNutritionStore();
   const isEdit = !!plan;
@@ -1233,7 +1275,7 @@ function NutritionFormModal({ plan, visible, onClose, onSaved, tenantId }: {
   }, [visible, plan]);
 
   const handleSave = async () => {
-    if (!name.trim()) { Alert.alert('Error', 'El nombre es requerido.'); return; }
+    if (!name.trim()) { Alert.alert(t('common.error'), t('admin.content.errors.nameRequired')); return; }
     setSaving(true);
     try {
       const payload = {
@@ -1256,7 +1298,7 @@ function NutritionFormModal({ plan, visible, onClose, onSaved, tenantId }: {
         await addPlan(payload);
       }
       onSaved(); onClose();
-    } catch (e: any) { Alert.alert('Error', e.message); }
+    } catch (e: any) { Alert.alert(t('common.error'), e.message); }
     finally { setSaving(false); }
   };
 
@@ -1267,27 +1309,27 @@ function NutritionFormModal({ plan, visible, onClose, onSaved, tenantId }: {
           <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
             <View style={styles.handle} />
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={[styles.sheetTitle, { color: T.text }]}>{isEdit ? 'Editar plan' : 'Nuevo plan nutricional'}</Text>
+              <Text style={[styles.sheetTitle, { color: T.text }]}>{isEdit ? t('admin.content.nutrition.editTitle') : t('admin.content.nutrition.newTitle')}</Text>
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Nombre *</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.fields.nameRequired')}</Text>
               <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                value={name} onChangeText={setName} placeholder="Ej: Plan Proteico Fase 1" placeholderTextColor={T.textMuted} />
+                value={name} onChangeText={setName} placeholder={t('admin.content.nutrition.namePlaceholder')} placeholderTextColor={T.textMuted} />
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Objetivo</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.nutrition.goalLabel')}</Text>
               <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                value={goal} onChangeText={setGoal} placeholder="Ej: Ganancia muscular" placeholderTextColor={T.textMuted} />
+                value={goal} onChangeText={setGoal} placeholder={t('admin.content.nutrition.goalPlaceholder')} placeholderTextColor={T.textMuted} />
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Descripción</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.fields.description')}</Text>
               <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text, minHeight: 60, textAlignVertical: 'top' }]}
-                value={description} onChangeText={setDescription} placeholder="Descripción del plan..." placeholderTextColor={T.textMuted} multiline />
+                value={description} onChangeText={setDescription} placeholder={t('admin.content.nutrition.descriptionPlaceholder')} placeholderTextColor={T.textMuted} multiline />
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Macros diarios</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.nutrition.macrosLabel')}</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
                 {([
-                  { label: 'Calorías', value: calories, set: setCalories, unit: 'kcal' },
-                  { label: 'Proteína', value: protein, set: setProtein, unit: 'g' },
-                  { label: 'Carbs', value: carbs, set: setCarbs, unit: 'g' },
-                  { label: 'Grasa', value: fat, set: setFat, unit: 'g' },
+                  { label: t('admin.content.nutrition.calories'), value: calories, set: setCalories, unit: 'kcal' },
+                  { label: t('admin.content.nutrition.protein'), value: protein, set: setProtein, unit: 'g' },
+                  { label: t('admin.content.nutrition.carbs'), value: carbs, set: setCarbs, unit: 'g' },
+                  { label: t('admin.content.nutrition.fat'), value: fat, set: setFat, unit: 'g' },
                 ] as { label: string; value: string; set: (v: string) => void; unit: string }[]).map((m) => (
                   <View key={m.label} style={{ flex: 1 }}>
                     <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 4, textAlign: 'center' }}>{m.label}</Text>
@@ -1302,7 +1344,7 @@ function NutritionFormModal({ plan, visible, onClose, onSaved, tenantId }: {
                 ))}
               </View>
 
-              <Text style={[styles.label, { color: T.textSecondary }]}>Estado</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.nutrition.statusLabel')}</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 24 }}>
                 {(['draft', 'published', 'archived'] as NutritionStatus[]).map((s) => (
                   <TouchableOpacity key={s} onPress={() => setStatus(s)}
@@ -1316,10 +1358,10 @@ function NutritionFormModal({ plan, visible, onClose, onSaved, tenantId }: {
 
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
-                  <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.btn, { backgroundColor: T.accent, flex: 1 }]}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? 'Guardando...' : 'Guardar'}</Text>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? t('admin.content.saving') : t('common.save')}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -1335,6 +1377,7 @@ function AssignNutritionModal({ plan, visible, onClose, tenantId }: {
   plan: NutritionPlan | null; visible: boolean; onClose: () => void; tenantId: string;
 }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const { data: clients = [], isLoading: loadingClients, error: clientsError, refetch } = useClientsWithPlan();
   const { assignPlan } = useNutritionStore();
@@ -1351,9 +1394,9 @@ function AssignNutritionModal({ plan, visible, onClose, tenantId }: {
     setSaving(true);
     try {
       await assignPlan(plan.id, selectedId, user.tenant_id, user.id);
-      showToast('Plan nutricional asignado correctamente');
+      showToast(t('admin.content.nutrition.assignedSuccess'));
       onClose();
-    } catch (e: any) { Alert.alert('Error', e.message); }
+    } catch (e: any) { Alert.alert(t('common.error'), e.message); }
     finally { setSaving(false); }
   };
 
@@ -1362,7 +1405,7 @@ function AssignNutritionModal({ plan, visible, onClose, tenantId }: {
       <View style={styles.modalOverlay}>
         <View style={[styles.sheet, { backgroundColor: T.bgCard, height: '82%' }]}>
           <View style={styles.handle} />
-          <Text style={[styles.sheetTitle, { color: T.text }]}>Asignar plan nutricional</Text>
+          <Text style={[styles.sheetTitle, { color: T.text }]}>{t('admin.content.nutrition.assignTitle')}</Text>
           {plan && (
             <Text style={{ fontSize: 13, color: T.textSecondary, marginBottom: 12, marginTop: -12 }}>
               {plan.name}
@@ -1375,12 +1418,12 @@ function AssignNutritionModal({ plan, visible, onClose, tenantId }: {
           />
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
             <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
-              <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+              <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={handleAssign} disabled={!selectedId || saving}
               style={[styles.btn, { backgroundColor: selectedId ? T.accent : T.bgCard, flex: 1, opacity: selectedId ? 1 : 0.5 }]}>
               <Text style={{ color: selectedId ? '#fff' : T.textMuted, fontWeight: '700' }}>
-                {saving ? 'Asignando...' : 'Asignar'}
+                {saving ? t('admin.content.assigning') : t('admin.content.assign')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1393,6 +1436,22 @@ function AssignNutritionModal({ plan, visible, onClose, tenantId }: {
 // ─── Main Screen ──────────────────────────────────────────────
 export default function AdminContentScreen() {
   const T = useTheme();
+  const { t } = useTranslation();
+  const LEVEL_LABELS: Record<VideoLevel, string> = {
+    beginner: t('admin.content.levels.beginner'),
+    intermediate: t('admin.content.levels.intermediate'),
+    advanced: t('admin.content.levels.advanced'),
+  };
+  const PLAN_LABELS: Record<VideoPlan, string> = {
+    basic: t('admin.content.plans.basic'),
+    medium: t('admin.content.plans.medium'),
+    premium: t('admin.content.plans.premium'),
+  };
+  const TAB_LABELS: Record<string, string> = {
+    Rutinas: t('admin.content.tabs.routines'),
+    Nutrición: t('admin.content.tabs.nutrition'),
+    Videos: t('admin.content.tabs.videos'),
+  };
   const { user } = useAuthStore();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -1457,13 +1516,13 @@ export default function AdminContentScreen() {
   };
 
   const handleDelete = (v: Video) => {
-    Alert.alert('Eliminar video', `¿Eliminar "${v.title}"?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: async () => {
+    Alert.alert(t('admin.content.videos.deleteTitle'), t('admin.content.deleteConfirmMessage', { name: v.title }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.delete'), style: 'destructive', onPress: async () => {
         try {
           await removeVideo(v.id);
-          showToast('Video eliminado', 'info');
-        } catch (e: any) { Alert.alert('Error', e.message); }
+          showToast(t('admin.content.videos.deleted'), 'info');
+        } catch (e: any) { Alert.alert(t('common.error'), e.message); }
       }},
     ]);
   };
@@ -1474,9 +1533,9 @@ export default function AdminContentScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
       <AdminTopBar
-        title="Contenido"
-        subtitle="Rutinas · Nutrición · Videos"
-        actionLabel="+ Nuevo"
+        title={t('admin.content.title')}
+        subtitle={t('admin.content.subtitle')}
+        actionLabel={t('admin.content.newAction')}
         onAction={() => {
           if (tab === 'Videos') setShowCreate(true);
           if (tab === 'Rutinas') { setEditRoutineTarget(null); setShowRoutineForm(true); }
@@ -1488,7 +1547,7 @@ export default function AdminContentScreen() {
         {TABS.map((t) => (
           <TouchableOpacity key={t} onPress={() => setTab(t)}
             style={[styles.tabBtn, tab === t && { backgroundColor: T.accent }, { borderRadius: T.radiusSm }]}>
-            <Text style={[styles.tabText, { color: tab === t ? '#fff' : T.textMuted }]}>{t}</Text>
+            <Text style={[styles.tabText, { color: tab === t ? '#fff' : T.textMuted }]}>{TAB_LABELS[t]}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -1513,7 +1572,7 @@ export default function AdminContentScreen() {
             <View style={{ paddingVertical: 60, alignItems: 'center' }}>
               <Text style={{ fontSize: 36, marginBottom: 12 }}>💪</Text>
               <Text style={{ color: T.textMuted, fontSize: 15, textAlign: 'center' }}>
-                No hay rutinas.{'\n'}Toca "+ Nuevo" para crear la primera.
+                {t('admin.content.routines.emptyStateLine1')}{'\n'}{t('admin.content.routines.emptyStateLine2')}
               </Text>
             </View>
           ) : (
@@ -1529,22 +1588,22 @@ export default function AdminContentScreen() {
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.cardTitle, { color: T.text }]}>{r.name}</Text>
                         <Text style={[styles.cardMeta, { color: T.textSecondary }]}>
-                          {ROUTINE_LEVEL_LABELS[r.level]} · {r.exercises?.length ?? 0} ejercicios
-                          {r.is_template ? ' · Plantilla' : ''}
+                          {ROUTINE_LEVEL_LABELS[r.level]} · {t('admin.content.routines.exerciseCount', { count: r.exercises?.length ?? 0 })}
+                          {r.is_template ? ` · ${t('admin.content.routines.templateTag')}` : ''}
                         </Text>
                       </View>
                     </TouchableOpacity>
                     <Switch value={r.is_active} onValueChange={(v) => toggleRoutineActive(r.id, v)} trackColor={{ true: T.green, false: T.border }} />
                     <TouchableOpacity
-                      onPress={() => openSheet('Rutina', r.name, [
-                        { icon: '✏️', label: 'Editar', onPress: () => { setEditRoutineTarget(r); setShowRoutineForm(true); } },
-                        { icon: '👤', label: 'Asignar a cliente', onPress: () => setAssignRoutineTarget(r) },
-                        { icon: '➕', label: 'Agregar ejercicio', onPress: () => { setEditExerciseTarget({ routineId: r.id }); setShowExerciseForm(true); } },
-                        { icon: '🗑', label: 'Eliminar', destructive: true, onPress: () =>
-                          Alert.alert('Eliminar', `¿Eliminar "${r.name}"?`, [
-                            { text: 'Cancelar', style: 'cancel' },
-                            { text: 'Eliminar', style: 'destructive', onPress: () => {
-                              removeRoutine(r.id).then(() => showToast('Rutina eliminada', 'info')).catch((e: any) => Alert.alert('Error', e.message));
+                      onPress={() => openSheet(t('admin.content.routines.itemLabel'), r.name, [
+                        { icon: '✏️', label: t('common.edit'), onPress: () => { setEditRoutineTarget(r); setShowRoutineForm(true); } },
+                        { icon: '👤', label: t('admin.content.assignToClient'), onPress: () => setAssignRoutineTarget(r) },
+                        { icon: '➕', label: t('admin.content.routines.addExercise'), onPress: () => { setEditExerciseTarget({ routineId: r.id }); setShowExerciseForm(true); } },
+                        { icon: '🗑', label: t('common.delete'), destructive: true, onPress: () =>
+                          Alert.alert(t('common.delete'), t('admin.content.deleteConfirmMessage', { name: r.name }), [
+                            { text: t('common.cancel'), style: 'cancel' },
+                            { text: t('common.delete'), style: 'destructive', onPress: () => {
+                              removeRoutine(r.id).then(() => showToast(t('admin.content.routines.deleted'), 'info')).catch((e: any) => Alert.alert(t('common.error'), e.message));
                             }},
                           ])
                         },
@@ -1588,7 +1647,7 @@ export default function AdminContentScreen() {
             <View style={{ paddingVertical: 60, alignItems: 'center' }}>
               <Text style={{ fontSize: 36, marginBottom: 12 }}>🥗</Text>
               <Text style={{ color: T.textMuted, fontSize: 15, textAlign: 'center' }}>
-                No hay planes nutricionales.{'\n'}Toca "+ Nuevo" para crear el primero.
+                {t('admin.content.nutrition.emptyStateLine1')}{'\n'}{t('admin.content.nutrition.emptyStateLine2')}
               </Text>
             </View>
           ) : (
@@ -1617,24 +1676,24 @@ export default function AdminContentScreen() {
                       {n.goal ? <Text style={[styles.cardSub, { color: T.textMuted }]}>{n.goal}</Text> : null}
                     </View>
                     <TouchableOpacity
-                      onPress={() => openSheet('Plan nutricional', n.name, [
-                        { icon: '✏️', label: 'Editar', onPress: () => { setEditNutritionTarget(n); setShowNutritionForm(true); } },
-                        { icon: '👤', label: 'Asignar a cliente', onPress: () => setAssignNutritionTarget(n) },
-                        { icon: isPublished ? '📦' : '✅', label: isPublished ? 'Archivar' : 'Publicar',
+                      onPress={() => openSheet(t('admin.content.nutrition.itemLabel'), n.name, [
+                        { icon: '✏️', label: t('common.edit'), onPress: () => { setEditNutritionTarget(n); setShowNutritionForm(true); } },
+                        { icon: '👤', label: t('admin.content.assignToClient'), onPress: () => setAssignNutritionTarget(n) },
+                        { icon: isPublished ? '📦' : '✅', label: isPublished ? t('admin.content.archive') : t('admin.content.publish'),
                           color: isPublished ? T.textMuted : T.green,
                           onPress: () => {
                             changePlanStatus(n.id, isPublished ? 'archived' : 'published')
-                              .then(() => showToast(isPublished ? 'Plan archivado' : 'Plan publicado'))
-                              .catch((e: any) => Alert.alert('Error', e.message));
+                              .then(() => showToast(isPublished ? t('admin.content.nutrition.archived') : t('admin.content.nutrition.published')))
+                              .catch((e: any) => Alert.alert(t('common.error'), e.message));
                           },
                         },
-                        { icon: '🗑', label: 'Eliminar', destructive: true, onPress: () =>
-                          Alert.alert('Eliminar', `¿Eliminar "${n.name}"?`, [
-                            { text: 'Cancelar', style: 'cancel' },
-                            { text: 'Eliminar', style: 'destructive', onPress: () =>
+                        { icon: '🗑', label: t('common.delete'), destructive: true, onPress: () =>
+                          Alert.alert(t('common.delete'), t('admin.content.deleteConfirmMessage', { name: n.name }), [
+                            { text: t('common.cancel'), style: 'cancel' },
+                            { text: t('common.delete'), style: 'destructive', onPress: () =>
                               removeNutritionPlan(n.id)
-                                .then(() => showToast('Plan eliminado', 'info'))
-                                .catch((e: any) => Alert.alert('Error', e.message))
+                                .then(() => showToast(t('admin.content.nutrition.deleted'), 'info'))
+                                .catch((e: any) => Alert.alert(t('common.error'), e.message))
                             },
                           ])
                         },
@@ -1660,7 +1719,7 @@ export default function AdminContentScreen() {
             <View style={{ paddingVertical: 60, alignItems: 'center' }}>
               <Text style={{ fontSize: 36, marginBottom: 12 }}>🎬</Text>
               <Text style={{ color: T.textMuted, fontSize: 15, textAlign: 'center' }}>
-                No hay videos aún.{'\n'}Toca "+ Nuevo" para agregar el primero.
+                {t('admin.content.videos.emptyStateLine1')}{'\n'}{t('admin.content.videos.emptyStateLine2')}
               </Text>
             </View>
           ) : (
@@ -1685,7 +1744,7 @@ export default function AdminContentScreen() {
                     <Text style={[styles.cardTitle, { color: T.text }]} numberOfLines={1}>{v.title}</Text>
                     <Text style={[styles.cardMeta, { color: T.textSecondary }]}>
                       {LEVEL_LABELS[v.level]}
-                      {v.allowed_plans.length > 0 ? ` · ${v.allowed_plans.map((p) => PLAN_LABELS[p]).join(', ')}` : ' · Todos'}
+                      {v.allowed_plans.length > 0 ? ` · ${v.allowed_plans.map((p) => PLAN_LABELS[p]).join(', ')}` : ` · ${t('admin.content.all')}`}
                     </Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
                       <View style={[styles.statusDot, { backgroundColor: statusColor(v.status) }]} />
@@ -1700,13 +1759,13 @@ export default function AdminContentScreen() {
                   <TouchableOpacity
                     onPress={() => {
                       const acts: SheetAction[] = [];
-                      if (v.video_storage_path) acts.push({ icon: '▶', label: 'Ver video', color: T.blue, onPress: () => router.push(`/(admin)/video-player?id=${v.id}` as any) });
-                      acts.push({ icon: '✏️', label: 'Editar', onPress: () => setEditTarget(v) });
-                      acts.push({ icon: '👤', label: 'Asignar a cliente', onPress: () => setAssignTarget(v) });
-                      if (v.status !== 'published' && v.status !== 'uploading') acts.push({ icon: '✅', label: 'Publicar', color: T.green, onPress: async () => { try { await publish(v.id); showToast('Video publicado'); } catch (e: any) { Alert.alert('Error', e.message); } } });
-                      if (v.status === 'published') acts.push({ icon: '📦', label: 'Archivar', color: T.textMuted, onPress: async () => { try { await archive(v.id); showToast('Video archivado', 'info'); } catch (e: any) { Alert.alert('Error', e.message); } } });
-                      acts.push({ icon: '🗑', label: 'Eliminar', destructive: true, onPress: () => handleDelete(v) });
-                      openSheet('Video', v.title, acts);
+                      if (v.video_storage_path) acts.push({ icon: '▶', label: t('admin.content.videos.viewVideo'), color: T.blue, onPress: () => router.push(`/(admin)/video-player?id=${v.id}` as any) });
+                      acts.push({ icon: '✏️', label: t('common.edit'), onPress: () => setEditTarget(v) });
+                      acts.push({ icon: '👤', label: t('admin.content.assignToClient'), onPress: () => setAssignTarget(v) });
+                      if (v.status !== 'published' && v.status !== 'uploading') acts.push({ icon: '✅', label: t('admin.content.publish'), color: T.green, onPress: async () => { try { await publish(v.id); showToast(t('admin.content.videos.published')); } catch (e: any) { Alert.alert(t('common.error'), e.message); } } });
+                      if (v.status === 'published') acts.push({ icon: '📦', label: t('admin.content.archive'), color: T.textMuted, onPress: async () => { try { await archive(v.id); showToast(t('admin.content.videos.archived'), 'info'); } catch (e: any) { Alert.alert(t('common.error'), e.message); } } });
+                      acts.push({ icon: '🗑', label: t('common.delete'), destructive: true, onPress: () => handleDelete(v) });
+                      openSheet(t('admin.content.videos.itemLabel'), v.title, acts);
                     }}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     style={[styles.menuBtn, { backgroundColor: T.bg, borderColor: T.border }]}

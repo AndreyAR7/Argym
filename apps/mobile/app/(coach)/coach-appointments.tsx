@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, FlatList, StyleSheet, StatusBar, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/auth.store';
 import { useAppointmentsCoach } from '@/hooks/useAppointments';
@@ -8,17 +9,18 @@ import { SkeletonCard } from '@/components/shared/SkeletonLoader';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import type { Appointment } from '@/types/appointments';
 
-function formatDateTime(iso: string) {
+function formatDateTime(iso: string, t: (key: string) => string) {
   const d = new Date(iso);
   const today = new Date();
   const isToday = d.toDateString() === today.toDateString();
   const time = d.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' });
-  const date = isToday ? 'Hoy' : d.toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric', month: 'short' });
+  const date = isToday ? t('coach.appointments.today') : d.toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric', month: 'short' });
   return `${date} · ${time}`;
 }
 
 export default function CoachAppointments() {
   const T = useTheme();
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const { data: appointments = [], isLoading, error, refetch } = useAppointmentsCoach(user?.id);
 
@@ -32,10 +34,10 @@ export default function CoachAppointments() {
 
       {/* Header */}
       <View style={[s.header, { borderBottomColor: T.border }]}>
-        <Text style={[s.title, { color: T.text }]}>Mis Citas</Text>
+        <Text style={[s.title, { color: T.text }]}>{t('coach.appointments.title')}</Text>
         {!isLoading && !error && (
           <Text style={[s.subtitle, { color: T.textMuted }]}>
-            {upcoming.length} {upcoming.length === 1 ? 'cita programada' : 'citas programadas'}
+            {t('coach.appointments.scheduledCount', { count: upcoming.length })}
           </Text>
         )}
       </View>
@@ -48,10 +50,10 @@ export default function CoachAppointments() {
       ) : error ? (
         <View style={s.center}>
           <Text style={{ color: T.red, fontSize: 14, textAlign: 'center', marginBottom: 12 }}>
-            No se pudieron cargar las citas.
+            {t('coach.appointments.loadError')}
           </Text>
           <TouchableOpacity onPress={() => refetch()}>
-            <Text style={{ color: T.accent, fontWeight: '700' }}>Reintentar</Text>
+            <Text style={{ color: T.accent, fontWeight: '700' }}>{t('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -62,7 +64,7 @@ export default function CoachAppointments() {
           ListEmptyComponent={
             <View style={s.center}>
               <Text style={{ fontSize: 40, marginBottom: 12 }}>📅</Text>
-              <Text style={{ color: T.textMuted, fontSize: 15 }}>Sin citas asignadas</Text>
+              <Text style={{ color: T.textMuted, fontSize: 15 }}>{t('coach.appointments.emptyState')}</Text>
             </View>
           }
           renderItem={({ item }: { item: Appointment }) => (
@@ -73,9 +75,9 @@ export default function CoachAppointments() {
               <View style={{ flex: 1 }}>
                 <Text style={[s.aptTitle, { color: T.text }]}>{item.title}</Text>
                 <Text style={[s.aptMeta, { color: T.textSecondary }]}>
-                  {item.client_name ?? 'Cliente'}
+                  {item.client_name ?? t('coach.appointments.defaultClientName')}
                 </Text>
-                <Text style={[s.aptTime, { color: T.textMuted }]}>{formatDateTime(item.start_time)}</Text>
+                <Text style={[s.aptTime, { color: T.textMuted }]}>{formatDateTime(item.start_time, t)}</Text>
               </View>
               <StatusBadge status={item.status} size="sm" />
             </View>

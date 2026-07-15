@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/auth.store';
 import { useTheme } from '@/hooks/useTheme';
 import { AppointmentCard } from '@/components/client/AppointmentCard';
@@ -20,21 +21,15 @@ import { useClientVideos } from '@/hooks/useVideos';
 import { useProgressStore } from '@/store/progress.store';
 import type { Appointment } from '@/types/appointments';
 
-// i18n-ready greeting strings — replace values with t() calls when i18n is wired up
-const GREETINGS = {
-  morning: 'Buenos días',
-  afternoon: 'Buenas tardes',
-  evening: 'Buenas noches',
-} as const;
-
-function getGreeting() {
+function getGreeting(t: (key: string) => string) {
   const h = new Date().getHours();
-  if (h < 12) return GREETINGS.morning;
-  if (h < 18) return GREETINGS.afternoon;
-  return GREETINGS.evening;
+  if (h < 12) return t('client.inicio.greeting.morning');
+  if (h < 18) return t('client.inicio.greeting.afternoon');
+  return t('client.inicio.greeting.evening');
 }
 
 export default function ClientHome() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuthStore();
   const T = useTheme();
@@ -78,7 +73,7 @@ export default function ClientHome() {
       new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
     )[0] ?? null;
 
-  const name = user?.full_name ?? 'Cliente';
+  const name = user?.full_name ?? t('client.inicio.defaultName');
   const firstName = name.split(' ')[0];
   const initials = name.split(' ').map((n: string) => n[0]).slice(0, 2).join('');
   const totalCompleted = clientRoutines.reduce((s, r) => s + r.completedCount, 0);
@@ -97,7 +92,7 @@ export default function ClientHome() {
         fetchMySubscription(user.id, user.tenant_id),
       ]);
     } catch {
-      Alert.alert('Error', 'No se pudo actualizar la información. Intenta de nuevo.');
+      Alert.alert(t('common.error'), t('client.inicio.refreshError'));
     } finally {
       setRefreshing(false);
     }
@@ -116,11 +111,11 @@ export default function ClientHome() {
         {/* Header */}
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20 }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 14, color: T.textSecondary, fontWeight: '500' }}>{getGreeting()},</Text>
+            <Text style={{ fontSize: 14, color: T.textSecondary, fontWeight: '500' }}>{getGreeting(t)},</Text>
             <Text style={{ fontSize: 26, fontWeight: '800', color: T.text, marginBottom: 4 }}>{firstName} 👋</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text style={{ fontSize: 14 }}>🔥</Text>
-              <Text style={{ fontSize: 13, color: T.orange, fontWeight: '600' }}>{routineStreak?.currentStreak ?? 0} días seguidos</Text>
+              <Text style={{ fontSize: 13, color: T.orange, fontWeight: '600' }}>{t('client.inicio.streakDays', { count: routineStreak?.currentStreak ?? 0 })}</Text>
             </View>
           </View>
           <View style={{
@@ -149,7 +144,7 @@ export default function ClientHome() {
 
         {/* Daily summary */}
         <View style={{ marginBottom: 24 }}>
-          <Text style={{ fontSize: 17, fontWeight: '700', color: T.text, marginBottom: 12 }}>Resumen de hoy</Text>
+          <Text style={{ fontSize: 17, fontWeight: '700', color: T.text, marginBottom: 12 }}>{t('client.inicio.summary.title')}</Text>
           {progressLoading || isLoadingClient ? (
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ flex: 1, height: 110, borderRadius: 14, borderWidth: 1, borderColor: T.border, backgroundColor: T.bgCard }} />
@@ -158,16 +153,16 @@ export default function ClientHome() {
           ) : (
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <SummaryItem
-                icon="💪" label="Rutina"
+                icon="💪" label={t('client.inicio.summary.routineLabel')}
                 value={`${totalCompleted}/${totalExercises}`}
-                sub="ejercicios hoy" color={T.accent} progress={routineProgress}
+                sub={t('client.inicio.summary.exercisesToday')} color={T.accent} progress={routineProgress}
                 bg={T.card} border={T.border} textColor={T.text} mutedColor={T.textSecondary}
                 onPress={() => router.push('/(client)/routine')}
               />
               <SummaryItem
-                icon="📊" label="Progreso"
+                icon="📊" label={t('client.inicio.summary.progressLabel')}
                 value={`${routineStreak?.currentStreak ?? 0}`}
-                sub="días seguidos" color={T.orange} progress={Math.min((routineStreak?.currentStreak ?? 0) * 10, 100)}
+                sub={t('client.inicio.summary.daysStreak')} color={T.orange} progress={Math.min((routineStreak?.currentStreak ?? 0) * 10, 100)}
                 bg={T.card} border={T.border} textColor={T.text} mutedColor={T.textSecondary}
                 onPress={() => router.push('/(client)/progress')}
               />
@@ -177,7 +172,7 @@ export default function ClientHome() {
 
         {/* Next appointment — real data */}
         <View style={{ marginBottom: 24 }}>
-          <SectionHeader title="Próxima cita" actionLabel="Ver todas" onAction={() => router.push('/(client)/client-appointments')} />
+          <SectionHeader title={t('dashboard.client.nextAppointment')} actionLabel={t('client.inicio.appointments.seeAll')} onAction={() => router.push('/(client)/client-appointments')} />
           {isLoadingAppts ? (
             <View style={{ height: 80, borderRadius: 12, borderWidth: 1, borderColor: T.border, backgroundColor: T.bgCard }} />
           ) : nextAppointment ? (
@@ -199,12 +194,12 @@ export default function ClientHome() {
               borderColor: T.border, backgroundColor: T.bgCard, alignItems: 'center', gap: 8,
             }}>
               <Text style={{ fontSize: 24 }}>📅</Text>
-              <Text style={{ color: T.textMuted, fontSize: 14 }}>Sin citas próximas programadas</Text>
+              <Text style={{ color: T.textMuted, fontSize: 14 }}>{t('client.inicio.appointments.empty')}</Text>
               <TouchableOpacity
                 onPress={() => router.push('/(client)/client-appointments')}
                 style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, backgroundColor: T.accent + '22', borderWidth: 1, borderColor: T.accent + '44' }}
               >
-                <Text style={{ color: T.accent, fontSize: 13, fontWeight: '600' }}>Ver agenda →</Text>
+                <Text style={{ color: T.accent, fontSize: 13, fontWeight: '600' }}>{t('client.inicio.appointments.viewSchedule')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -212,22 +207,22 @@ export default function ClientHome() {
 
         {/* Quick actions */}
         <View style={{ marginBottom: 24 }}>
-          <SectionHeader title="Acciones rápidas" />
+          <SectionHeader title={t('client.inicio.quickActions.title')} />
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-            <QuickActionButton icon="📷" label="Check-in" onPress={() => router.push('/(client)/checkin-scan')} accent={T.green} />
-            <QuickActionButton icon="💪" label="Rutina" onPress={() => router.push('/(client)/routine')} accent={T.accent} />
-            <QuickActionButton icon="🥗" label="Nutrición" onPress={() => router.push('/(client)/nutrition')} accent={T.green} />
-            <QuickActionButton icon="📊" label="Progreso" onPress={() => router.push('/(client)/progress')} accent={T.orange} />
-            <QuickActionButton icon="🎬" label="Videos" onPress={() => router.push('/(client)/videos')} accent={T.blue} />
+            <QuickActionButton icon="📷" label={t('client.inicio.quickActions.checkin')} onPress={() => router.push('/(client)/checkin-scan')} accent={T.green} />
+            <QuickActionButton icon="💪" label={t('client.inicio.quickActions.routine')} onPress={() => router.push('/(client)/routine')} accent={T.accent} />
+            <QuickActionButton icon="🥗" label={t('client.inicio.quickActions.nutrition')} onPress={() => router.push('/(client)/nutrition')} accent={T.green} />
+            <QuickActionButton icon="📊" label={t('client.inicio.quickActions.progress')} onPress={() => router.push('/(client)/progress')} accent={T.orange} />
+            <QuickActionButton icon="🎬" label={t('client.inicio.quickActions.videos')} onPress={() => router.push('/(client)/videos')} accent={T.blue} />
           </View>
         </View>
 
         {/* Featured videos — real data */}
         <View style={{ marginBottom: 24 }}>
           <SectionHeader
-            title="Videos para ti"
-            subtitle="Contenido asignado por tu coach"
-            actionLabel="Ver todos"
+            title={t('client.inicio.videos.title')}
+            subtitle={t('client.inicio.videos.subtitle')}
+            actionLabel={t('common.seeAll')}
             onAction={() => router.push('/(client)/videos')}
           />
           {(featuredVideos.length > 0 || assignedVideos.length > 0) ? (
@@ -243,12 +238,12 @@ export default function ClientHome() {
           ) : (
             <View style={{ padding: 20, borderRadius: 12, borderWidth: 1, borderColor: T.border, backgroundColor: T.bgCard, alignItems: 'center', gap: 8 }}>
               <Text style={{ fontSize: 24 }}>🎬</Text>
-              <Text style={{ color: T.textMuted, fontSize: 14, textAlign: 'center' }}>Tu coach aún no ha asignado videos</Text>
+              <Text style={{ color: T.textMuted, fontSize: 14, textAlign: 'center' }}>{t('client.inicio.videos.empty')}</Text>
               <TouchableOpacity
                 onPress={() => router.push('/(client)/videos')}
                 style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, backgroundColor: T.blue + '22', borderWidth: 1, borderColor: T.blue + '44' }}
               >
-                <Text style={{ color: T.blue, fontSize: 13, fontWeight: '600' }}>Explorar biblioteca →</Text>
+                <Text style={{ color: T.blue, fontSize: 13, fontWeight: '600' }}>{t('client.inicio.videos.exploreLibrary')}</Text>
               </TouchableOpacity>
             </View>
           )}

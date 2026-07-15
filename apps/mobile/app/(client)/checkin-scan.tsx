@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/auth.store';
 import { supabase } from '@/lib/supabase';
@@ -21,6 +22,7 @@ interface CheckinData {
 }
 
 export default function CheckinScanScreen() {
+  const { t } = useTranslation();
   const T = useTheme();
   const router = useRouter();
   const { user } = useAuthStore();
@@ -43,13 +45,13 @@ export default function CheckinScanScreen() {
       branchId = url.searchParams.get('branch');
     } catch {
       setStatus('error');
-      setMessage('QR no reconocido. Escanea el código QR oficial del gimnasio.');
+      setMessage(t('client.checkinScan.errors.qrNotRecognized'));
       return;
     }
 
     if (!branchId || !user?.id || !user?.tenant_id) {
       setStatus('error');
-      setMessage('QR inválido. Intenta de nuevo.');
+      setMessage(t('client.checkinScan.errors.qrInvalid'));
       return;
     }
 
@@ -62,7 +64,7 @@ export default function CheckinScanScreen() {
 
       if (error) {
         setStatus('error');
-        setMessage(error.message ?? 'No se pudo registrar el check-in.');
+        setMessage(error.message ?? t('client.checkinScan.errors.checkinFailed'));
         return;
       }
 
@@ -75,11 +77,11 @@ export default function CheckinScanScreen() {
         setStatus('success');
       } else {
         setStatus('error');
-        setMessage('No se pudo registrar el check-in.');
+        setMessage(t('client.checkinScan.errors.checkinFailed'));
       }
     } catch {
       setStatus('error');
-      setMessage('Error de conexión. Verifica tu internet e intenta de nuevo.');
+      setMessage(t('client.checkinScan.errors.connectionError'));
     }
   };
 
@@ -105,15 +107,15 @@ export default function CheckinScanScreen() {
       <SafeAreaView style={[styles.center, { backgroundColor: T.bg }]}>
         <StatusBar barStyle="light-content" backgroundColor={T.bg} />
         <Text style={{ fontSize: 52, marginBottom: 20 }}>📷</Text>
-        <Text style={[styles.title, { color: T.text }]}>Permiso de cámara</Text>
+        <Text style={[styles.title, { color: T.text }]}>{t('client.checkinScan.permission.title')}</Text>
         <Text style={[styles.subtitle, { color: T.textSecondary }]}>
-          Necesitamos acceso a tu cámara para escanear el código QR del gimnasio.
+          {t('client.checkinScan.permission.message')}
         </Text>
         <TouchableOpacity onPress={requestPermission} style={[styles.btn, { backgroundColor: T.accent }]}>
-          <Text style={styles.btnText}>Dar permiso</Text>
+          <Text style={styles.btnText}>{t('client.checkinScan.permission.grant')}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 14 }}>
-          <Text style={{ color: T.textMuted, fontSize: 14 }}>Volver</Text>
+          <Text style={{ color: T.textMuted, fontSize: 14 }}>{t('client.checkinScan.actions.goBack')}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -139,7 +141,7 @@ export default function CheckinScanScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
             <Text style={{ color: '#fff', fontSize: 22, fontWeight: '600' }}>←</Text>
           </TouchableOpacity>
-          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Check-in presencial</Text>
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>{t('client.checkinScan.header.title')}</Text>
           <View style={{ width: 44 }} />
         </View>
 
@@ -158,7 +160,7 @@ export default function CheckinScanScreen() {
               }} />
             </View>
             <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14, marginTop: 20, textAlign: 'center' }}>
-              Apunta hacia el código QR del gimnasio
+              {t('client.checkinScan.scanning.hint')}
             </Text>
           </View>
         )}
@@ -167,7 +169,7 @@ export default function CheckinScanScreen() {
         {status === 'loading' && (
           <View style={[styles.resultBox, { backgroundColor: T.bg + 'F0' }]}>
             <ActivityIndicator size="large" color={T.accent} style={{ marginBottom: 16 }} />
-            <Text style={{ color: T.text, fontSize: 16, fontWeight: '600' }}>Registrando check-in...</Text>
+            <Text style={{ color: T.text, fontSize: 16, fontWeight: '600' }}>{t('client.checkinScan.loading.title')}</Text>
           </View>
         )}
 
@@ -175,7 +177,7 @@ export default function CheckinScanScreen() {
         {status === 'success' && (
           <View style={[styles.resultBox, { backgroundColor: T.bg + 'F0' }]}>
             <Text style={{ fontSize: 64, marginBottom: 12 }}>🎉</Text>
-            <Text style={[styles.title, { color: T.text }]}>¡Check-in registrado!</Text>
+            <Text style={[styles.title, { color: T.text }]}>{t('client.checkinScan.success.title')}</Text>
             {checkinData?.xp_earned ? (
               <View style={[styles.xpBadge, { backgroundColor: T.accent + '25', borderColor: T.accent + '55' }]}>
                 <Text style={{ fontSize: 22, fontWeight: '900', color: T.accent }}>+{checkinData.xp_earned}</Text>
@@ -184,7 +186,7 @@ export default function CheckinScanScreen() {
             ) : null}
             {checkinData?.new_streak ? (
               <Text style={{ color: T.orange, fontSize: 15, fontWeight: '700', marginBottom: 4 }}>
-                🔥 {checkinData.new_streak} {checkinData.new_streak === 1 ? 'día' : 'días'} de racha
+                🔥 {t('client.checkinScan.success.streak', { count: checkinData.new_streak })}
               </Text>
             ) : null}
             {checkinData?.new_badges?.length ? (
@@ -193,7 +195,7 @@ export default function CheckinScanScreen() {
               </Text>
             ) : null}
             <TouchableOpacity onPress={() => router.back()} style={[styles.btn, { backgroundColor: T.accent, marginTop: 20 }]}>
-              <Text style={styles.btnText}>Volver al inicio</Text>
+              <Text style={styles.btnText}>{t('client.checkinScan.success.backHome')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -202,17 +204,17 @@ export default function CheckinScanScreen() {
         {status === 'already' && (
           <View style={[styles.resultBox, { backgroundColor: T.bg + 'F0' }]}>
             <Text style={{ fontSize: 56, marginBottom: 12 }}>✓</Text>
-            <Text style={[styles.title, { color: T.text }]}>Ya hiciste check-in hoy</Text>
+            <Text style={[styles.title, { color: T.text }]}>{t('client.checkinScan.already.title')}</Text>
             <Text style={[styles.subtitle, { color: T.textSecondary }]}>
-              Tu asistencia de hoy ya fue registrada.
+              {t('client.checkinScan.already.message')}
             </Text>
             {checkinData?.new_streak ? (
               <Text style={{ color: T.orange, fontSize: 15, fontWeight: '700', marginTop: 8 }}>
-                🔥 {checkinData.new_streak} días de racha
+                🔥 {t('client.checkinScan.already.streak', { count: checkinData.new_streak })}
               </Text>
             ) : null}
             <TouchableOpacity onPress={() => router.back()} style={[styles.btn, { backgroundColor: T.green, marginTop: 20 }]}>
-              <Text style={styles.btnText}>Volver</Text>
+              <Text style={styles.btnText}>{t('client.checkinScan.actions.goBack')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -221,13 +223,13 @@ export default function CheckinScanScreen() {
         {status === 'error' && (
           <View style={[styles.resultBox, { backgroundColor: T.bg + 'F0' }]}>
             <Text style={{ fontSize: 56, marginBottom: 12 }}>❌</Text>
-            <Text style={[styles.title, { color: T.text }]}>Error al registrar</Text>
+            <Text style={[styles.title, { color: T.text }]}>{t('client.checkinScan.error.title')}</Text>
             <Text style={[styles.subtitle, { color: T.textSecondary }]}>{message}</Text>
             <TouchableOpacity onPress={retry} style={[styles.btn, { backgroundColor: T.accent, marginTop: 20 }]}>
-              <Text style={styles.btnText}>Intentar de nuevo</Text>
+              <Text style={styles.btnText}>{t('client.checkinScan.error.retry')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 14 }}>
-              <Text style={{ color: T.textMuted, fontSize: 14 }}>Cancelar</Text>
+              <Text style={{ color: T.textMuted, fontSize: 14 }}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -236,7 +238,7 @@ export default function CheckinScanScreen() {
         {status === 'scanning' && (
           <View style={{ paddingBottom: 28, alignItems: 'center', paddingHorizontal: 24 }}>
             <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, textAlign: 'center' }}>
-              El código QR está en la pantalla de la entrada del gimnasio
+              {t('client.checkinScan.scanning.bottomHint')}
             </Text>
           </View>
         )}

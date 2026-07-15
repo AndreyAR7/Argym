@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { usePlansStore } from '@/store/plans.store';
 import { useAuthStore } from '@/store/auth.store';
@@ -17,9 +18,9 @@ import { getOfferPlans } from '@/services/offers.service';
 import type { Plan, Promotion } from '@/store/plans.store';
 
 const LEVEL_LABEL: Record<string, string> = {
-  beginner:     'Principiante',
-  intermediate: 'Intermedio',
-  advanced:     'Avanzado',
+  beginner:     'client.plans.level.beginner',
+  intermediate: 'client.plans.level.intermediate',
+  advanced:     'client.plans.level.advanced',
 };
 
 function isPromoLive(p: Promotion): boolean {
@@ -32,6 +33,7 @@ function isPromoLive(p: Promotion): boolean {
 }
 
 export default function ClientPlansScreen() {
+  const { t } = useTranslation();
   const T = useTheme();
   const { user } = useAuthStore();
   const {
@@ -79,14 +81,14 @@ export default function ClientPlansScreen() {
   );
 
   const handlePaymentConfirm = async (plan: Plan, promoId?: string) => {
-    if (!user) throw new Error('Usuario no autenticado');
+    if (!user) throw new Error(t('client.plans.errors.notAuthenticated'));
 
     const { data: { session: authSession } } = await supabase.auth.getSession();
     const token = authSession?.access_token;
-    if (!token) throw new Error('No autenticado');
+    if (!token) throw new Error(t('client.plans.errors.notAuthenticatedShort'));
 
     const siteUrl = process.env.EXPO_PUBLIC_SITE_URL;
-    if (!siteUrl) throw new Error('EXPO_PUBLIC_SITE_URL no configurado');
+    if (!siteUrl) throw new Error(t('client.plans.errors.siteUrlMissing'));
 
     const res = await fetch(`${siteUrl}/api/stripe/checkout`, {
       method: 'POST',
@@ -99,7 +101,7 @@ export default function ClientPlansScreen() {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error ?? `Error ${res.status}`);
+      throw new Error(err.error ?? t('client.plans.errors.httpError', { status: res.status }));
     }
 
     const { url } = await res.json();
@@ -117,7 +119,7 @@ export default function ClientPlansScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <ClientTopBar title="Ofertas" />
+      <ClientTopBar title={t('client.plans.title')} />
 
       {isLoadingPromos ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -130,14 +132,14 @@ export default function ClientPlansScreen() {
           contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
           ListHeaderComponent={
             <View style={{ marginBottom: 12 }}>
-              <Text style={[styles.pageTitle, { color: T.text }]}>Ofertas disponibles</Text>
+              <Text style={[styles.pageTitle, { color: T.text }]}>{t('client.plans.availableOffers')}</Text>
               {myLevel ? (
                 <Text style={[styles.pageSubtitle, { color: T.textSecondary }]}>
-                  {LEVEL_LABEL[myLevel]} · {visibleOffers.length} oferta{visibleOffers.length !== 1 ? 's' : ''} activa{visibleOffers.length !== 1 ? 's' : ''}
+                  {t(LEVEL_LABEL[myLevel])} · {t('client.plans.activeOffersCount', { count: visibleOffers.length })}
                 </Text>
               ) : (
                 <Text style={[styles.pageSubtitle, { color: T.textSecondary }]}>
-                  {visibleOffers.length} oferta{visibleOffers.length !== 1 ? 's' : ''} activa{visibleOffers.length !== 1 ? 's' : ''}
+                  {t('client.plans.activeOffersCount', { count: visibleOffers.length })}
                 </Text>
               )}
             </View>
@@ -145,9 +147,9 @@ export default function ClientPlansScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={{ fontSize: 40, marginBottom: 12 }}>🎯</Text>
-              <Text style={[styles.emptyTitle, { color: T.text }]}>Sin ofertas disponibles</Text>
+              <Text style={[styles.emptyTitle, { color: T.text }]}>{t('client.plans.empty.title')}</Text>
               <Text style={[styles.emptyText, { color: T.textMuted }]}>
-                No hay ofertas activas en este momento.{'\n'}Vuelve pronto para nuevas novedades.
+                {t('client.plans.empty.message')}
               </Text>
             </View>
           }
@@ -189,7 +191,7 @@ export default function ClientPlansScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.plansLabel, { color: T.textMuted }]}>PLANES DISPONIBLES</Text>
+            <Text style={[styles.plansLabel, { color: T.textMuted }]}>{t('client.plans.availablePlans')}</Text>
 
             {offerPlansLoading ? (
               <View style={{ paddingVertical: 40, alignItems: 'center' }}>
@@ -197,7 +199,7 @@ export default function ClientPlansScreen() {
               </View>
             ) : offerPlans.length === 0 ? (
               <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-                <Text style={{ color: T.textMuted, fontSize: 14 }}>No hay planes configurados para esta oferta.</Text>
+                <Text style={{ color: T.textMuted, fontSize: 14 }}>{t('client.plans.noPlansForOffer')}</Text>
               </View>
             ) : (
               <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>

@@ -1,7 +1,31 @@
 {
   "auth": {
     "login": "Iniciar sesión",
-    "register": "Registrarse",
+    "register": {
+      "title": "Crear cuenta",
+      "subtitle": "Tu cuenta será revisada por un administrador",
+      "fullNamePlaceholder": "Juan Pérez",
+      "branchLabel": "Sucursal / Gimnasio",
+      "branchSearchPlaceholder": "Buscar gimnasio...",
+      "noBranchesFound": "No se encontraron sucursales",
+      "branchSelected": "{{name}} seleccionado",
+      "passwordPlaceholder": "Mínimo 6 caracteres",
+      "confirmPasswordPlaceholder": "Repite tu contraseña",
+      "showPassword": "Ver",
+      "hidePassword": "Ocultar",
+      "selectBranch": "Selecciona tu sucursal de la lista",
+      "successTitle": "¡Registro exitoso!",
+      "successMessage": "Tu cuenta fue creada. Un administrador revisará tu solicitud y te asignará un rol para que puedas acceder al sistema.",
+      "goToLogin": "Ir al inicio de sesión",
+      "alreadyHaveAccount": "¿Ya tienes cuenta?",
+      "errors": {
+        "emailAlreadyRegistered": "Este correo ya tiene una cuenta. Intenta iniciar sesión.",
+        "passwordRequirements": "La contraseña no cumple los requisitos mínimos.",
+        "invalidEmail": "El correo electrónico no es válido.",
+        "generic": "No se pudo completar el registro. Intenta de nuevo más tarde.",
+        "unexpected": "Ocurrió un error inesperado. Intenta de nuevo."
+      }
+    },
     "logout": "Cerrar sesión",
     "email": "Correo electrónico",
     "password": "Contraseña",
@@ -29,6 +53,14 @@
       "invalidEmail": "Ingrese un correo válido",
       "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
       "passwordsDoNotMatch": "Las contraseñas no coinciden"
+    },
+    "pendingApproval": {
+      "deniedTitle": "Acceso denegado",
+      "pendingTitle": "Cuenta pendiente de aprobación",
+      "rejectedDescription": "Tu solicitud de acceso fue rechazada por el administrador.",
+      "pendingDescription": "Tu cuenta fue creada exitosamente. Un administrador debe asignarte un rol antes de que puedas acceder al sistema.",
+      "reasonLabel": "Motivo:",
+      "pendingInfo": "Recibirás acceso una vez que el administrador apruebe tu cuenta y te asigne un rol."
     }
   },
   "dashboard": {
@@ -115,18 +147,54 @@
       "noDataMessage": "Ingresa al menos una medida para guardar."
     },
     "steps": {
-      "weight_kg":    { "label": "Peso",           "tip": "Párate en la báscula sin zapatos, en ayunas si es posible" },
-      "height_cm":    { "label": "Estatura",        "tip": "Párate erguido contra la pared, sin zapatos" },
-      "body_fat_pct": { "label": "% Grasa corporal","tip": "Ingrésalo de tu báscula inteligente o medidor de grasa corporal" },
-      "neck_cm":      { "label": "Cuello",          "tip": "Mide justo debajo de la laringe (nuez de Adán), cinta horizontal" },
-      "shoulder_cm":  { "label": "Hombros",         "tip": "Mide el punto más ancho de hombro a hombro, brazos relajados" },
-      "chest_cm":     { "label": "Pecho",           "tip": "Mide a la altura de las axilas, exhalando suavemente" },
-      "waist_cm":     { "label": "Cintura",         "tip": "Mide la parte más estrecha del torso, entre costillas y cadera" },
-      "abdomen_cm":   { "label": "Abdomen",         "tip": "Mide a nivel del ombligo, sin meter la barriga" },
-      "hip_cm":       { "label": "Cadera",          "tip": "Mide el punto más ancho de la cadera y glúteos" },
-      "arm_cm":       { "label": "Brazo (bíceps)",  "tip": "Bíceps contraído, a la mitad entre hombro y codo" },
-      "thigh_cm":     { "label": "Muslo",           "tip": "A la mitad del muslo, de pie, peso distribuido en ambas piernas" },
-      "calf_cm":      { "label": "Pantorrilla",     "tip": "En el punto más ancho de la pantorrilla, de pie" }
+      "weight_kg": {
+        "label": "Peso",
+        "tip": "Párate en la báscula sin zapatos, en ayunas si es posible"
+      },
+      "height_cm": {
+        "label": "Estatura",
+        "tip": "Párate erguido contra la pared, sin zapatos"
+      },
+      "body_fat_pct": {
+        "label": "% Grasa corporal",
+        "tip": "Ingrésalo de tu báscula inteligente o medidor de grasa corporal"
+      },
+      "neck_cm": {
+        "label": "Cuello",
+        "tip": "Mide justo debajo de la laringe (nuez de Adán), cinta horizontal"
+      },
+      "shoulder_cm": {
+        "label": "Hombros",
+        "tip": "Mide el punto más ancho de hombro a hombro, brazos relajados"
+      },
+      "chest_cm": {
+        "label": "Pecho",
+        "tip": "Mide a la altura de las axilas, exhalando suavemente"
+      },
+      "waist_cm": {
+        "label": "Cintura",
+        "tip": "Mide la parte más estrecha del torso, entre costillas y cadera"
+      },
+      "abdomen_cm": {
+        "label": "Abdomen",
+        "tip": "Mide a nivel del ombligo, sin meter la barriga"
+      },
+      "hip_cm": {
+        "label": "Cadera",
+        "tip": "Mide el punto más ancho de la cadera y glúteos"
+      },
+      "arm_cm": {
+        "label": "Brazo (bíceps)",
+        "tip": "Bíceps contraído, a la mitad entre hombro y codo"
+      },
+      "thigh_cm": {
+        "label": "Muslo",
+        "tip": "A la mitad del muslo, de pie, peso distribuido en ambas piernas"
+      },
+      "calf_cm": {
+        "label": "Pantorrilla",
+        "tip": "En el punto más ancho de la pantorrilla, de pie"
+      }
     },
     "labels": {
       "weight": "Peso",
@@ -147,6 +215,1420 @@
       "kg": "kg",
       "cm": "cm",
       "pct": "%"
+    }
+  },
+  "admin": {
+    "content": {
+      "title": "Contenido",
+      "subtitle": "Rutinas · Nutrición · Videos",
+      "newAction": "+ Nuevo",
+      "all": "Todos",
+      "assign": "Asignar",
+      "assigning": "Asignando...",
+      "assignToClient": "Asignar a cliente",
+      "publish": "Publicar",
+      "archive": "Archivar",
+      "saving": "Guardando...",
+      "change": "Cambiar",
+      "choose": "Elegir",
+      "deleteConfirmMessage": "¿Eliminar \"{{name}}\"?",
+      "tabs": {
+        "routines": "Rutinas",
+        "nutrition": "Nutrición",
+        "videos": "Videos"
+      },
+      "levels": {
+        "beginner": "Principiante",
+        "intermediate": "Intermedio",
+        "advanced": "Avanzado"
+      },
+      "plans": {
+        "basic": "Básico",
+        "medium": "Medio",
+        "premium": "Premium"
+      },
+      "fields": {
+        "nameRequired": "Nombre *",
+        "titleRequired": "Título *",
+        "description": "Descripción",
+        "descriptionPlaceholderShort": "Descripción...",
+        "allowedPlans": "Planes con acceso (vacío = todos)",
+        "allowedLevels": "Niveles con acceso (vacío = todos)"
+      },
+      "errors": {
+        "nameRequired": "El nombre es requerido.",
+        "titleRequired": "El título es requerido."
+      },
+      "clientPicker": {
+        "loading": "Cargando clientes...",
+        "loadError": "Error al cargar clientes.",
+        "searchPlaceholder": "Buscar por nombre...",
+        "noSearchResults": "Sin resultados para tu búsqueda.",
+        "noClientsInLevel": "Sin clientes en este nivel."
+      },
+      "routines": {
+        "editTitle": "Editar rutina",
+        "newTitle": "Nueva rutina",
+        "namePlaceholder": "Ej: Fuerza — Tren Superior",
+        "descriptionPlaceholder": "Descripción de la rutina...",
+        "levelLabel": "Nivel de rutina",
+        "allowedPlanLabel": "Plan con acceso (vacío = todos)",
+        "reusableTemplate": "Plantilla reutilizable",
+        "assignTitle": "Asignar rutina",
+        "assignedSuccess": "Rutina asignada correctamente",
+        "addExercise": "Agregar ejercicio",
+        "itemLabel": "Rutina",
+        "deleted": "Rutina eliminada",
+        "exerciseCount": "{{count}} ejercicios",
+        "templateTag": "Plantilla",
+        "emptyStateLine1": "No hay rutinas.",
+        "emptyStateLine2": "Toca \"+ Nuevo\" para crear la primera."
+      },
+      "exercises": {
+        "editTitle": "Editar ejercicio",
+        "newTitle": "Nuevo ejercicio",
+        "namePlaceholder": "Ej: Press de Banca",
+        "muscleLabel": "Músculo",
+        "setsLabel": "Series",
+        "repsLabel": "Reps",
+        "restLabel": "Descanso (s)",
+        "notesLabel": "Notas",
+        "notesPlaceholder": "Instrucciones opcionales...",
+        "demoVideoLabel": "Video de demostración",
+        "demoReadyToSave": "Video listo para guardar",
+        "demoSaved": "Video guardado ✓",
+        "demoWillUpload": "Se subirá al guardar el ejercicio",
+        "demoVisibleToClients": "Los clientes podrán verlo en su rutina",
+        "gallery": "Galería",
+        "record": "Grabar",
+        "uploadingDemo": "Subiendo video demo...",
+        "uploadingProgress": "Subiendo video... {{percent}}%"
+      },
+      "nutrition": {
+        "editTitle": "Editar plan",
+        "newTitle": "Nuevo plan nutricional",
+        "namePlaceholder": "Ej: Plan Proteico Fase 1",
+        "goalLabel": "Objetivo",
+        "goalPlaceholder": "Ej: Ganancia muscular",
+        "descriptionPlaceholder": "Descripción del plan...",
+        "macrosLabel": "Macros diarios",
+        "calories": "Calorías",
+        "protein": "Proteína",
+        "carbs": "Carbs",
+        "fat": "Grasa",
+        "statusLabel": "Estado",
+        "itemLabel": "Plan nutricional",
+        "assignTitle": "Asignar plan nutricional",
+        "assignedSuccess": "Plan nutricional asignado correctamente",
+        "archived": "Plan archivado",
+        "published": "Plan publicado",
+        "deleted": "Plan eliminado",
+        "emptyStateLine1": "No hay planes nutricionales.",
+        "emptyStateLine2": "Toca \"+ Nuevo\" para crear el primero."
+      },
+      "videos": {
+        "editTitle": "Editar video",
+        "newTitle": "Nuevo video",
+        "titlePlaceholder": "Título del video",
+        "titleExamplePlaceholder": "Ej: Técnica de sentadilla",
+        "descriptionPlaceholder": "Descripción breve...",
+        "levelLabel": "Nivel del video",
+        "featured": "Destacado",
+        "freeAccess": "Acceso libre",
+        "freeAccessHint": "Visible para todos sin suscripción",
+        "assignTitle": "Asignar video",
+        "byLevelMode": "Por Nivel",
+        "directUserMode": "Usuario Directo",
+        "levelModeDescription": "Elige los niveles con acceso global a este video.",
+        "levelModeHint": "Sin selección = solo clientes con asignación directa pueden verlo.",
+        "levelAccessDisabled": "Acceso por nivel desactivado",
+        "globalAccessMsg": "Acceso global: {{levels}}",
+        "saveAccess": "Guardar acceso",
+        "assignedToClient": "Video asignado al cliente",
+        "fileLabel": "Archivo de video",
+        "selectVideoPlaceholder": "Seleccionar video (MP4, MOV, WebM)",
+        "thumbnailLabel": "Miniatura (opcional)",
+        "thumbnailSelected": "Miniatura seleccionada",
+        "selectImagePlaceholder": "Seleccionar imagen (16:9)",
+        "thumbnailColorLabel": "Color de miniatura (fallback)",
+        "markFeatured": "Marcar como destacado",
+        "uploadAndPublish": "Subir y publicar",
+        "saveDraft": "Guardar borrador",
+        "titleRequiredError": "El título es obligatorio.",
+        "creatingRecord": "Creando registro...",
+        "uploadingProgress": "Subiendo video... {{percent}}%",
+        "uploadingThumbnail": "Subiendo miniatura...",
+        "publishing": "Publicando...",
+        "dontClose": "No cierres esta pantalla",
+        "published": "Video publicado",
+        "uploadErrorTitle": "Error al subir",
+        "itemLabel": "Video",
+        "viewVideo": "Ver video",
+        "archived": "Video archivado",
+        "deleted": "Video eliminado",
+        "deleteTitle": "Eliminar video",
+        "emptyStateLine1": "No hay videos aún.",
+        "emptyStateLine2": "Toca \"+ Nuevo\" para agregar el primero."
+      }
+    },
+    "clients": {
+      "levelNames": {
+        "all": "Todos",
+        "beginner": "Principiante",
+        "intermediate": "Intermedio",
+        "advanced": "Avanzado",
+        "none": "Sin nivel",
+        "pending": "Pendientes"
+      },
+      "searchPlaceholder": "Buscar cliente...",
+      "newAction": "+ Nuevo",
+      "pendingCountLabel": "{{count}} pendientes",
+      "countLabel": "{{count}} cliente",
+      "countLabel_plural": "{{count}} clientes",
+      "noPendingRequests": "No hay solicitudes pendientes",
+      "loadError": "No se pudieron cargar los clientes.",
+      "noSearchResults": "Sin resultados para \"{{query}}\"",
+      "noClientsInCategory": "No hay clientes en esta categoría",
+      "levelPicker": {
+        "title": "Nivel de {{name}}",
+        "subtitle": "Toca para asignar al instante",
+        "removeLevel": "Quitar nivel",
+        "beginnerDesc": "Comienza su camino fitness",
+        "intermediateDesc": "3–12 meses de entrenamiento",
+        "advancedDesc": "Más de un año, alta exigencia"
+      },
+      "row": {
+        "noPlan": "Sin plan",
+        "noLevelBadge": "❔ Nivel",
+        "planButton": "Plan"
+      },
+      "pending": {
+        "approveTitle": "Aprobar cliente",
+        "approveMessage": "¿Aprobar a {{name}}?",
+        "approve": "Aprobar",
+        "approveButtonLabel": "✓ Aprobar",
+        "approvedToast": "{{name}} aprobado",
+        "rejectTitle": "Rechazar",
+        "rejectMessage": "¿Rechazar a {{name}}?",
+        "reject": "Rechazar",
+        "rejectButtonLabel": "✕ Rechazar",
+        "rejectedToast": "{{name}} rechazado"
+      },
+      "edit": {
+        "nameRequired": "El nombre es requerido.",
+        "updated": "Cliente actualizado",
+        "updateFailed": "No se pudo actualizar.",
+        "deactivateTitle": "Desactivar cliente",
+        "activateTitle": "Activar cliente",
+        "confirmQuestion": "¿Confirmar?",
+        "deactivated": "Cliente desactivado",
+        "activated": "Cliente activado",
+        "title": "Editar cliente",
+        "planLabel": "💳 Plan",
+        "promoLabel": "🎁 Promo",
+        "deactivateButton": "⛔ Desactivar cliente",
+        "activateButton": "✅ Activar cliente"
+      },
+      "form": {
+        "fullNameLabel": "Nombre completo",
+        "fullNamePlaceholder": "Nombre completo",
+        "fullNameLabelRequired": "Nombre completo *",
+        "phoneLabel": "Teléfono",
+        "phonePlaceholder": "+506 8888-8888",
+        "dobLabel": "Fecha de nacimiento",
+        "dobPlaceholder": "Seleccionar fecha",
+        "levelLabel": "Nivel de fitness",
+        "emailLabel": "Email *",
+        "emailPlaceholder": "cliente@email.com",
+        "passwordLabel": "Contraseña temporal *",
+        "passwordPlaceholder": "Mínimo 6 caracteres"
+      },
+      "plan": {
+        "selectRequired": "Selecciona un plan.",
+        "infoTitle": "Info",
+        "alreadyHasPlan": "El cliente ya tiene este plan activo.",
+        "assignedToast": "Plan \"{{name}}\" asignado",
+        "assignFailed": "No se pudo asignar el plan.",
+        "title": "Gestionar planes — {{name}}",
+        "activeSectionLabel": "Planes activos",
+        "planFallback": "Plan",
+        "addNewLabel": "Agregar nuevo plan",
+        "cycleMonthly": "mes",
+        "cycleYearly": "año",
+        "cycleOneTime": "único",
+        "alreadyHasLabel": "YA TIENE",
+        "closeButton": "Cerrar",
+        "assignButton": "Asignar"
+      },
+      "create": {
+        "emailRequired": "El email es requerido.",
+        "passwordMinLength": "Contraseña mínimo 6 caracteres.",
+        "success": "Cliente creado correctamente",
+        "failed": "No se pudo crear el cliente.",
+        "title": "Nuevo cliente",
+        "submitButton": "Crear"
+      }
+    },
+    "appointments": {
+      "filters": {
+        "all": "Todas",
+        "today": "Hoy",
+        "scheduled": "Programadas",
+        "completed": "Completadas",
+        "cancelled": "Canceladas"
+      },
+      "durations": {
+        "min30": "30 min",
+        "min45": "45 min",
+        "hour1": "1 hora",
+        "hour1_30": "1h 30",
+        "hour2": "2 horas",
+        "hour3": "3 horas",
+        "hour4": "4 horas",
+        "hour5": "5 horas"
+      },
+      "subtitle": "{{count}} programadas",
+      "newAction": "+ Nueva",
+      "viewToggle": {
+        "list": "☰ Lista",
+        "calendar": "📅 Calendario"
+      },
+      "loadError": "Error al cargar citas.",
+      "emptyList": "No hay citas en esta categoría",
+      "loadMore": "Cargar más",
+      "sections": {
+        "past": "Pasadas",
+        "today": "Hoy",
+        "upcoming": "Programadas"
+      },
+      "card": {
+        "clientFallback": "Cliente"
+      },
+      "errors": {
+        "titleRequired": "Ingresa un título para la cita.",
+        "clientRequired": "Selecciona al menos un cliente.",
+        "durationRequired": "Selecciona una duración.",
+        "pastDate": "No se puede crear una cita en una fecha pasada ({{date}}).",
+        "pastTime": "La hora de inicio no puede ser anterior a las {{time}} (máximo 1 hora en el pasado).",
+        "noTenant": "No se pudo determinar el tenant actual.",
+        "createFailed": "No se pudo crear la cita."
+      },
+      "toast": {
+        "groupCreated": "Cita grupal creada con {{count}} participantes",
+        "singleCreated": "Cita creada correctamente",
+        "multipleCreated": "{{count}} citas creadas correctamente"
+      },
+      "form": {
+        "title": "Nueva cita",
+        "titleLabel": "Título",
+        "titlePlaceholder": "Ej: Sesión de fuerza",
+        "clientSearchPlaceholder": "Buscar cliente...",
+        "editArrow": "Editar →",
+        "selectArrow": "Seleccionar →",
+        "participationModeLabel": "Modalidad de participación",
+        "individualMode": "👤 Individual",
+        "groupMode": "👥 Grupal",
+        "individualModeDesc": "{{count}} citas separadas",
+        "groupModeDesc": "1 cita compartida",
+        "coachLabel": "Coach (opcional)",
+        "noCoach": "Sin coach",
+        "startLabel": "Inicio",
+        "durationLabel": "Duración",
+        "typeLabel": "Tipo de cita",
+        "inPersonType": "🏋️ Presencial",
+        "virtualType": "📹 Virtual",
+        "locationLabel": "Ubicación (opcional)",
+        "locationPlaceholder": "Ej: Sala principal, Gimnasio...",
+        "meetingUrlLabel": "Link de reunión (opcional)",
+        "meetingUrlPlaceholder": "https://meet.google.com/...",
+        "notesLabel": "Notas (opcional)",
+        "notesPlaceholder": "Instrucciones, recordatorios...",
+        "submitGroup": "Crear cita grupal ({{count}})",
+        "submitMultiple": "Crear {{count}} citas",
+        "submitSingle": "Crear cita"
+      }
+    },
+    "nutrition": {
+      "infoTitle": "Planes nutricionales",
+      "infoBody": "Los planes nutricionales se gestionan desde la sección de Contenido, en la pestaña Nutrición.",
+      "goToContent": "Ir a Contenido",
+      "summary": "Resumen",
+      "stats": {
+        "active": "Planes activos",
+        "assigned": "Asignados",
+        "drafts": "Borradores"
+      },
+      "tip": "Desde Contenido puedes crear, editar y asignar planes nutricionales a tus clientes de forma individual."
+    },
+    "videos": {
+      "title": "Videos",
+      "subtitle": "Gestión de contenido",
+      "infoTitle": "Gestiona los videos desde la sección Contenido",
+      "infoDesc": "La biblioteca de videos, rutinas y nutrición se administra en un solo lugar.",
+      "goToContent": "Ir a Contenido",
+      "summaryLabel": "RESUMEN DE VIDEOS",
+      "stats": {
+        "total": "Total",
+        "published": "Publicados",
+        "drafts": "Borradores"
+      }
+    },
+    "revenue": {
+      "title": "Ingresos",
+      "subtitle": "Análisis financiero",
+      "loadingReport": "Cargando reporte...",
+      "loadError": "No se pudo cargar el reporte",
+      "kpi": {
+        "crcLabel": "Ingresos (₡)",
+        "crcSub": "en colones",
+        "usdLabel": "Ingresos ($)",
+        "usdSub": "en dólares",
+        "newSubsLabel": "Nuevas suscrip.",
+        "thisMonth": "este mes",
+        "clientsWithPlanLabel": "Clientes con plan",
+        "activeSubsSub": "{{count}} subs activas"
+      },
+      "trend": {
+        "title": "Tendencia de ingresos",
+        "subtitle": "Últimos 6 meses"
+      },
+      "byPlan": {
+        "title": "Ingresos por plan",
+        "empty": "Sin ingresos este mes",
+        "subscriptionsAbbr": "suscrip.",
+        "subtitle": "{{month}} · {{count}} suscripción nuevas",
+        "subtitle_plural": "{{month}} · {{count}} suscripciones nuevas"
+      },
+      "topClients": {
+        "title": "Top 10 clientes",
+        "subtitle": "Por monto total pagado · planes activos",
+        "empty": "Sin clientes con planes activos",
+        "since": "desde",
+        "planCount": "{{count}} plan",
+        "planCount_plural": "{{count}} planes"
+      },
+      "summary": {
+        "title": "Resumen acumulado",
+        "subtitle": "Todas las suscripciones activas",
+        "totalClients": "Total clientes con plan activo",
+        "totalActiveSubs": "Total suscripciones activas",
+        "avgPerClient": "Promedio por cliente",
+        "plansUnit": "planes"
+      },
+      "export": {
+        "currentMonthTitle": "Exportar mes actual (.xlsx)",
+        "currentMonthDialogTitle": "Ingresos {{month}}",
+        "comparativeTitle": "Exportar comparativa multi-mes",
+        "comparativeSub": "Análisis por plan, tendencia y top clientes",
+        "comparativeDialogTitle": "Comparativa {{count}} meses",
+        "currentMonthSub": "{{count}} registro · {{month}}",
+        "currentMonthSub_plural": "{{count}} registros · {{month}}"
+      },
+      "modal": {
+        "title": "Exportar comparativa",
+        "subtitle": "Genera un Excel con 5 hojas:\nResumen · Ingresos por Plan · Suscripciones · Top Clientes · Datos Brutos",
+        "generating": "Generando comparativa de {{count}} meses..."
+      },
+      "rangeOptions": {
+        "last3Months": "Últimos 3 meses",
+        "last6Months": "Últimos 6 meses",
+        "last12Months": "Últimos 12 meses"
+      },
+      "alerts": {
+        "shareUnavailableTitle": "No disponible",
+        "shareUnavailableMsg": "Compartir no está disponible en este dispositivo.",
+        "shareFilesUnavailableMsg": "Compartir archivos no está disponible en este dispositivo.",
+        "comparativeExportError": "No se pudo generar el archivo comparativo: {{message}}",
+        "noDataTitle": "Sin datos",
+        "noDataMsg": "No hay suscripciones en este período para exportar.",
+        "excelExportError": "No se pudo generar el archivo Excel: {{message}}"
+      }
+    },
+    "coaches": {
+      "nameRequired": "El nombre es requerido.",
+      "updatedToast": "Coach actualizado",
+      "updateFailed": "No se pudo actualizar.",
+      "activateTitle": "Activar coach",
+      "deactivateTitle": "Desactivar coach",
+      "activateConfirm": "¿Deseas activar a {{name}}?",
+      "deactivateConfirm": "¿Deseas desactivar a {{name}}?",
+      "activatedToast": "Coach activado",
+      "deactivatedToast": "Coach desactivado",
+      "toggleFailed": "No se pudo cambiar el estado.",
+      "editTitle": "Editar coach",
+      "phone": "Teléfono",
+      "phonePlaceholder": "+506 8888-8888",
+      "deactivateCoach": "Desactivar coach",
+      "activateCoach": "Activar coach",
+      "approveTitle": "Aprobar coach",
+      "approveMessage": "¿Aprobar a {{name}} como coach?",
+      "approve": "Aprobar",
+      "approvedToast": "{{name}} aprobado como coach",
+      "rejectTitle": "Rechazar solicitud",
+      "rejectMessage": "¿Rechazar a {{name}}?",
+      "reject": "Rechazar",
+      "rejectedToast": "{{name}} rechazado",
+      "requestsCoach": "Solicita: coach",
+      "emailRequired": "El email es requerido.",
+      "passwordTooShort": "La contraseña debe tener al menos 6 caracteres.",
+      "createdToast": "Coach creado correctamente",
+      "createFailed": "No se pudo crear el coach.",
+      "newCoachTitle": "Nuevo coach",
+      "fullNameLabel": "Nombre completo *",
+      "emailLabel": "Email *",
+      "emailPlaceholder": "coach@email.com",
+      "tempPasswordLabel": "Contraseña temporal *",
+      "minCharsPlaceholder": "Mínimo 6 caracteres",
+      "createCoach": "Crear coach",
+      "filterActive": "Activos",
+      "filterInactive": "Inactivos",
+      "filterPending": "Pendientes",
+      "screenTitle": "Coaches",
+      "pendingCountLabel": "{{count}} pendientes",
+      "activeCountLabel": "{{count}} activos",
+      "newButton": "+ Nuevo",
+      "noPending": "No hay coaches pendientes de aprobación",
+      "searchPlaceholder": "Buscar por nombre o teléfono...",
+      "loadError": "No se pudieron cargar los coaches.",
+      "noCoaches": "No hay coaches registrados"
+    },
+    "branches": {
+      "clientCountOne": "{{count}} cliente",
+      "clientCountOther": "{{count}} clientes",
+      "coachCountOne": "{{count}} coach",
+      "coachCountOther": "{{count}} coaches",
+      "statusActive": "Activa",
+      "statusInactive": "Inactiva",
+      "viewQr": "Ver QR",
+      "viewQrMessage": "Función disponible próximamente.",
+      "addBranchTitle": "Agregar sucursal",
+      "addBranchMessage": "Disponible en la plataforma web.",
+      "understood": "Entendido",
+      "title": "Sucursales",
+      "myBranches": "Mis sucursales",
+      "branchCountOne": "{{count}} sucursal",
+      "branchCountOther": "{{count}} sucursales",
+      "noBranches": "No hay sucursales registradas",
+      "noBranchesHint": "Agrega tu primera sucursal desde la plataforma web"
+    },
+    "userApproval": {
+      "title": "Aprobación de usuarios",
+      "subtitle": "{{count}} {{status}}",
+      "tabs": {
+        "pending": "Pendientes",
+        "approved": "Aprobados",
+        "rejected": "Rechazados"
+      },
+      "subtitleStatus": {
+        "pending": "pendientes",
+        "approved": "aprobados",
+        "rejected": "rechazados"
+      },
+      "roles": {
+        "client": "Cliente",
+        "coach": "Coach",
+        "admin": "Admin"
+      },
+      "approveAllBtn": "Aprobar todos ({{count}})",
+      "assignRole": "Asignar rol:",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "approveTitle": "Aprobar usuario",
+      "approveMessage": "Asignar rol \"{{role}}\" a {{name}}?",
+      "approvedToast": "{{name}} ahora tiene acceso al sistema.",
+      "approveAllTitle": "Aprobar todos",
+      "approveAllMessage": "¿Aprobar {{count}} usuario(s) pendiente(s)? Se usará el rol seleccionado para cada uno (por defecto: Cliente).",
+      "approveCount": "Aprobar {{count}}",
+      "completedWithErrorsTitle": "Completado con errores",
+      "approvedCountToast": "{{count}} usuario(s) aprobado(s).",
+      "rejectModalTitle": "Rechazar usuario",
+      "rejectModalDesc": "¿Rechazar la solicitud de {{name}}?",
+      "rejectReasonPlaceholder": "Motivo del rechazo (opcional)",
+      "rejectedToast": "La solicitud de {{name}} fue rechazada.",
+      "noReasonSpecified": "Sin motivo especificado",
+      "registeredOn": "Registrado: {{date}}",
+      "empty": {
+        "pending": "No hay usuarios pendientes de aprobación",
+        "approved": "No hay usuarios aprobados aún",
+        "rejected": "No hay usuarios rechazados"
+      },
+      "errors": {
+        "invalidSession": "Sesión no válida",
+        "approveFailed": "No se pudo aprobar el usuario.",
+        "rejectFailed": "No se pudo rechazar el usuario."
+      }
+    },
+    "settings": {
+      "saving": "Guardando...",
+      "update": "Actualizar",
+      "understood": "Entendido",
+      "close": "Cerrar",
+      "business": "Negocio",
+      "defaultTenantName": "Mi Centro",
+      "adminBadge": "ADMINISTRADOR",
+      "adminFallbackName": "Administrador",
+      "accountSection": "Cuenta",
+      "supportSection": "Soporte",
+      "signOutConfirm": "¿Estás seguro?",
+      "exit": "Salir",
+      "profileUpdated": "Perfil actualizado",
+      "passwordUpdated": "Contraseña actualizada",
+      "personalInfo": {
+        "title": "Información personal",
+        "namePlaceholder": "Tu nombre",
+        "phoneLabel": "Teléfono",
+        "phonePlaceholder": "+506 8888-8888"
+      },
+      "changePassword": {
+        "title": "Cambiar contraseña",
+        "newPassword": "Nueva contraseña",
+        "minCharsPlaceholder": "Mínimo 6 caracteres",
+        "repeatPlaceholder": "Repite la contraseña"
+      },
+      "notifications": {
+        "title": "Notificaciones",
+        "appointmentAlerts": "Alertas de citas",
+        "newClients": "Nuevos clientes",
+        "paymentsAndSubscriptions": "Pagos y suscripciones",
+        "preferencesSaved": "Preferencias guardadas"
+      },
+      "help": {
+        "title": "Ayuda y soporte",
+        "emailSupport": "Enviar email de soporte",
+        "liveChat": "Chat en vivo",
+        "documentation": "Documentación"
+      },
+      "terms": {
+        "title": "Términos y privacidad",
+        "termsOfUseHeading": "Términos de uso",
+        "termsOfUseText": "Al usar esta plataforma como administrador aceptas los términos de servicio y las responsabilidades asociadas a la gestión de datos de clientes.",
+        "privacyPolicyHeading": "Política de privacidad",
+        "privacyPolicyText": "Como administrador eres responsable del tratamiento de datos de tus clientes conforme a la legislación vigente. La plataforma provee las herramientas técnicas necesarias.",
+        "dataManagedHeading": "Datos que gestionas",
+        "dataManagedList": "• Perfiles de clientes y coaches\n• Historial de citas y pagos\n• Contenido multimedia subido\n• Configuración del negocio"
+      },
+      "errors": {
+        "nameRequired": "El nombre es requerido.",
+        "updateFailed": "No se pudo actualizar.",
+        "passwordMinLength": "Mínimo 6 caracteres.",
+        "passwordChangeFailed": "No se pudo cambiar la contraseña."
+      }
+    },
+    "dashboard": {
+      "defaultTenantName": "Mi Centro",
+      "greeting": "Hola, {{name}} 👋",
+      "alerts": {
+        "pendingApprovals": "{{count}} usuario(s) pendiente(s) de aprobación",
+        "clientsWithoutPlan": "{{count}} cliente(s) sin plan activo",
+        "expiringSubscriptions": "{{count}} suscripción(es) vencen en 7 días",
+        "review": "Revisar",
+        "view": "Ver"
+      },
+      "metrics": {
+        "title": "Métricas del negocio",
+        "activeClients": "Clientes activos",
+        "moreThisMonth": "más este mes",
+        "lessThisMonth": "menos este mes",
+        "appointmentsToday": "Citas hoy",
+        "thisWeekCount": "{{count}} esta semana",
+        "monthlyRevenue": "Ingresos mensuales",
+        "activeSubscriptions": "suscripciones activas",
+        "activePlans": "Planes activos",
+        "activePromosCount": "{{count}} promos activas"
+      },
+      "quickActions": {
+        "title": "Acciones rápidas",
+        "clients": "Clientes",
+        "coaches": "Coaches",
+        "newAppointment": "Nueva cita",
+        "plans": "Planes",
+        "promos": "Promos",
+        "content": "Contenido"
+      },
+      "todayAppointments": {
+        "title": "Citas de hoy",
+        "empty": "No hay citas programadas para hoy",
+        "schedule": "Agendar cita →"
+      },
+      "seeAll": "Ver todas →",
+      "recentActivity": {
+        "title": "Actividad reciente",
+        "empty": "Sin actividad reciente"
+      }
+    },
+    "selectClients": {
+      "loadingTenant": "Cargando datos del tenant...",
+      "searchPlaceholder": "Buscar cliente...",
+      "loadingClients": "Cargando clientes...",
+      "loadError": "No se pudieron cargar los clientes.",
+      "noResultsFor": "Sin resultados para \"{{query}}\"",
+      "noClientsAvailable": "No hay clientes disponibles"
+    },
+    "monetization": {
+      "title": "Monetización",
+      "subtitle": "Planes · Promociones",
+      "actions": {
+        "addPlan": "+ Plan",
+        "addPromo": "+ Promo"
+      },
+      "tabs": {
+        "plans": "Planes",
+        "promotions": "Promociones"
+      },
+      "revenue": {
+        "mrr": "MRR",
+        "activePlans": "Planes activos",
+        "activePromos": "Promos activas",
+        "pendingCollection": "Por cobrar"
+      },
+      "plans": {
+        "empty": "Sin planes creados",
+        "createFirst": "Crear primer plan",
+        "moreFeatures": "+{{count}} más",
+        "editAction": "Editar plan →"
+      },
+      "billingCycle": {
+        "monthly": "mes",
+        "yearly": "año",
+        "oneTime": "único"
+      },
+      "promotions": {
+        "empty": "Sin promociones",
+        "createFirst": "Crear primera promoción",
+        "discountPercent": "{{percent}}% de descuento",
+        "discountAmount": "₡{{amount}} de descuento",
+        "expiredLabel": "Venció: ",
+        "untilLabel": "Hasta: ",
+        "noExpiration": "Sin fecha de vencimiento",
+        "editAction": "Editar promoción →"
+      }
+    },
+    "videoPlayer": {
+      "notFound": "Video no encontrado",
+      "back": "Volver",
+      "noFileAvailable": "Este video no tiene archivo disponible aún.",
+      "preparingVideo": "Preparando video...",
+      "featured": "Destacado",
+      "access": "Acceso",
+      "plansLabel": "Planes",
+      "levelsLabel": "Niveles",
+      "viewsLabel": "Vistas",
+      "all": "Todos",
+      "levels": {
+        "beginner": "Principiante",
+        "intermediate": "Intermedio",
+        "advanced": "Avanzado"
+      }
+    },
+    "notifications": {
+      "title": "Notificaciones",
+      "unreadCount": "{{count}} sin leer",
+      "allCaughtUp": "Todo al día",
+      "markAll": "Marcar todo",
+      "markRead": "Leída",
+      "empty": "Sin notificaciones",
+      "today": "Hoy",
+      "yesterday": "Ayer",
+      "daysAgo": "Hace {{count}} días"
+    },
+    "analytics": {
+      "title": "Analíticas",
+      "sectionSummary": "RESUMEN DEL MES",
+      "sectionTrends": "TENDENCIAS",
+      "kpis": {
+        "activeClients": "Clientes activos",
+        "appointmentsCompleted": "Citas realizadas",
+        "monthlyRevenue": "Ingresos del mes",
+        "retention": "Retención"
+      },
+      "banner": {
+        "title": "Analíticas detalladas disponibles en la plataforma web",
+        "description": "Accede al panel de administración web para ver gráficos interactivos, embudos de conversión y reportes avanzados."
+      },
+      "trends": {
+        "newClientsThisWeek": "Nuevos clientes esta semana",
+        "cancelledAppointments": "Citas canceladas",
+        "mostPopularPlan": "Plan más popular"
+      }
+    },
+    "profile": {
+      "title": "Mi Perfil",
+      "adminBadge": "Admin",
+      "infoSection": "Información",
+      "nameLabel": "Nombre",
+      "emailLabel": "Correo",
+      "tenantLabel": "Tenant",
+      "optionsSection": "Opciones"
+    }
+  },
+  "client": {
+    "gamification": {
+      "title": "Gamificación",
+      "loadingStats": "Cargando stats...",
+      "levelCard": {
+        "label": "NIVEL",
+        "defaultName": "Novato",
+        "xpToNextLevel": "{{xp}} XP para nivel {{level}}",
+        "levelUnlocked": "¡Nivel {{level}} desbloqueado!",
+        "maxLevel": "Nivel máximo 🏆"
+      },
+      "checkin": {
+        "alreadyTitle": "Check-in",
+        "alreadyMessage": "Ya registraste tu asistencia hoy. ¡Vuelve mañana! 💪",
+        "errorMessage": "No se pudo registrar el check-in. Intenta de nuevo.",
+        "doneTitle": "Ya hiciste check-in hoy",
+        "doneSubtitle": "Vuelve mañana para mantener tu racha 🔥",
+        "title": "CHECK IN HOY",
+        "subtitle": "Gana 50+ XP · Mantén tu racha 🔥"
+      },
+      "stats": {
+        "currentStreak": "Racha actual",
+        "totalVisits": "Total visitas",
+        "xpThisWeek": "XP esta semana",
+        "challengesWon": "Retos ganados"
+      },
+      "nav": {
+        "sectionTitle": "EXPLORAR",
+        "rankings": {
+          "title": "Rankings",
+          "subtitle": "¿Dónde estás en el ranking esta semana?"
+        },
+        "achievements": {
+          "title": "Logros",
+          "subtitle": "Colecciona insignias y desbloquea recompensas"
+        },
+        "challenges": {
+          "title": "Retos",
+          "subtitle": "Reta a otros miembros y gana XP"
+        }
+      },
+      "streak": {
+        "max": "Racha máxima: {{count}} días",
+        "startToday": "Empieza tu racha hoy con el check-in",
+        "days": "Llevas {{count}} día seguido",
+        "days_plural": "Llevas {{count}} días seguidos"
+      }
+    },
+    "challenges": {
+      "title": "Retos",
+      "filters": {
+        "active": "Activos",
+        "mine": "Mis retos",
+        "completed": "Completados"
+      },
+      "types": {
+        "global": "Global",
+        "oneVOne": "1 vs 1",
+        "group": "Grupal"
+      },
+      "status": {
+        "pending": "Invitación",
+        "accepted": "En curso",
+        "completed": "Completado",
+        "declined": "Rechazado",
+        "failed": "Fallido"
+      },
+      "countdown": {
+        "expired": "Expirado"
+      },
+      "actions": {
+        "accept": "Aceptar",
+        "reject": "Rechazar",
+        "complete": "✓ Marcar completado"
+      },
+      "toast": {
+        "xpEarned": "⚡ +{{xp}} XP ganados!"
+      },
+      "modal": {
+        "title": "Crear reto",
+        "createButton": "Crear reto",
+        "fields": {
+          "title": "Título *",
+          "description": "Descripción",
+          "type": "Tipo",
+          "opponent": "ID o nombre del retado",
+          "xpReward": "Recompensa XP"
+        },
+        "placeholders": {
+          "title": "Nombre del reto",
+          "description": "Describe el reto (opcional)",
+          "opponent": "Usuario a retar"
+        },
+        "types": {
+          "global": "🌐 Global",
+          "oneVOne": "⚔️ 1 vs 1"
+        }
+      },
+      "empty": {
+        "message": "No hay retos activos · ¡Crea el primero!",
+        "action": "+ Crear reto"
+      }
+    },
+    "progress": {
+      "title": "Mi Progreso",
+      "loadError": "Error al cargar datos: {{error}}",
+      "dayAbbr": [
+        "D",
+        "L",
+        "M",
+        "X",
+        "J",
+        "V",
+        "S"
+      ],
+      "tabs": {
+        "routines": "Rutinas",
+        "measures": "Medidas",
+        "streak": "Racha"
+      },
+      "comparison": {
+        "title": "Inicio vs Ahora"
+      },
+      "metrics": {
+        "bodyFatPctShort": "% Grasa",
+        "abdomen": "Abdomen",
+        "shoulder": "Hombros",
+        "chest": "Pecho",
+        "thigh": "Muslo",
+        "calf": "Pantorrilla"
+      },
+      "routines": {
+        "activityTitle": "Actividad últimos 7 días",
+        "activeDaysOfWeek": "{{count}} de 7 días activos",
+        "activeDaysLabel": "Días activos",
+        "last2Weeks": "últimas 2 sem.",
+        "averageLabel": "Promedio",
+        "completedLabel": "completado",
+        "currentStreakLabel": "Racha actual",
+        "consecutiveDaysLabel": "días seguidos"
+      },
+      "measures": {
+        "thisWeekRegisteredTitle": "Medición de esta semana registrada",
+        "thisWeekRange": "Semana {{start}} — {{end}}. Puedes editar los datos de esta semana.",
+        "bodyCompositionTitle": "Composición corporal",
+        "weightKgLabel": "Peso (kg)",
+        "heightCmLabel": "Estatura (cm)",
+        "compositionSectionLabel": "Composición",
+        "leanMassPct": "% Masa magra",
+        "circumferencesLabel": "Circunferencias",
+        "weightEvolutionTitle": "Evolución de peso",
+        "min": "Mín",
+        "max": "Máx",
+        "editThisWeek": "Editar medición de esta semana",
+        "registerToday": "Registrar medición de hoy",
+        "weeklyLimitNote": "Solo se permite 1 medición por semana (lun–dom). Podés editar la de esta semana en cualquier momento.",
+        "historyTitle": "Historial",
+        "fatAbbr": "grasa",
+        "emptyTitle": "Sin mediciones aún",
+        "emptyBody": "Registrá tu peso y medidas para hacer seguimiento de tu composición corporal.",
+        "abbr": {
+          "waist": "Cin",
+          "abdomen": "Abd",
+          "hip": "Cad",
+          "arm": "Bra",
+          "thigh": "Mus",
+          "calf": "Pan"
+        }
+      },
+      "streak": {
+        "daysLabel": "días de racha",
+        "bestStreakLabel": "Mejor racha",
+        "last5WeeksTitle": "Últimas 5 semanas",
+        "activeDayLegend": "Día activo",
+        "noActivityLegend": "Sin actividad",
+        "howItWorksTitle": "¿Cómo funciona la racha?",
+        "howItWorksBody": "Completa al menos un ejercicio de tu rutina cada día para mantener tu racha activa. Si un día no entrenas, la racha se reinicia.",
+        "dayLabels": [
+          "L",
+          "M",
+          "X",
+          "J",
+          "V",
+          "S",
+          "D"
+        ],
+        "msg": {
+          "start": "Empieza hoy tu racha",
+          "goodStart": "¡Buen inicio, sigue así!",
+          "goingWell": "¡Vas muy bien!",
+          "weeksInARow": "¡Semanas seguidas!",
+          "incredible": "¡Increíble constancia!",
+          "legend": "¡Leyenda del gym!"
+        }
+      }
+    },
+    "profile": {
+      "genderMale": "Hombre",
+      "genderFemale": "Mujer",
+      "genderOther": "Prefiero no indicar",
+      "nameRequired": "El nombre es requerido.",
+      "profileUpdated": "Perfil actualizado",
+      "updateFailed": "No se pudo actualizar.",
+      "personalInfoTitle": "Información personal",
+      "namePlaceholder": "Tu nombre",
+      "phone": "Teléfono",
+      "phonePlaceholder": "+506 8888-8888",
+      "dateOfBirth": "Fecha de nacimiento",
+      "selectDate": "Seleccionar fecha",
+      "gender": "Género",
+      "saving": "Guardando...",
+      "newPasswordTooShort": "La nueva contraseña debe tener al menos 6 caracteres.",
+      "passwordsDoNotMatch": "Las contraseñas no coinciden.",
+      "passwordUpdated": "Contraseña actualizada",
+      "passwordChangeFailed": "No se pudo cambiar la contraseña.",
+      "changePasswordTitle": "Cambiar contraseña",
+      "newPassword": "Nueva contraseña",
+      "minCharsPlaceholder": "Mínimo 6 caracteres",
+      "confirmNewPassword": "Confirmar contraseña",
+      "repeatPasswordPlaceholder": "Repite la contraseña",
+      "update": "Actualizar",
+      "notificationsTitle": "Notificaciones",
+      "notifAppointments": "Recordatorios de citas",
+      "notifPromos": "Promociones y ofertas",
+      "notifRoutine": "Recordatorios de rutina",
+      "preferencesSaved": "Preferencias guardadas",
+      "helpEmail": "Enviar email de soporte",
+      "helpChat": "Chat en vivo",
+      "helpCenter": "Centro de ayuda",
+      "helpTitle": "Ayuda y soporte",
+      "close": "Cerrar",
+      "termsTitle": "Términos y privacidad",
+      "termsUseSection": "Términos de uso",
+      "termsUseBody": "Al usar esta aplicación aceptas nuestros términos de servicio. El uso de la plataforma está sujeto a las políticas vigentes del proveedor del servicio.",
+      "privacyPolicySection": "Política de privacidad",
+      "privacyPolicyBody": "Recopilamos únicamente los datos necesarios para brindarte el servicio. Tu información personal no será compartida con terceros sin tu consentimiento explícito.",
+      "dataCollectedSection": "Datos que recopilamos",
+      "dataCollectedBody": "• Nombre y datos de contacto\n• Historial de citas y actividad\n• Preferencias de la aplicación\n• Datos de progreso físico que ingreses voluntariamente",
+      "contactSection": "Contacto",
+      "contactBody": "Para consultas sobre privacidad: privacidad@caro.gym",
+      "understood": "Entendido",
+      "defaultName": "Cliente",
+      "signOutTitle": "Cerrar sesión",
+      "signOutConfirm": "¿Estás seguro de que deseas salir?",
+      "signOutAction": "Salir",
+      "screenTitle": "Mi Perfil",
+      "currentPlan": "Plan actual",
+      "viewPlans": "Ver planes disponibles →",
+      "myAccount": "Mi cuenta",
+      "personalInfo": "Información personal",
+      "changePassword": "Cambiar contraseña",
+      "notifications": "Notificaciones",
+      "support": "Soporte",
+      "helpAndSupport": "Ayuda y soporte",
+      "termsAndPrivacy": "Términos y privacidad",
+      "signOut": "Cerrar sesión",
+      "versionLabel": "v1.0.0 · SaaS Client Management"
+    },
+    "routine": {
+      "setsRepsRest": "{{sets}} series × {{reps}} reps · {{rest}}s descanso",
+      "demoLabel": "Demo",
+      "exercisesCount": "{{completed}}/{{total}} ejercicios",
+      "completed": "Completado",
+      "sectionLabel": "EJERCICIOS — {{completed}} de {{total}} completados",
+      "noExercises": "Esta rutina no tiene ejercicios aún.",
+      "completedBanner": "¡Excelente! Rutina completada al 100%",
+      "updateProgressFailed": "No se pudo actualizar el progreso.",
+      "screenTitle": "Rutina",
+      "noRoutinesTitle": "Sin rutinas asignadas",
+      "noRoutinesBody": "Tu coach asignará una rutina personalizada para ti pronto.",
+      "totalProgressLabel": "Progreso total de hoy",
+      "exercisesUnit": " ejercicios"
+    },
+    "achievements": {
+      "title": "Logros",
+      "filters": {
+        "all": "Todos",
+        "earned": "Ganados",
+        "locked": "Por ganar"
+      },
+      "rarity": {
+        "common": "Común",
+        "rare": "Raro",
+        "epic": "Épico",
+        "legendary": "Legendario"
+      },
+      "goalLabel": "Meta: {{value}}",
+      "summary": {
+        "totalLabel": "/ {{count}} logros",
+        "xpLabel": "XP de logros"
+      },
+      "empty": {
+        "earned": "Aún no has ganado ningún logro",
+        "all": "No hay logros disponibles"
+      }
+    },
+    "nutrition": {
+      "ofTargetPct": "{{pct}}% del objetivo",
+      "empty": {
+        "title": "Sin plan nutricional",
+        "message": "Tu coach aún no te ha asignado un plan nutricional. Consulta con tu coach."
+      },
+      "error": "No se pudo cargar tu plan nutricional. Intenta de nuevo.",
+      "goalLabel": "Objetivo: {{goal}}",
+      "dailyCalorieTarget": "OBJETIVO CALÓRICO DIARIO",
+      "perDay": "por día",
+      "protein": "Proteína",
+      "carbsShort": "Carbos",
+      "carbs": "Carbohidratos",
+      "fat": "Grasas",
+      "macroTargets": "MACRONUTRIENTES OBJETIVO",
+      "totalMacros": "Total macros",
+      "coachNote": "Nota de tu coach",
+      "generalTips": "CONSEJOS GENERALES",
+      "tips": {
+        "hydration": "Bebe al menos 2 litros de agua al día.",
+        "mealFrequency": "Distribuye tus comidas en 4-5 tomas al día.",
+        "proteinPriority": "Prioriza proteínas en cada comida para mantener tu masa muscular.",
+        "avoidSugar": "Evita azúcares procesados y alimentos ultraprocesados."
+      }
+    },
+    "promotions": {
+      "title": "Promociones",
+      "type": {
+        "discount": "DESCUENTO",
+        "bundle": "BUNDLE",
+        "announcement": "ANUNCIO"
+      },
+      "percentOff": "{{percent}}% OFF",
+      "lastDay": "Último día",
+      "daysLeft": "{{count}} día restante",
+      "daysLeft_plural": "{{count}} días restantes",
+      "noExpiry": "Sin fecha de vencimiento",
+      "viewPlans": "Ver planes →",
+      "activeOffers": "Ofertas activas",
+      "noneActive": "Sin promociones activas",
+      "availableCount": "{{count}} promoción disponible",
+      "availableCount_plural": "{{count}} promociones disponibles",
+      "emptyDesc": "Cuando haya ofertas disponibles aparecerán aquí.",
+      "availablePlans": "PLANES DISPONIBLES",
+      "noPlansForOffer": "No hay planes configurados para esta oferta.",
+      "errors": {
+        "notAuthenticated": "Usuario no autenticado",
+        "notAuthenticatedShort": "No autenticado",
+        "siteUrlNotConfigured": "EXPO_PUBLIC_SITE_URL no configurado"
+      }
+    },
+    "appointments": {
+      "title": "Mis Citas",
+      "listView": "Lista",
+      "calendarView": "Calendario",
+      "loadError": "No se pudieron cargar las citas.",
+      "emptyTitle": "Sin citas programadas",
+      "emptyDescription": "Tu coach programará tu próxima sesión pronto.",
+      "loadMore": "Cargar más",
+      "sections": {
+        "past": "Pasadas",
+        "today": "Hoy",
+        "upcoming": "Programadas"
+      },
+      "defaultCoachName": "Coach"
+    },
+    "leaderboard": {
+      "title": "Ranking",
+      "periods": {
+        "week": "Semana",
+        "month": "Mes",
+        "all": "Total"
+      },
+      "youSuffix": "  (Tú)",
+      "levelAbbrev": "Nv {{level}}",
+      "emptyText": "Sin datos de ranking todavía",
+      "participantsCount": "{{count}} participantes"
+    },
+    "inicio": {
+      "greeting": {
+        "morning": "Buenos días",
+        "afternoon": "Buenas tardes",
+        "evening": "Buenas noches"
+      },
+      "defaultName": "Cliente",
+      "refreshError": "No se pudo actualizar la información. Intenta de nuevo.",
+      "streakDays": "{{count}} días seguidos",
+      "summary": {
+        "title": "Resumen de hoy",
+        "routineLabel": "Rutina",
+        "exercisesToday": "ejercicios hoy",
+        "progressLabel": "Progreso",
+        "daysStreak": "días seguidos"
+      },
+      "appointments": {
+        "seeAll": "Ver todas",
+        "empty": "Sin citas próximas programadas",
+        "viewSchedule": "Ver agenda →"
+      },
+      "quickActions": {
+        "title": "Acciones rápidas",
+        "checkin": "Check-in",
+        "routine": "Rutina",
+        "nutrition": "Nutrición",
+        "progress": "Progreso",
+        "videos": "Videos"
+      },
+      "videos": {
+        "title": "Videos para ti",
+        "subtitle": "Contenido asignado por tu coach",
+        "empty": "Tu coach aún no ha asignado videos",
+        "exploreLibrary": "Explorar biblioteca →"
+      }
+    },
+    "checkinScan": {
+      "errors": {
+        "qrNotRecognized": "QR no reconocido. Escanea el código QR oficial del gimnasio.",
+        "qrInvalid": "QR inválido. Intenta de nuevo.",
+        "checkinFailed": "No se pudo registrar el check-in.",
+        "connectionError": "Error de conexión. Verifica tu internet e intenta de nuevo."
+      },
+      "permission": {
+        "title": "Permiso de cámara",
+        "message": "Necesitamos acceso a tu cámara para escanear el código QR del gimnasio.",
+        "grant": "Dar permiso"
+      },
+      "actions": {
+        "goBack": "Volver"
+      },
+      "header": {
+        "title": "Check-in presencial"
+      },
+      "scanning": {
+        "hint": "Apunta hacia el código QR del gimnasio",
+        "bottomHint": "El código QR está en la pantalla de la entrada del gimnasio"
+      },
+      "loading": {
+        "title": "Registrando check-in..."
+      },
+      "success": {
+        "title": "¡Check-in registrado!",
+        "backHome": "Volver al inicio",
+        "streak": "{{count}} día de racha",
+        "streak_plural": "{{count}} días de racha"
+      },
+      "already": {
+        "title": "Ya hiciste check-in hoy",
+        "message": "Tu asistencia de hoy ya fue registrada.",
+        "streak": "{{count}} días de racha"
+      },
+      "error": {
+        "title": "Error al registrar",
+        "retry": "Intentar de nuevo"
+      }
+    },
+    "plans": {
+      "level": {
+        "beginner": "Principiante",
+        "intermediate": "Intermedio",
+        "advanced": "Avanzado"
+      },
+      "errors": {
+        "notAuthenticated": "Usuario no autenticado",
+        "notAuthenticatedShort": "No autenticado",
+        "siteUrlMissing": "EXPO_PUBLIC_SITE_URL no configurado",
+        "httpError": "Error {{status}}"
+      },
+      "title": "Ofertas",
+      "availableOffers": "Ofertas disponibles",
+      "empty": {
+        "title": "Sin ofertas disponibles",
+        "message": "No hay ofertas activas en este momento.\nVuelve pronto para nuevas novedades."
+      },
+      "availablePlans": "PLANES DISPONIBLES",
+      "noPlansForOffer": "No hay planes configurados para esta oferta.",
+      "activeOffersCount": "{{count}} oferta activa",
+      "activeOffersCount_plural": "{{count}} ofertas activas"
+    },
+    "videoPlayer": {
+      "notFound": "Video no encontrado",
+      "back": "Volver",
+      "noFileAvailable": "Este video no tiene archivo disponible aún.",
+      "preparingVideo": "Preparando video...",
+      "completed": "Completado",
+      "levels": {
+        "beginner": "Principiante",
+        "intermediate": "Intermedio",
+        "advanced": "Avanzado"
+      }
+    },
+    "billing": {
+      "title": "Mi Suscripción",
+      "currentPlan": "Plan actual",
+      "nextPayment": "Próximo cobro",
+      "manageSubscription": "Gestionar suscripción",
+      "manageAlertMessage": "Contacta con tu gimnasio para realizar cambios en tu suscripción.",
+      "manageAlertConfirm": "Entendido",
+      "noPlanTitle": "Sin plan activo",
+      "noPlanDesc": "Suscríbete a un plan para acceder a todos los beneficios del gimnasio.",
+      "viewPlans": "Ver planes disponibles",
+      "paymentHistory": "HISTORIAL DE PAGOS",
+      "previousPayment": "Pago anterior",
+      "historyFooter": "El historial detallado está disponible en recepción."
+    },
+    "notifications": {
+      "title": "Notificaciones",
+      "markAllRead": "Marcar todas como leídas",
+      "emptyTitle": "No tienes notificaciones",
+      "emptyDescription": "Las notificaciones de tus citas y actividad aparecerán aquí."
+    },
+    "videos": {
+      "title": "Videos",
+      "planLabel": "Plan {{plan}}",
+      "loadError": "No se pudieron cargar los videos.",
+      "featuredTitle": "Destacados",
+      "featuredSubtitle": "Selección de tu coach",
+      "exploreByLevel": "Explorar por nivel",
+      "levels": {
+        "all": "Todos",
+        "beginner": "Principiante",
+        "intermediate": "Intermedio",
+        "advanced": "Avanzado"
+      },
+      "emptyLevelTitle": "Sin videos en este nivel",
+      "emptyLevelDescription": "Tu coach aún no ha publicado videos de este nivel.",
+      "myVideosTitle": "Mis videos",
+      "myVideosSubtitle": "Asignados personalmente",
+      "emptyAssignedTitle": "Sin videos asignados",
+      "emptyAssignedDescription": "Tu coach asignará videos personalizados para ti pronto.",
+      "availableCount": "{{count}} video disponible",
+      "availableCount_plural": "{{count}} videos disponibles"
+    },
+    "contact": {
+      "title": "Contacto",
+      "heading": "Contacta con tu gimnasio",
+      "subtitle": "Estamos aquí para ayudarte con cualquier consulta.",
+      "channelsSection": "CANALES DE CONTACTO",
+      "whatsapp": "WhatsApp",
+      "call": "Llamar",
+      "email": "Correo electrónico",
+      "hoursSection": "HORARIOS DE ATENCIÓN",
+      "whatsappUnavailableTitle": "WhatsApp no disponible",
+      "whatsappUnavailableMessage": "No se pudo abrir WhatsApp. Intenta llamar directamente.",
+      "schedule": {
+        "weekdaysLabel": "Lun – Vie",
+        "weekdaysHours": "6:00 am – 10:00 pm",
+        "saturdayLabel": "Sábado",
+        "saturdayHours": "7:00 am – 8:00 pm",
+        "sundayLabel": "Domingo",
+        "sundayHours": "8:00 am – 6:00 pm"
+      }
+    },
+    "help": {
+      "title": "Ayuda",
+      "faqTitle": "Preguntas frecuentes",
+      "faqSubtitle": "Encuentra respuestas rápidas a las dudas más comunes.",
+      "faqs": {
+        "cancelAppointment": {
+          "question": "¿Cómo cancelo una cita?",
+          "answer": "Abre la sección \"Mis Citas\" desde el menú principal. Selecciona la cita que deseas cancelar y toca \"Cancelar cita\". Recuerda que algunas citas tienen política de cancelación con al menos 24 horas de anticipación."
+        },
+        "viewRoutines": {
+          "question": "¿Cómo veo mis rutinas?",
+          "answer": "Navega a la pestaña \"Mis Rutinas\" en el menú principal. Ahí encontrarás las rutinas asignadas por tu coach, con los ejercicios, series y repeticiones correspondientes."
+        },
+        "changePlan": {
+          "question": "¿Puedo cambiar mi plan?",
+          "answer": "Los cambios de plan deben ser gestionados directamente con el administrador del gimnasio. Contacta con tu gimnasio a través de la sección \"Contacto\" para solicitar el cambio."
+        },
+        "pointsSystem": {
+          "question": "¿Cómo funciona el sistema de puntos?",
+          "answer": "Acumulas puntos (XP) al completar citas, rutinas y desafíos. Con ellos subes de nivel y desbloqueas logros. Puedes ver tu puntaje y posición en el ranking desde la sección \"Gamificación\"."
+        },
+        "forgotPassword": {
+          "question": "¿Qué hago si olvidé mi contraseña?",
+          "answer": "En la pantalla de inicio de sesión, toca \"¿Olvidaste tu contraseña?\" e ingresa tu correo electrónico. Recibirás un enlace para restablecerla. Revisa también la carpeta de spam si no lo encuentras."
+        },
+        "updateProfilePhoto": {
+          "question": "¿Cómo actualizo mi foto de perfil?",
+          "answer": "Ve a la sección \"Mi Perfil\" desde el menú. Toca tu avatar actual y selecciona \"Cambiar foto\" para elegir una imagen de tu galería. La foto se actualizará en tu perfil automáticamente."
+        }
+      },
+      "supportTitle": "¿Aún necesitas ayuda?",
+      "supportDesc": "Nuestro equipo está listo para asistirte con cualquier consulta adicional.",
+      "supportBtn": "Contactar soporte"
+    },
+    "exerciseDemo": {
+      "loading": "Cargando demo...",
+      "videoUnavailable": "Video no disponible.",
+      "loadError": "Error cargando video.",
+      "defaultTitle": "Demo del ejercicio",
+      "subtitle": "Video de demostración técnica"
+    }
+  },
+  "coach": {
+    "clients": {
+      "title": "Mis Clientes",
+      "searchPlaceholder": "Buscar cliente...",
+      "noLevel": "Sin nivel",
+      "pending": "Pendiente",
+      "statsActive": "Activos",
+      "statsPending": "Pendientes",
+      "statsInactive": "Inactivos",
+      "emptyTitle": "Sin clientes aún",
+      "emptySearchHint": "Prueba con otro nombre o número",
+      "emptyHint": "Los clientes asignados aparecerán aquí"
+    },
+    "routines": {
+      "searchPlaceholder": "Buscar rutina...",
+      "levels": {
+        "beginner": "Principiante",
+        "intermediate": "Intermedio",
+        "advanced": "Avanzado"
+      },
+      "exerciseCountSingular": "{{count}} ejercicio",
+      "exerciseCountPlural": "{{count}} ejercicios",
+      "emptyTitle": "Sin rutinas activas",
+      "emptySearchHint": "Prueba con otro nombre",
+      "emptyHint": "El admin puede crear rutinas desde el panel de administración"
+    },
+    "dashboard": {
+      "greeting": {
+        "morning": "Buenos días",
+        "afternoon": "Buenas tardes",
+        "evening": "Buenas noches"
+      },
+      "today": "Hoy",
+      "tomorrow": "Mañana",
+      "defaultName": "Coach",
+      "metrics": {
+        "todayAppointments": "Citas hoy",
+        "upcoming": "Próximas",
+        "completed": "Completadas",
+        "clients": "Clientes"
+      },
+      "seeAll": "Ver todas →",
+      "noUpcomingAppointments": "No hay citas próximas programadas",
+      "defaultClientName": "Cliente",
+      "virtual": "Virtual"
+    },
+    "videos": {
+      "title": "Videos",
+      "subtitle": "Biblioteca de contenido",
+      "levels": {
+        "all": "Todos",
+        "beginner": "Principiante",
+        "intermediate": "Intermedio",
+        "advanced": "Avanzado"
+      },
+      "empty": "Sin videos disponibles"
+    },
+    "notifications": {
+      "title": "Notificaciones",
+      "markAllRead": "Marcar todas como leídas",
+      "empty": "Sin notificaciones"
+    },
+    "nutrition": {
+      "subtitle": "Planes asignados",
+      "empty": "Sin planes nutricionales",
+      "caloriesPerDay": "{{calories}} kcal/día",
+      "assignPlan": "Asignar plan",
+      "assignPlanMessage": "Selecciona un cliente desde la sección Clientes",
+      "understood": "Entendido"
+    },
+    "appointments": {
+      "title": "Mis Citas",
+      "scheduledCount": "{{count}} cita programada",
+      "scheduledCount_plural": "{{count}} citas programadas",
+      "loadError": "No se pudieron cargar las citas.",
+      "emptyState": "Sin citas asignadas",
+      "defaultClientName": "Cliente",
+      "today": "Hoy"
     }
   }
 }

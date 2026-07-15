@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar,
   Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/auth.store';
 import { useProfileStore } from '@/store/profile.store';
@@ -36,15 +37,19 @@ function SettingRow({ icon, label, value, onPress, danger }: {
 }
 
 type GenderOption = { value: 'male' | 'female' | 'other'; label: string; icon: string };
-const GENDER_OPTIONS: GenderOption[] = [
-  { value: 'male',   label: 'Hombre', icon: '♂' },
-  { value: 'female', label: 'Mujer',  icon: '♀' },
-  { value: 'other',  label: 'Prefiero no indicar', icon: '○' },
-];
+function getGenderOptions(t: (key: string) => string): GenderOption[] {
+  return [
+    { value: 'male',   label: t('client.profile.genderMale'), icon: '♂' },
+    { value: 'female', label: t('client.profile.genderFemale'),  icon: '♀' },
+    { value: 'other',  label: t('client.profile.genderOther'), icon: '○' },
+  ];
+}
 
 // ─── Personal Info Modal ──────────────────────────────────────
 function PersonalInfoModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const T = useTheme();
+  const { t } = useTranslation();
+  const GENDER_OPTIONS = useMemo(() => getGenderOptions(t), [t]);
   const { user } = useAuthStore();
   const [fullName, setFullName] = useState(user?.full_name ?? '');
   const [phone, setPhone] = useState((user as any)?.phone ?? '');
@@ -62,7 +67,7 @@ function PersonalInfoModal({ visible, onClose }: { visible: boolean; onClose: ()
   }, [visible]);
 
   const handleSave = async () => {
-    if (!fullName.trim()) { Alert.alert('Error', 'El nombre es requerido.'); return; }
+    if (!fullName.trim()) { Alert.alert(t('common.error'), t('client.profile.nameRequired')); return; }
     setSaving(true);
     try {
       const { error } = await supabase
@@ -84,10 +89,10 @@ function PersonalInfoModal({ visible, onClose }: { visible: boolean; onClose: ()
           gender: gender || null,
         } : s.user,
       }));
-      ToastManager.show({ message: 'Perfil actualizado', type: 'success' });
+      ToastManager.show({ message: t('client.profile.profileUpdated'), type: 'success' });
       onClose();
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'No se pudo actualizar.');
+      Alert.alert(t('common.error'), e.message ?? t('client.profile.updateFailed'));
     } finally { setSaving(false); }
   };
 
@@ -98,22 +103,22 @@ function PersonalInfoModal({ visible, onClose }: { visible: boolean; onClose: ()
           <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
             <View style={styles.handle} />
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={[styles.sheetTitle, { color: T.text }]}>Información personal</Text>
-              <Text style={[styles.label, { color: T.textSecondary }]}>Nombre completo</Text>
+              <Text style={[styles.sheetTitle, { color: T.text }]}>{t('client.profile.personalInfoTitle')}</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('auth.fullName')}</Text>
               <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                value={fullName} onChangeText={setFullName} placeholder="Tu nombre" placeholderTextColor={T.textMuted} />
-              <Text style={[styles.label, { color: T.textSecondary }]}>Teléfono</Text>
+                value={fullName} onChangeText={setFullName} placeholder={t('client.profile.namePlaceholder')} placeholderTextColor={T.textMuted} />
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('client.profile.phone')}</Text>
               <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                value={phone} onChangeText={setPhone} placeholder="+506 8888-8888" placeholderTextColor={T.textMuted} keyboardType="phone-pad" />
+                value={phone} onChangeText={setPhone} placeholder={t('client.profile.phonePlaceholder')} placeholderTextColor={T.textMuted} keyboardType="phone-pad" />
               <DatePickerField
-                label="Fecha de nacimiento"
+                label={t('client.profile.dateOfBirth')}
                 value={dob}
                 onChange={setDob}
-                placeholder="Seleccionar fecha"
+                placeholder={t('client.profile.selectDate')}
                 maxDate={new Date()}
               />
               {/* Gender selector */}
-              <Text style={[styles.label, { color: T.textSecondary, marginTop: 4 }]}>Género</Text>
+              <Text style={[styles.label, { color: T.textSecondary, marginTop: 4 }]}>{t('client.profile.gender')}</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
                 {GENDER_OPTIONS.map((opt) => {
                   const active = gender === opt.value;
@@ -140,10 +145,10 @@ function PersonalInfoModal({ visible, onClose }: { visible: boolean; onClose: ()
               </View>
               <View style={styles.modalActions}>
                 <TouchableOpacity onPress={onClose} style={[styles.modalBtn, { borderColor: T.border, borderWidth: 1 }]}>
-                  <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.modalBtn, { backgroundColor: T.accent }]}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? 'Guardando...' : 'Guardar'}</Text>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? t('client.profile.saving') : t('common.save')}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -157,6 +162,7 @@ function PersonalInfoModal({ visible, onClose }: { visible: boolean; onClose: ()
 // ─── Change Password Modal ────────────────────────────────────
 function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -165,16 +171,16 @@ function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: 
   const reset = () => { setCurrent(''); setNext(''); setConfirm(''); };
 
   const handleSave = async () => {
-    if (!next.trim() || next.length < 6) { Alert.alert('Error', 'La nueva contraseña debe tener al menos 6 caracteres.'); return; }
-    if (next !== confirm) { Alert.alert('Error', 'Las contraseñas no coinciden.'); return; }
+    if (!next.trim() || next.length < 6) { Alert.alert(t('common.error'), t('client.profile.newPasswordTooShort')); return; }
+    if (next !== confirm) { Alert.alert(t('common.error'), t('client.profile.passwordsDoNotMatch')); return; }
     setSaving(true);
     try {
       const { error } = await supabase.auth.updateUser({ password: next });
       if (error) throw error;
-      ToastManager.show({ message: 'Contraseña actualizada', type: 'success' });
+      ToastManager.show({ message: t('client.profile.passwordUpdated'), type: 'success' });
       reset(); onClose();
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'No se pudo cambiar la contraseña.');
+      Alert.alert(t('common.error'), e.message ?? t('client.profile.passwordChangeFailed'));
     } finally { setSaving(false); }
   };
 
@@ -185,19 +191,19 @@ function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: 
           <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
             <View style={styles.handle} />
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={[styles.sheetTitle, { color: T.text }]}>Cambiar contraseña</Text>
-              <Text style={[styles.label, { color: T.textSecondary }]}>Nueva contraseña</Text>
+              <Text style={[styles.sheetTitle, { color: T.text }]}>{t('client.profile.changePasswordTitle')}</Text>
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('client.profile.newPassword')}</Text>
               <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                value={next} onChangeText={setNext} placeholder="Mínimo 6 caracteres" placeholderTextColor={T.textMuted} secureTextEntry />
-              <Text style={[styles.label, { color: T.textSecondary }]}>Confirmar contraseña</Text>
+                value={next} onChangeText={setNext} placeholder={t('client.profile.minCharsPlaceholder')} placeholderTextColor={T.textMuted} secureTextEntry />
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('client.profile.confirmNewPassword')}</Text>
               <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                value={confirm} onChangeText={setConfirm} placeholder="Repite la contraseña" placeholderTextColor={T.textMuted} secureTextEntry />
+                value={confirm} onChangeText={setConfirm} placeholder={t('client.profile.repeatPasswordPlaceholder')} placeholderTextColor={T.textMuted} secureTextEntry />
               <View style={styles.modalActions}>
                 <TouchableOpacity onPress={() => { reset(); onClose(); }} style={[styles.modalBtn, { borderColor: T.border, borderWidth: 1 }]}>
-                  <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.modalBtn, { backgroundColor: T.accent }]}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? 'Guardando...' : 'Actualizar'}</Text>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? t('client.profile.saving') : t('client.profile.update')}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -211,6 +217,7 @@ function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: 
 // ─── Notifications Prefs Modal ────────────────────────────────
 function NotificationsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const [appts, setAppts] = useState(true);
   const [promos, setPromos] = useState(true);
   const [reminders, setReminders] = useState(true);
@@ -230,13 +237,13 @@ function NotificationsModal({ visible, onClose }: { visible: boolean; onClose: (
       <View style={styles.modalOverlay}>
         <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
           <View style={styles.handle} />
-          <Text style={[styles.sheetTitle, { color: T.text }]}>Notificaciones</Text>
-          <Toggle value={appts} onChange={setAppts} label="Recordatorios de citas" />
-          <Toggle value={promos} onChange={setPromos} label="Promociones y ofertas" />
-          <Toggle value={reminders} onChange={setReminders} label="Recordatorios de rutina" />
-          <TouchableOpacity onPress={() => { ToastManager.show({ message: 'Preferencias guardadas', type: 'success' }); onClose(); }}
+          <Text style={[styles.sheetTitle, { color: T.text }]}>{t('client.profile.notificationsTitle')}</Text>
+          <Toggle value={appts} onChange={setAppts} label={t('client.profile.notifAppointments')} />
+          <Toggle value={promos} onChange={setPromos} label={t('client.profile.notifPromos')} />
+          <Toggle value={reminders} onChange={setReminders} label={t('client.profile.notifRoutine')} />
+          <TouchableOpacity onPress={() => { ToastManager.show({ message: t('client.profile.preferencesSaved'), type: 'success' }); onClose(); }}
             style={[styles.modalBtn, { backgroundColor: T.accent, marginTop: 20, alignSelf: 'stretch' }]}>
-            <Text style={{ color: '#fff', fontWeight: '700' }}>Guardar</Text>
+            <Text style={{ color: '#fff', fontWeight: '700' }}>{t('common.save')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -247,17 +254,18 @@ function NotificationsModal({ visible, onClose }: { visible: boolean; onClose: (
 // ─── Help Modal ───────────────────────────────────────────────
 function HelpModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const items = [
-    { icon: '📧', label: 'Enviar email de soporte', action: () => Linking.openURL('mailto:soporte@caro.gym') },
-    { icon: '💬', label: 'Chat en vivo', action: () => Linking.openURL('https://wa.me/50688888888') },
-    { icon: '📖', label: 'Centro de ayuda', action: () => Linking.openURL('https://help.caro.gym') },
+    { icon: '📧', label: t('client.profile.helpEmail'), action: () => Linking.openURL('mailto:soporte@caro.gym') },
+    { icon: '💬', label: t('client.profile.helpChat'), action: () => Linking.openURL('https://wa.me/50688888888') },
+    { icon: '📖', label: t('client.profile.helpCenter'), action: () => Linking.openURL('https://help.caro.gym') },
   ];
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
           <View style={styles.handle} />
-          <Text style={[styles.sheetTitle, { color: T.text }]}>Ayuda y soporte</Text>
+          <Text style={[styles.sheetTitle, { color: T.text }]}>{t('client.profile.helpTitle')}</Text>
           {items.map((item, i) => (
             <TouchableOpacity key={i} onPress={item.action}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: T.border }}>
@@ -269,7 +277,7 @@ function HelpModal({ visible, onClose }: { visible: boolean; onClose: () => void
             </TouchableOpacity>
           ))}
           <TouchableOpacity onPress={onClose} style={[styles.modalBtn, { borderColor: T.border, borderWidth: 1, marginTop: 16, alignSelf: 'stretch' }]}>
-            <Text style={{ color: T.text, fontWeight: '600' }}>Cerrar</Text>
+            <Text style={{ color: T.text, fontWeight: '600' }}>{t('client.profile.close')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -280,36 +288,34 @@ function HelpModal({ visible, onClose }: { visible: boolean; onClose: () => void
 // ─── Terms Modal ──────────────────────────────────────────────
 function TermsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const T = useTheme();
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={[styles.sheet, { backgroundColor: T.bgCard, maxHeight: '85%' }]}>
           <View style={styles.handle} />
-          <Text style={[styles.sheetTitle, { color: T.text }]}>Términos y privacidad</Text>
+          <Text style={[styles.sheetTitle, { color: T.text }]}>{t('client.profile.termsTitle')}</Text>
           <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-            <Text style={[styles.termsSection, { color: T.accent }]}>Términos de uso</Text>
+            <Text style={[styles.termsSection, { color: T.accent }]}>{t('client.profile.termsUseSection')}</Text>
             <Text style={[styles.termsText, { color: T.textSecondary }]}>
-              Al usar esta aplicación aceptas nuestros términos de servicio. El uso de la plataforma está sujeto a las políticas vigentes del proveedor del servicio.
+              {t('client.profile.termsUseBody')}
             </Text>
-            <Text style={[styles.termsSection, { color: T.accent }]}>Política de privacidad</Text>
+            <Text style={[styles.termsSection, { color: T.accent }]}>{t('client.profile.privacyPolicySection')}</Text>
             <Text style={[styles.termsText, { color: T.textSecondary }]}>
-              Recopilamos únicamente los datos necesarios para brindarte el servicio. Tu información personal no será compartida con terceros sin tu consentimiento explícito.
+              {t('client.profile.privacyPolicyBody')}
             </Text>
-            <Text style={[styles.termsSection, { color: T.accent }]}>Datos que recopilamos</Text>
+            <Text style={[styles.termsSection, { color: T.accent }]}>{t('client.profile.dataCollectedSection')}</Text>
             <Text style={[styles.termsText, { color: T.textSecondary }]}>
-              • Nombre y datos de contacto{'\n'}
-              • Historial de citas y actividad{'\n'}
-              • Preferencias de la aplicación{'\n'}
-              • Datos de progreso físico que ingreses voluntariamente
+              {t('client.profile.dataCollectedBody')}
             </Text>
-            <Text style={[styles.termsSection, { color: T.accent }]}>Contacto</Text>
+            <Text style={[styles.termsSection, { color: T.accent }]}>{t('client.profile.contactSection')}</Text>
             <Text style={[styles.termsText, { color: T.textSecondary }]}>
-              Para consultas sobre privacidad: privacidad@caro.gym
+              {t('client.profile.contactBody')}
             </Text>
             <View style={{ height: 16 }} />
           </ScrollView>
           <TouchableOpacity onPress={onClose} style={[styles.modalBtn, { backgroundColor: T.accent, marginTop: 12, alignSelf: 'stretch' }]}>
-            <Text style={{ color: '#fff', fontWeight: '700' }}>Entendido</Text>
+            <Text style={{ color: '#fff', fontWeight: '700' }}>{t('client.profile.understood')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -320,6 +326,7 @@ function TermsModal({ visible, onClose }: { visible: boolean; onClose: () => voi
 // ─── Main Screen ──────────────────────────────────────────────
 export default function ProfileScreen() {
   const T = useTheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const { user, signOut } = useAuthStore();
   const { loadProfile } = useProfileStore();
@@ -331,7 +338,7 @@ export default function ProfileScreen() {
   const [showHelp, setShowHelp] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
 
-  const name = user?.full_name ?? 'Cliente';
+  const name = user?.full_name ?? t('client.profile.defaultName');
 
   useEffect(() => {
     loadProfile();
@@ -339,9 +346,9 @@ export default function ProfileScreen() {
   }, []);
 
   const handleSignOut = () => {
-    Alert.alert('Cerrar sesión', '¿Estás seguro de que deseas salir?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Salir', style: 'destructive', onPress: signOut },
+    Alert.alert(t('client.profile.signOutTitle'), t('client.profile.signOutConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('client.profile.signOutAction'), style: 'destructive', onPress: signOut },
     ]);
   };
 
@@ -351,7 +358,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <ClientTopBar title="Mi Perfil" />
+      <ClientTopBar title={t('client.profile.screenTitle')} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
         {/* Avatar + name */}
@@ -367,18 +374,18 @@ export default function ProfileScreen() {
           <View style={[styles.subCard, { backgroundColor: T.bgCard, borderColor: T.accent + '33', borderRadius: T.radiusLg }]}>
             <View style={styles.subTop}>
               <View>
-                <Text style={[styles.subLabel, { color: T.textMuted }]}>Plan actual</Text>
+                <Text style={[styles.subLabel, { color: T.textMuted }]}>{t('client.profile.currentPlan')}</Text>
                 <Text style={[styles.subName, { color: T.text }]}>{planName}</Text>
               </View>
               <View style={[styles.subBadge, { backgroundColor: planStatus === 'active' ? T.greenSoft : T.orangeSoft }]}>
                 <Text style={[styles.subBadgeText, { color: planStatus === 'active' ? T.green : T.orange }]}>
-                  {planStatus === 'active' ? '● Activo' : '● Inactivo'}
+                  {planStatus === 'active' ? `● ${t('common.active')}` : `● ${t('common.inactive')}`}
                 </Text>
               </View>
             </View>
             <TouchableOpacity onPress={() => router.push('/(client)/plans')}
               style={[styles.subBtn, { backgroundColor: T.accentGlow, borderRadius: T.radiusMd }]}>
-              <Text style={[styles.subBtnText, { color: T.accent }]}>Ver planes disponibles →</Text>
+              <Text style={[styles.subBtnText, { color: T.accent }]}>{t('client.profile.viewPlans')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -390,29 +397,29 @@ export default function ProfileScreen() {
         </View>
 
         {/* Account */}
-        <Text style={[styles.sectionTitle, { color: T.textMuted }]}>Mi cuenta</Text>
+        <Text style={[styles.sectionTitle, { color: T.textMuted }]}>{t('client.profile.myAccount')}</Text>
         <View style={[styles.settingsCard, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
-          <SettingRow icon="👤" label="Información personal" onPress={() => setShowPersonal(true)} />
+          <SettingRow icon="👤" label={t('client.profile.personalInfo')} onPress={() => setShowPersonal(true)} />
           <View style={[styles.divider, { backgroundColor: T.border }]} />
-          <SettingRow icon="🔒" label="Cambiar contraseña" onPress={() => setShowPassword(true)} />
+          <SettingRow icon="🔒" label={t('client.profile.changePassword')} onPress={() => setShowPassword(true)} />
           <View style={[styles.divider, { backgroundColor: T.border }]} />
-          <SettingRow icon="🔔" label="Notificaciones" onPress={() => setShowNotifs(true)} />
+          <SettingRow icon="🔔" label={t('client.profile.notifications')} onPress={() => setShowNotifs(true)} />
         </View>
 
         {/* Support */}
-        <Text style={[styles.sectionTitle, { color: T.textMuted }]}>Soporte</Text>
+        <Text style={[styles.sectionTitle, { color: T.textMuted }]}>{t('client.profile.support')}</Text>
         <View style={[styles.settingsCard, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
-          <SettingRow icon="❓" label="Ayuda y soporte" onPress={() => setShowHelp(true)} />
+          <SettingRow icon="❓" label={t('client.profile.helpAndSupport')} onPress={() => setShowHelp(true)} />
           <View style={[styles.divider, { backgroundColor: T.border }]} />
-          <SettingRow icon="📋" label="Términos y privacidad" onPress={() => setShowTerms(true)} />
+          <SettingRow icon="📋" label={t('client.profile.termsAndPrivacy')} onPress={() => setShowTerms(true)} />
         </View>
 
         {/* Sign out */}
         <View style={[styles.settingsCard, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd, marginBottom: 16 }]}>
-          <SettingRow icon="🚪" label="Cerrar sesión" onPress={handleSignOut} danger />
+          <SettingRow icon="🚪" label={t('client.profile.signOut')} onPress={handleSignOut} danger />
         </View>
 
-        <Text style={[styles.version, { color: T.textMuted }]}>v1.0.0 · SaaS Client Management</Text>
+        <Text style={[styles.version, { color: T.textMuted }]}>{t('client.profile.versionLabel')}</Text>
         <View style={{ height: 32 }} />
       </ScrollView>
 

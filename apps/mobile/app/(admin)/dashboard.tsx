@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { AdminStatCard } from '@/components/admin/AdminStatCard';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import { AdminTopBar } from '@/components/admin/AdminTopBar';
@@ -42,6 +43,7 @@ function formatRevenue(amount: number): string {
 }
 
 export default function AdminDashboard() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuthStore();
   const { tenant } = useTenantStore();
@@ -85,8 +87,8 @@ export default function AdminDashboard() {
     dynamicAlerts.push({
       id: 'pending',
       type: 'info',
-      text: `${stats!.pendingApprovals} usuario(s) pendiente(s) de aprobación`,
-      action: 'Revisar',
+      text: t('admin.dashboard.alerts.pendingApprovals', { count: stats!.pendingApprovals }),
+      action: t('admin.dashboard.alerts.review'),
       route: '/(admin)/user-approval',
     });
   }
@@ -94,8 +96,8 @@ export default function AdminDashboard() {
     dynamicAlerts.push({
       id: 'noplan',
       type: 'warning',
-      text: `${stats!.clientsWithoutPlan} cliente(s) sin plan activo`,
-      action: 'Ver',
+      text: t('admin.dashboard.alerts.clientsWithoutPlan', { count: stats!.clientsWithoutPlan }),
+      action: t('admin.dashboard.alerts.view'),
       route: '/(admin)/clients',
     });
   }
@@ -103,8 +105,8 @@ export default function AdminDashboard() {
     dynamicAlerts.push({
       id: 'expiring',
       type: 'warning',
-      text: `${stats!.expiringSubscriptions} suscripción(es) vencen en 7 días`,
-      action: 'Ver',
+      text: t('admin.dashboard.alerts.expiringSubscriptions', { count: stats!.expiringSubscriptions }),
+      action: t('admin.dashboard.alerts.view'),
       route: '/(admin)/clients',
     });
   }
@@ -120,7 +122,7 @@ export default function AdminDashboard() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <AdminTopBar title={tenant?.name ?? 'Mi Centro'} subtitle={`Hola, ${firstName} 👋`} />
+      <AdminTopBar title={tenant?.name ?? t('admin.dashboard.defaultTenantName')} subtitle={t('admin.dashboard.greeting', { name: firstName })} />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -147,7 +149,7 @@ export default function AdminDashboard() {
         ))}
 
         {/* KPI Grid */}
-        <Text style={[styles.sectionTitle, { color: T.text }]}>Métricas del negocio</Text>
+        <Text style={[styles.sectionTitle, { color: T.text }]}>{t('admin.dashboard.metrics.title')}</Text>
         {isLoadingStats ? (
           <View>
             <View style={styles.kpiRow}>
@@ -165,18 +167,18 @@ export default function AdminDashboard() {
           <View>
             <View style={styles.kpiRow}>
               <AdminStatCard
-                label="Clientes activos"
+                label={t('admin.dashboard.metrics.activeClients')}
                 value={activeClientsCount}
                 icon="👥"
                 accent={T.accent}
-                trend={clientTrend !== 0 ? { value: Math.abs(clientTrend), label: clientTrend >= 0 ? 'más este mes' : 'menos este mes' } : undefined}
+                trend={clientTrend !== 0 ? { value: Math.abs(clientTrend), label: clientTrend >= 0 ? t('admin.dashboard.metrics.moreThisMonth') : t('admin.dashboard.metrics.lessThisMonth') } : undefined}
                 onPress={() => router.push('/(admin)/clients')}
               />
               <View style={{ width: 10 }} />
               <AdminStatCard
-                label="Citas hoy"
+                label={t('admin.dashboard.metrics.appointmentsToday')}
                 value={todayAppts.length}
-                sub={`${weekCount} esta semana`}
+                sub={t('admin.dashboard.metrics.thisWeekCount', { count: weekCount })}
                 icon="📅"
                 accent={T.green}
                 onPress={() => router.push('/(admin)/admin-appointments')}
@@ -184,18 +186,18 @@ export default function AdminDashboard() {
             </View>
             <View style={[styles.kpiRow, { marginTop: 10 }]}>
               <AdminStatCard
-                label="Ingresos mensuales"
+                label={t('admin.dashboard.metrics.monthlyRevenue')}
                 value={formatRevenue(stats?.monthlyRevenue ?? 0)}
                 icon="💰"
                 accent={T.orange}
-                sub="suscripciones activas"
+                sub={t('admin.dashboard.metrics.activeSubscriptions')}
                 onPress={() => router.push('/(admin)/revenue')}
               />
               <View style={{ width: 10 }} />
               <AdminStatCard
-                label="Planes activos"
+                label={t('admin.dashboard.metrics.activePlans')}
                 value={stats?.activePlans ?? 0}
-                sub={`${stats?.activePromotions ?? 0} promos activas`}
+                sub={t('admin.dashboard.metrics.activePromosCount', { count: stats?.activePromotions ?? 0 })}
                 icon="💳"
                 accent={T.purple}
                 onPress={() => router.push('/(admin)/monetization')}
@@ -205,15 +207,15 @@ export default function AdminDashboard() {
         )}
 
         {/* Quick actions */}
-        <Text style={[styles.sectionTitle, { color: T.text }]}>Acciones rápidas</Text>
+        <Text style={[styles.sectionTitle, { color: T.text }]}>{t('admin.dashboard.quickActions.title')}</Text>
         <View style={styles.quickGrid}>
           {[
-            { icon: '👤', label: 'Clientes', route: '/(admin)/clients', color: T.accent },
-            { icon: '🏋️', label: 'Coaches', route: '/(admin)/coaches', color: T.teal },
-            { icon: '📅', label: 'Nueva cita', route: '/(admin)/admin-appointments', color: T.green },
-            { icon: '💳', label: 'Planes', route: '/(admin)/monetization', color: T.purple },
-            { icon: '🏷️', label: 'Promos', route: '/(admin)/monetization', color: T.orange },
-            { icon: '🎬', label: 'Contenido', route: '/(admin)/content', color: T.red },
+            { icon: '👤', label: t('admin.dashboard.quickActions.clients'), route: '/(admin)/clients', color: T.accent },
+            { icon: '🏋️', label: t('admin.dashboard.quickActions.coaches'), route: '/(admin)/coaches', color: T.teal },
+            { icon: '📅', label: t('admin.dashboard.quickActions.newAppointment'), route: '/(admin)/admin-appointments', color: T.green },
+            { icon: '💳', label: t('admin.dashboard.quickActions.plans'), route: '/(admin)/monetization', color: T.purple },
+            { icon: '🏷️', label: t('admin.dashboard.quickActions.promos'), route: '/(admin)/monetization', color: T.orange },
+            { icon: '🎬', label: t('admin.dashboard.quickActions.content'), route: '/(admin)/content', color: T.red },
           ].map((a) => (
             <TouchableOpacity
               key={a.label}
@@ -230,9 +232,9 @@ export default function AdminDashboard() {
 
         {/* Today's appointments */}
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: T.text, marginTop: 0, marginBottom: 0 }]}>Citas de hoy</Text>
+          <Text style={[styles.sectionTitle, { color: T.text, marginTop: 0, marginBottom: 0 }]}>{t('admin.dashboard.todayAppointments.title')}</Text>
           <TouchableOpacity onPress={() => router.push('/(admin)/admin-appointments')}>
-            <Text style={[styles.seeAll, { color: T.accent }]}>Ver todas →</Text>
+            <Text style={[styles.seeAll, { color: T.accent }]}>{t('admin.dashboard.seeAll')}</Text>
           </TouchableOpacity>
         </View>
         {isLoadingAppts ? (
@@ -240,12 +242,12 @@ export default function AdminDashboard() {
         ) : todayAppts.length === 0 ? (
           <View style={[styles.emptyCard, { backgroundColor: T.card, borderColor: T.border, gap: 8 }]}>
             <Text style={{ fontSize: 24 }}>📅</Text>
-            <Text style={[styles.emptyText, { color: T.textSecondary }]}>No hay citas programadas para hoy</Text>
+            <Text style={[styles.emptyText, { color: T.textSecondary }]}>{t('admin.dashboard.todayAppointments.empty')}</Text>
             <TouchableOpacity
               onPress={() => router.push('/(admin)/admin-appointments')}
               style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, backgroundColor: T.accent + '22', borderWidth: 1, borderColor: T.accent + '44' }}
             >
-              <Text style={{ color: T.accent, fontSize: 13, fontWeight: '600' }}>Agendar cita →</Text>
+              <Text style={{ color: T.accent, fontSize: 13, fontWeight: '600' }}>{t('admin.dashboard.todayAppointments.schedule')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -271,15 +273,15 @@ export default function AdminDashboard() {
 
         {/* Recent activity */}
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: T.text, marginTop: 0, marginBottom: 0 }]}>Actividad reciente</Text>
+          <Text style={[styles.sectionTitle, { color: T.text, marginTop: 0, marginBottom: 0 }]}>{t('admin.dashboard.recentActivity.title')}</Text>
           <TouchableOpacity onPress={() => router.push('/(admin)/notifications')}>
-            <Text style={[styles.seeAll, { color: T.accent }]}>Ver todas →</Text>
+            <Text style={[styles.seeAll, { color: T.accent }]}>{t('admin.dashboard.seeAll')}</Text>
           </TouchableOpacity>
         </View>
         <View style={[styles.activityCard, { backgroundColor: T.card, borderColor: T.border }]}>
           {recentActivity.length === 0 ? (
             <View style={{ padding: 20, alignItems: 'center' }}>
-              <Text style={{ color: T.textMuted, fontSize: 14 }}>Sin actividad reciente</Text>
+              <Text style={{ color: T.textMuted, fontSize: 14 }}>{t('admin.dashboard.recentActivity.empty')}</Text>
             </View>
           ) : (
             recentActivity.map((item, i) => {

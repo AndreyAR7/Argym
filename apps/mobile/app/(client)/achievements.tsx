@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/auth.store';
 import { useGamificationStore } from '@/store/gamification.store';
 import type { BadgeDefinition, UserBadge } from '@/store/gamification.store';
@@ -19,10 +20,10 @@ import { ClientTopBar } from '@/components/client/ClientTopBar';
 
 type FilterKey = 'all' | 'earned' | 'locked';
 
-const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: 'all', label: 'Todos' },
-  { key: 'earned', label: 'Ganados' },
-  { key: 'locked', label: 'Por ganar' },
+const FILTERS: { key: FilterKey; labelKey: string }[] = [
+  { key: 'all', labelKey: 'client.achievements.filters.all' },
+  { key: 'earned', labelKey: 'client.achievements.filters.earned' },
+  { key: 'locked', labelKey: 'client.achievements.filters.locked' },
 ];
 
 const RARITY_COLORS: Record<BadgeDefinition['rarity'], string> = {
@@ -32,11 +33,11 @@ const RARITY_COLORS: Record<BadgeDefinition['rarity'], string> = {
   legendary: '#f59e0b',
 };
 
-const RARITY_LABELS: Record<BadgeDefinition['rarity'], string> = {
-  common: 'Común',
-  rare: 'Raro',
-  epic: 'Épico',
-  legendary: 'Legendario',
+const RARITY_LABEL_KEYS: Record<BadgeDefinition['rarity'], string> = {
+  common: 'client.achievements.rarity.common',
+  rare: 'client.achievements.rarity.rare',
+  epic: 'client.achievements.rarity.epic',
+  legendary: 'client.achievements.rarity.legendary',
 };
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -81,6 +82,7 @@ function formatDate(iso: string): string {
 }
 
 function BadgeCard({ item, T }: { item: BadgeItem; T: ReturnType<typeof import('@/hooks/useTheme').useTheme> }) {
+  const { t } = useTranslation();
   const { def, userBadge } = item;
   const earned = userBadge !== null;
   const rarityColor = RARITY_COLORS[def.rarity];
@@ -118,7 +120,7 @@ function BadgeCard({ item, T }: { item: BadgeItem; T: ReturnType<typeof import('
       {/* Rarity chip */}
       <View style={[styles.rarityChip, { backgroundColor: rarityColor + '22', borderColor: rarityColor + '55' }]}>
         <Text style={[styles.rarityText, { color: rarityColor }]}>
-          {RARITY_LABELS[def.rarity]}
+          {t(RARITY_LABEL_KEYS[def.rarity])}
         </Text>
       </View>
 
@@ -147,7 +149,7 @@ function BadgeCard({ item, T }: { item: BadgeItem; T: ReturnType<typeof import('
         </Text>
       ) : def.condition_value !== null ? (
         <Text style={[styles.earnedDate, { color: T.textMuted }]}>
-          Meta: {def.condition_value}
+          {t('client.achievements.goalLabel', { value: def.condition_value })}
         </Text>
       ) : null}
     </View>
@@ -155,6 +157,7 @@ function BadgeCard({ item, T }: { item: BadgeItem; T: ReturnType<typeof import('
 }
 
 export default function AchievementsScreen() {
+  const { t } = useTranslation();
   const T = useTheme();
   const { user } = useAuthStore();
   const {
@@ -195,7 +198,7 @@ export default function AchievementsScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <ClientTopBar title="Logros" />
+      <ClientTopBar title={t('client.achievements.title')} />
 
       <FlatList
         data={badgeItems}
@@ -217,7 +220,7 @@ export default function AchievementsScreen() {
                     {myBadges.length}
                   </Text>
                   <Text style={[styles.summaryLabel, { color: T.textSecondary }]}>
-                    / {allBadges.length} logros
+                    {t('client.achievements.summary.totalLabel', { count: allBadges.length })}
                   </Text>
                 </View>
                 <View style={[styles.summaryDivider, { backgroundColor: T.border }]} />
@@ -226,7 +229,7 @@ export default function AchievementsScreen() {
                     ⚡ {totalXpFromBadges.toLocaleString()}
                   </Text>
                   <Text style={[styles.summaryLabel, { color: T.textSecondary }]}>
-                    XP de logros
+                    {t('client.achievements.summary.xpLabel')}
                   </Text>
                 </View>
               </View>
@@ -263,7 +266,7 @@ export default function AchievementsScreen() {
                     ]}
                   >
                     <Text style={[styles.tabText, { color: active ? '#fff' : T.textSecondary }]}>
-                      {f.label}
+                      {t(f.labelKey)}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -279,8 +282,8 @@ export default function AchievementsScreen() {
                 <Text style={styles.emptyIcon}>🏅</Text>
                 <Text style={[styles.emptyText, { color: T.textMuted }]}>
                   {filter === 'earned'
-                    ? 'Aún no has ganado ningún logro'
-                    : 'No hay logros disponibles'}
+                    ? t('client.achievements.empty.earned')
+                    : t('client.achievements.empty.all')}
                 </Text>
               </View>
             ) : null}

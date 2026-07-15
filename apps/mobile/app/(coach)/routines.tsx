@@ -4,19 +4,21 @@ import {
   TextInput, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useRoutinesStore } from '@/store/routines.store';
 import { useAuthStore } from '@/store/auth.store';
 import { SkeletonCard } from '@/components/shared/SkeletonLoader';
 import type { Routine } from '@/types/routines';
 
-const LEVEL_CONFIG: Record<string, { label: string; color: string }> = {
-  beginner:     { label: 'Principiante', color: '#22c55e' },
-  intermediate: { label: 'Intermedio',   color: '#6C63FF' },
-  advanced:     { label: 'Avanzado',     color: '#f97316' },
+const LEVEL_CONFIG: Record<string, { color: string }> = {
+  beginner:     { color: '#22c55e' },
+  intermediate: { color: '#6C63FF' },
+  advanced:     { color: '#f97316' },
 };
 
 function RoutineRow({ item, T }: { item: Routine; T: ReturnType<typeof useTheme> }) {
+  const { t } = useTranslation();
   const level = item.level ? LEVEL_CONFIG[item.level] : null;
   const exerciseCount = item.exercises?.length ?? 0;
 
@@ -35,12 +37,16 @@ function RoutineRow({ item, T }: { item: Routine; T: ReturnType<typeof useTheme>
         <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
           {level && (
             <View style={[s.badge, { backgroundColor: level.color + '22', borderColor: level.color + '44' }]}>
-              <Text style={{ color: level.color, fontSize: 11, fontWeight: '600' }}>{level.label}</Text>
+              <Text style={{ color: level.color, fontSize: 11, fontWeight: '600' }}>
+                {t(`coach.routines.levels.${item.level}`)}
+              </Text>
             </View>
           )}
           <View style={[s.badge, { backgroundColor: T.blue + '22', borderColor: T.blue + '44' }]}>
             <Text style={{ color: T.blue, fontSize: 11, fontWeight: '600' }}>
-              {exerciseCount} {exerciseCount === 1 ? 'ejercicio' : 'ejercicios'}
+              {exerciseCount === 1
+                ? t('coach.routines.exerciseCountSingular', { count: exerciseCount })
+                : t('coach.routines.exerciseCountPlural', { count: exerciseCount })}
             </Text>
           </View>
         </View>
@@ -59,6 +65,7 @@ function RoutineRow({ item, T }: { item: Routine; T: ReturnType<typeof useTheme>
 
 export default function CoachRoutines() {
   const T = useTheme();
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const { adminRoutines, isLoadingAdmin, loadAdminRoutines } = useRoutinesStore();
   const [search, setSearch] = useState('');
@@ -100,7 +107,7 @@ export default function CoachRoutines() {
 
       {/* Header */}
       <View style={[s.header, { borderBottomColor: T.border }]}>
-        <Text style={{ fontSize: 20, fontWeight: '800', color: T.text }}>Rutinas</Text>
+        <Text style={{ fontSize: 20, fontWeight: '800', color: T.text }}>{t('navigation.routines')}</Text>
         <View style={[s.countBadge, { backgroundColor: T.accent + '22' }]}>
           <Text style={{ color: T.accent, fontSize: 13, fontWeight: '700' }}>{filtered.length}</Text>
         </View>
@@ -113,7 +120,7 @@ export default function CoachRoutines() {
           style={[s.searchInput, { color: T.text }]}
           value={search}
           onChangeText={setSearch}
-          placeholder="Buscar rutina..."
+          placeholder={t('coach.routines.searchPlaceholder')}
           placeholderTextColor={T.textMuted}
         />
         {search.length > 0 && (
@@ -131,7 +138,7 @@ export default function CoachRoutines() {
               <Text style={{ fontSize: 16, fontWeight: '800', color: cfg.color }}>
                 {byLevel[key] ?? 0}
               </Text>
-              <Text style={{ fontSize: 10, color: T.textMuted, marginTop: 1 }}>{cfg.label}</Text>
+              <Text style={{ fontSize: 10, color: T.textMuted, marginTop: 1 }}>{t(`coach.routines.levels.${key}`)}</Text>
             </View>
           ))}
         </View>
@@ -147,12 +154,12 @@ export default function CoachRoutines() {
         <View style={s.empty}>
           <Text style={{ fontSize: 36, marginBottom: 12 }}>💪</Text>
           <Text style={{ color: T.text, fontWeight: '700', fontSize: 16, marginBottom: 4 }}>
-            {search ? 'Sin resultados' : 'Sin rutinas activas'}
+            {search ? t('common.noResults') : t('coach.routines.emptyTitle')}
           </Text>
           <Text style={{ color: T.textMuted, fontSize: 13, textAlign: 'center' }}>
             {search
-              ? 'Prueba con otro nombre'
-              : 'El admin puede crear rutinas desde el panel de administración'}
+              ? t('coach.routines.emptySearchHint')
+              : t('coach.routines.emptyHint')}
           </Text>
         </View>
       ) : (

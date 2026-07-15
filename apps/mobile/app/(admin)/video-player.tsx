@@ -7,19 +7,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useVideosStore } from '@/store/videos.store';
 import { getVideoSignedUrl } from '@/services/videos.service';
 import { formatDuration, VIDEO_STATUS_LABELS } from '@/types/videos';
 
-const LEVEL_LABELS: Record<string, string> = {
-  beginner: 'Principiante', intermediate: 'Intermedio', advanced: 'Avanzado',
-};
-
 export default function AdminVideoPlayerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const T = useTheme();
+  const { t } = useTranslation();
   const { adminVideos } = useVideosStore();
 
   const video = adminVideos.find((v) => v.id === id);
@@ -55,7 +53,7 @@ export default function AdminVideoPlayerScreen() {
   useEffect(() => {
     if (!video?.video_storage_path) {
       setLoadingUrl(false);
-      setUrlError('Este video no tiene archivo disponible aún.');
+      setUrlError(t('admin.videoPlayer.noFileAvailable'));
       return;
     }
     getVideoSignedUrl(video.video_storage_path)
@@ -67,14 +65,20 @@ export default function AdminVideoPlayerScreen() {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: '#fff' }}>Video no encontrado</Text>
+          <Text style={{ color: '#fff' }}>{t('admin.videoPlayer.notFound')}</Text>
           <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 16 }}>
-            <Text style={{ color: T.accent }}>Volver</Text>
+            <Text style={{ color: T.accent }}>{t('admin.videoPlayer.back')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
+
+  const LEVEL_LABELS: Record<string, string> = {
+    beginner: t('admin.videoPlayer.levels.beginner'),
+    intermediate: t('admin.videoPlayer.levels.intermediate'),
+    advanced: t('admin.videoPlayer.levels.advanced'),
+  };
 
   const levelColor = { beginner: T.green, intermediate: T.accent, advanced: T.red }[video.level] ?? T.accent;
   const statusColor = video.status === 'published' ? T.green : video.status === 'archived' ? T.textMuted : T.accent;
@@ -88,7 +92,7 @@ export default function AdminVideoPlayerScreen() {
         {loadingUrl ? (
           <View style={styles.center}>
             <ActivityIndicator color="#fff" size="large" />
-            <Text style={{ color: '#aaa', marginTop: 12, fontSize: 13 }}>Preparando video...</Text>
+            <Text style={{ color: '#aaa', marginTop: 12, fontSize: 13 }}>{t('admin.videoPlayer.preparingVideo')}</Text>
           </View>
         ) : urlError ? (
           <View style={styles.center}>
@@ -134,7 +138,7 @@ export default function AdminVideoPlayerScreen() {
             </View>
             {video.is_featured && (
               <View style={[styles.badge, { backgroundColor: T.gold + '22' }]}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: T.gold }}>⭐ Destacado</Text>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: T.gold }}>{`⭐ ${t('admin.videoPlayer.featured')}`}</Text>
               </View>
             )}
             {video.duration_seconds ? (
@@ -157,16 +161,16 @@ export default function AdminVideoPlayerScreen() {
           {/* Access info */}
           <View style={[styles.infoCard, { backgroundColor: T.bgCard, borderColor: T.border }]}>
             <Text style={{ fontSize: 12, color: T.textMuted, marginBottom: 6, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Acceso
+              {t('admin.videoPlayer.access')}
             </Text>
             <Text style={{ fontSize: 13, color: T.textSecondary }}>
-              Planes: {video.allowed_plans.length === 0 ? 'Todos' : video.allowed_plans.join(', ')}
+              {t('admin.videoPlayer.plansLabel')}: {video.allowed_plans.length === 0 ? t('admin.videoPlayer.all') : video.allowed_plans.join(', ')}
             </Text>
             <Text style={{ fontSize: 13, color: T.textSecondary, marginTop: 2 }}>
-              Niveles: {video.allowed_levels.length === 0 ? 'Todos' : video.allowed_levels.map((l) => LEVEL_LABELS[l] ?? l).join(', ')}
+              {t('admin.videoPlayer.levelsLabel')}: {video.allowed_levels.length === 0 ? t('admin.videoPlayer.all') : video.allowed_levels.map((l) => LEVEL_LABELS[l] ?? l).join(', ')}
             </Text>
             <Text style={{ fontSize: 13, color: T.textSecondary, marginTop: 2 }}>
-              Vistas: {video.views_count}
+              {t('admin.videoPlayer.viewsLabel')}: {video.views_count}
             </Text>
           </View>
         </View>

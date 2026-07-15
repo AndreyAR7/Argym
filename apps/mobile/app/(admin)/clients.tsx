@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { AdminTopBar } from '@/components/admin/AdminTopBar';
 import { SkeletonCard } from '@/components/shared/SkeletonLoader';
@@ -26,13 +27,13 @@ import type { ThemeConfig } from '@/store/profile.store';
 // ─── Level tab config ─────────────────────────────────────────
 type LevelTab = 'all' | 'beginner' | 'intermediate' | 'advanced' | 'none' | 'pending';
 
-const LEVEL_TABS: { key: LevelTab; label: string; emoji: string }[] = [
-  { key: 'all',          label: 'Todos',        emoji: '👥' },
-  { key: 'beginner',     label: 'Principiante', emoji: '🌱' },
-  { key: 'intermediate', label: 'Intermedio',   emoji: '⚡' },
-  { key: 'advanced',     label: 'Avanzado',     emoji: '🔥' },
-  { key: 'none',         label: 'Sin nivel',    emoji: '❔' },
-  { key: 'pending',      label: 'Pendientes',   emoji: '⏳' },
+const LEVEL_TABS: { key: LevelTab; labelKey: string; emoji: string }[] = [
+  { key: 'all',          labelKey: 'admin.clients.levelNames.all',          emoji: '👥' },
+  { key: 'beginner',     labelKey: 'admin.clients.levelNames.beginner',     emoji: '🌱' },
+  { key: 'intermediate', labelKey: 'admin.clients.levelNames.intermediate', emoji: '⚡' },
+  { key: 'advanced',     labelKey: 'admin.clients.levelNames.advanced',     emoji: '🔥' },
+  { key: 'none',         labelKey: 'admin.clients.levelNames.none',         emoji: '❔' },
+  { key: 'pending',      labelKey: 'admin.clients.levelNames.pending',      emoji: '⏳' },
 ];
 
 function getLevelColor(key: LevelTab, T: ThemeConfig): string | null {
@@ -49,6 +50,7 @@ function getLevelColor(key: LevelTab, T: ThemeConfig): string | null {
 // ─── Frosted glass search bar ─────────────────────────────────
 function GlassSearchBar({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const T = useTheme();
+  const { t } = useTranslation();
   return (
     <View style={[glassStyles.wrap, { backgroundColor: T.bgCard + 'CC', borderColor: T.border + '88' }]}>
       <Text style={{ fontSize: 16, color: T.textMuted }}>🔍</Text>
@@ -56,7 +58,7 @@ function GlassSearchBar({ value, onChange }: { value: string; onChange: (v: stri
         style={[glassStyles.input, { color: T.text }]}
         value={value}
         onChangeText={onChange}
-        placeholder="Buscar cliente..."
+        placeholder={t('admin.clients.searchPlaceholder')}
         placeholderTextColor={T.textMuted}
         autoCorrect={false}
         autoCapitalize="none"
@@ -91,13 +93,14 @@ function LevelTabStrip({
   onChange: (t: LevelTab) => void;
 }) {
   const T = useTheme();
+  const { t } = useTranslation();
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingVertical: 8 }}
     >
-      {LEVEL_TABS.map(({ key, label, emoji }) => {
+      {LEVEL_TABS.map(({ key, labelKey, emoji }) => {
         const isActive = active === key;
         const count = key === 'pending' ? pendingCount : counts[key];
         const accentColor = getLevelColor(key, T) ?? T.accent;
@@ -114,7 +117,7 @@ function LevelTabStrip({
           >
             <Text style={{ fontSize: 13 }}>{emoji}</Text>
             <Text style={[tabStyles.label, { color: isActive ? '#fff' : T.textSecondary }]}>
-              {label}
+              {t(labelKey)}
             </Text>
             {count > 0 && (
               <View style={[tabStyles.badge, { backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : accentColor + '22' }]}>
@@ -143,15 +146,16 @@ const tabStyles = StyleSheet.create({
 // ─── Level picker sheet ───────────────────────────────────────
 // Tap-to-save mini sheet: opens from the level badge on each client row.
 const LEVEL_PICKER_OPTIONS = [
-  { value: 'beginner',     label: 'Principiante', emoji: '🌱', desc: 'Comienza su camino fitness' },
-  { value: 'intermediate', label: 'Intermedio',   emoji: '💪', desc: '3–12 meses de entrenamiento' },
-  { value: 'advanced',     label: 'Avanzado',     emoji: '🏆', desc: 'Más de un año, alta exigencia' },
+  { value: 'beginner',     labelKey: 'admin.clients.levelNames.beginner',     emoji: '🌱', descKey: 'admin.clients.levelPicker.beginnerDesc' },
+  { value: 'intermediate', labelKey: 'admin.clients.levelNames.intermediate', emoji: '💪', descKey: 'admin.clients.levelPicker.intermediateDesc' },
+  { value: 'advanced',     labelKey: 'admin.clients.levelNames.advanced',     emoji: '🏆', descKey: 'admin.clients.levelPicker.advancedDesc' },
 ] as const;
 
 function LevelPickerSheet({ client, visible, onClose, onSaved }: {
   client: ClientWithPlan | null; visible: boolean; onClose: () => void; onSaved: () => void;
 }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const updateMutation = useUpdateProfile('client');
   const [saving, setSaving] = useState<string | null>(null);
 
@@ -161,12 +165,12 @@ function LevelPickerSheet({ client, visible, onClose, onSaved }: {
     setSaving(key);
     try {
       await updateMutation.mutateAsync({ id: client.id, input: { client_level: level } });
-      const label = level ? CLIENT_LEVEL_LABELS[level] : 'Sin nivel';
+      const label = level ? CLIENT_LEVEL_LABELS[level] : t('admin.clients.levelNames.none');
       ToastManager.show({ message: `${client.full_name?.split(' ')[0]}: ${label}`, type: 'success' });
       onSaved();
       onClose();
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      Alert.alert(t('common.error'), e.message);
     } finally {
       setSaving(null);
     }
@@ -180,13 +184,13 @@ function LevelPickerSheet({ client, visible, onClose, onSaved }: {
         <TouchableOpacity activeOpacity={1} style={[modalStyles.sheet, { backgroundColor: T.bgCard }]}>
           <View style={modalStyles.handle} />
           <Text style={{ fontSize: 17, fontWeight: '800', color: T.text, marginBottom: 2 }}>
-            Nivel de {client?.full_name?.split(' ')[0]}
+            {t('admin.clients.levelPicker.title', { name: client?.full_name?.split(' ')[0] })}
           </Text>
           <Text style={{ fontSize: 12, color: T.textMuted, marginBottom: 20 }}>
-            Toca para asignar al instante
+            {t('admin.clients.levelPicker.subtitle')}
           </Text>
 
-          {LEVEL_PICKER_OPTIONS.map(({ value, label, emoji, desc }) => {
+          {LEVEL_PICKER_OPTIONS.map(({ value, labelKey, emoji, descKey }) => {
             const isActive = currentLevel === value;
             const isSaving = saving === value;
             const color = value === 'beginner' ? T.green : value === 'intermediate' ? T.accent : T.red;
@@ -199,8 +203,8 @@ function LevelPickerSheet({ client, visible, onClose, onSaved }: {
               >
                 <Text style={{ fontSize: 28 }}>{emoji}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: isActive ? color : T.text }}>{label}</Text>
-                  <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 1 }}>{desc}</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: isActive ? color : T.text }}>{t(labelKey)}</Text>
+                  <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 1 }}>{t(descKey)}</Text>
                 </View>
                 {isSaving
                   ? <ActivityIndicator size="small" color={color} />
@@ -220,7 +224,7 @@ function LevelPickerSheet({ client, visible, onClose, onSaved }: {
             >
               <Text style={{ fontSize: 20 }}>✕</Text>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: T.textMuted }}>Quitar nivel</Text>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: T.textMuted }}>{t('admin.clients.levelPicker.removeLevel')}</Text>
               </View>
               {saving === '__none__' && <ActivityIndicator size="small" color={T.textMuted} />}
             </TouchableOpacity>
@@ -244,6 +248,7 @@ function ClientRow({ client, onEdit, onPlan, onLevelPress }: {
   client: ClientWithPlan; onEdit: () => void; onPlan: () => void; onLevelPress: () => void;
 }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const initials = (client.full_name ?? '?').split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
   const hasLevel = !!client.client_level;
   const levelLabel = hasLevel ? CLIENT_LEVEL_LABELS[client.client_level!] : null;
@@ -268,7 +273,7 @@ function ClientRow({ client, onEdit, onPlan, onLevelPress }: {
           <Text style={[rowStyles.name, { color: T.text }]}>{client.full_name}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
             <Text style={{ fontSize: 11, color: T.textMuted }} numberOfLines={1}>
-              {client.plan_name ?? 'Sin plan'}
+              {client.plan_name ?? t('admin.clients.row.noPlan')}
               {client.promotion_title ? ` · 🎁 ${client.promotion_title}` : ''}
             </Text>
           </View>
@@ -282,7 +287,7 @@ function ClientRow({ client, onEdit, onPlan, onLevelPress }: {
             : { backgroundColor: '#F59E0B11', borderColor: '#F59E0B44', borderStyle: 'dashed' },
         ]}>
           <Text style={{ fontSize: 11, fontWeight: '700', color: levelColor }}>
-            {levelLabel ?? '❔ Nivel'}
+            {levelLabel ?? t('admin.clients.row.noLevelBadge')}
           </Text>
           <Text style={{ fontSize: 8, color: levelColor, opacity: 0.8 }}>▾</Text>
         </TouchableOpacity>
@@ -290,7 +295,7 @@ function ClientRow({ client, onEdit, onPlan, onLevelPress }: {
         {/* Plan button */}
         <TouchableOpacity onPress={onPlan} style={[rowStyles.planBtn, { borderColor: T.accent + '55' }]}>
           <Text style={{ fontSize: 11, color: T.accent, fontWeight: '700' }}>
-            {client.plan_name ? '🔄' : '➕'} Plan
+            {client.plan_name ? '🔄' : '➕'} {t('admin.clients.row.planButton')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -320,32 +325,33 @@ interface PendingUser {
 
 function PendingRow({ item, adminId, onDone }: { item: PendingUser; adminId: string; onDone: () => void }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const initials = item.full_name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
 
-  const approve = () => Alert.alert('Aprobar cliente', `¿Aprobar a ${item.full_name}?`, [
-    { text: 'Cancelar', style: 'cancel' },
-    { text: 'Aprobar', onPress: async () => {
+  const approve = () => Alert.alert(t('admin.clients.pending.approveTitle'), t('admin.clients.pending.approveMessage', { name: item.full_name }), [
+    { text: t('common.cancel'), style: 'cancel' },
+    { text: t('admin.clients.pending.approve'), onPress: async () => {
       setBusy(true);
       try {
         const { error } = await supabase.rpc('approve_user', { p_user_id: item.id, p_role_name: item.requested_role ?? 'client', p_admin_id: adminId });
         if (error) throw error;
-        ToastManager.show({ message: `${item.full_name} aprobado`, type: 'success' });
+        ToastManager.show({ message: t('admin.clients.pending.approvedToast', { name: item.full_name }), type: 'success' });
         onDone();
-      } catch (e: any) { Alert.alert('Error', e.message); } finally { setBusy(false); }
+      } catch (e: any) { Alert.alert(t('common.error'), e.message); } finally { setBusy(false); }
     }},
   ]);
 
-  const reject = () => Alert.alert('Rechazar', `¿Rechazar a ${item.full_name}?`, [
-    { text: 'Cancelar', style: 'cancel' },
-    { text: 'Rechazar', style: 'destructive', onPress: async () => {
+  const reject = () => Alert.alert(t('admin.clients.pending.rejectTitle'), t('admin.clients.pending.rejectMessage', { name: item.full_name }), [
+    { text: t('common.cancel'), style: 'cancel' },
+    { text: t('admin.clients.pending.reject'), style: 'destructive', onPress: async () => {
       setBusy(true);
       try {
         const { error } = await supabase.rpc('reject_user', { p_user_id: item.id, p_reason: 'Rechazado por administrador', p_admin_id: adminId });
         if (error) throw error;
-        ToastManager.show({ message: `${item.full_name} rechazado`, type: 'info' });
+        ToastManager.show({ message: t('admin.clients.pending.rejectedToast', { name: item.full_name }), type: 'info' });
         onDone();
-      } catch (e: any) { Alert.alert('Error', e.message); } finally { setBusy(false); }
+      } catch (e: any) { Alert.alert(t('common.error'), e.message); } finally { setBusy(false); }
     }},
   ]);
 
@@ -363,11 +369,11 @@ function PendingRow({ item, adminId, onDone }: { item: PendingUser; adminId: str
       <View style={{ gap: 6 }}>
         <TouchableOpacity onPress={approve} disabled={busy}
           style={{ backgroundColor: T.green, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
-          {busy ? <ActivityIndicator color={T.textInverse} size="small" /> : <Text style={{ color: T.textInverse, fontSize: 12, fontWeight: '700' }}>✓ Aprobar</Text>}
+          {busy ? <ActivityIndicator color={T.textInverse} size="small" /> : <Text style={{ color: T.textInverse, fontSize: 12, fontWeight: '700' }}>{t('admin.clients.pending.approveButtonLabel')}</Text>}
         </TouchableOpacity>
         <TouchableOpacity onPress={reject} disabled={busy}
           style={{ borderWidth: 1, borderColor: T.red + '55', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
-          <Text style={{ color: T.red, fontSize: 12, fontWeight: '700' }}>✕ Rechazar</Text>
+          <Text style={{ color: T.red, fontSize: 12, fontWeight: '700' }}>{t('admin.clients.pending.rejectButtonLabel')}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -380,6 +386,7 @@ function EditClientModal({ clientId, client, visible, onClose, onSaved }: {
   visible: boolean; onClose: () => void; onSaved: () => void;
 }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const updateMutation = useUpdateProfile('client');
   const toggleMutation = useToggleProfileActive('client');
   const [fullName, setFullName] = useState('');
@@ -404,7 +411,7 @@ function EditClientModal({ clientId, client, visible, onClose, onSaved }: {
 
   const handleSave = async () => {
     if (!clientId) return;
-    if (!fullName.trim()) { Alert.alert('Error', 'El nombre es requerido.'); return; }
+    if (!fullName.trim()) { Alert.alert(t('common.error'), t('admin.clients.edit.nameRequired')); return; }
     try {
       await updateMutation.mutateAsync({ id: clientId, input: {
         full_name: fullName.trim(),
@@ -412,21 +419,21 @@ function EditClientModal({ clientId, client, visible, onClose, onSaved }: {
         date_of_birth: dob.trim() || undefined,
         client_level: clientLevel,
       }});
-      ToastManager.show({ message: 'Cliente actualizado', type: 'success' });
+      ToastManager.show({ message: t('admin.clients.edit.updated'), type: 'success' });
       onSaved(); onClose();
-    } catch (err: any) { Alert.alert('Error', err.message ?? 'No se pudo actualizar.'); }
+    } catch (err: any) { Alert.alert(t('common.error'), err.message ?? t('admin.clients.edit.updateFailed')); }
   };
 
   const handleToggle = async () => {
     if (!clientId) return;
-    Alert.alert(isActive ? 'Desactivar cliente' : 'Activar cliente', '¿Confirmar?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Confirmar', onPress: async () => {
+    Alert.alert(isActive ? t('admin.clients.edit.deactivateTitle') : t('admin.clients.edit.activateTitle'), t('admin.clients.edit.confirmQuestion'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.confirm'), onPress: async () => {
         try {
           await toggleMutation.mutateAsync({ id: clientId, isActive: !isActive });
-          ToastManager.show({ message: isActive ? 'Cliente desactivado' : 'Cliente activado', type: 'info' });
+          ToastManager.show({ message: isActive ? t('admin.clients.edit.deactivated') : t('admin.clients.edit.activated'), type: 'info' });
           onSaved(); onClose();
-        } catch (err: any) { Alert.alert('Error', err.message); }
+        } catch (err: any) { Alert.alert(t('common.error'), err.message); }
       }},
     ]);
   };
@@ -440,39 +447,39 @@ function EditClientModal({ clientId, client, visible, onClose, onSaved }: {
           <View style={[modalStyles.sheet, { backgroundColor: T.bgCard }]}>
             <View style={modalStyles.handle} />
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <Text style={[modalStyles.title, { color: T.text }]}>Editar cliente</Text>
+              <Text style={[modalStyles.title, { color: T.text }]}>{t('admin.clients.edit.title')}</Text>
 
               {(client?.plan_name || client?.promotion_title || client?.client_level) && (
                 <View style={[modalStyles.infoCard, { backgroundColor: T.accentGlow, borderColor: T.accent + '33' }]}>
                   {client.plan_name && (
                     <View style={modalStyles.infoRow}>
-                      <Text style={{ fontSize: 13, color: T.textSecondary }}>💳 Plan</Text>
+                      <Text style={{ fontSize: 13, color: T.textSecondary }}>{t('admin.clients.edit.planLabel')}</Text>
                       <Text style={{ fontSize: 13, fontWeight: '700', color: T.text }}>{client.plan_name}</Text>
                     </View>
                   )}
                   {client.promotion_title && (
                     <View style={modalStyles.infoRow}>
-                      <Text style={{ fontSize: 13, color: T.textSecondary }}>🎁 Promo</Text>
+                      <Text style={{ fontSize: 13, color: T.textSecondary }}>{t('admin.clients.edit.promoLabel')}</Text>
                       <Text style={{ fontSize: 13, fontWeight: '700', color: T.green }}>{client.promotion_title}</Text>
                     </View>
                   )}
                 </View>
               )}
 
-              <Text style={[modalStyles.label, { color: T.textSecondary }]}>Nombre completo</Text>
+              <Text style={[modalStyles.label, { color: T.textSecondary }]}>{t('admin.clients.form.fullNameLabel')}</Text>
               <TextInput style={[modalStyles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                value={fullName} onChangeText={setFullName} placeholder="Nombre completo" placeholderTextColor={T.textMuted} />
-              <Text style={[modalStyles.label, { color: T.textSecondary }]}>Teléfono</Text>
+                value={fullName} onChangeText={setFullName} placeholder={t('admin.clients.form.fullNamePlaceholder')} placeholderTextColor={T.textMuted} />
+              <Text style={[modalStyles.label, { color: T.textSecondary }]}>{t('admin.clients.form.phoneLabel')}</Text>
               <TextInput style={[modalStyles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                value={phone} onChangeText={setPhone} placeholder="+506 8888-8888" placeholderTextColor={T.textMuted} keyboardType="phone-pad" />
-              <DatePickerField label="Fecha de nacimiento" value={dob} onChange={setDob} placeholder="Seleccionar fecha" maxDate={new Date()} />
-              <Text style={[modalStyles.label, { color: T.textSecondary }]}>Nivel de fitness</Text>
+                value={phone} onChangeText={setPhone} placeholder={t('admin.clients.form.phonePlaceholder')} placeholderTextColor={T.textMuted} keyboardType="phone-pad" />
+              <DatePickerField label={t('admin.clients.form.dobLabel')} value={dob} onChange={setDob} placeholder={t('admin.clients.form.dobPlaceholder')} maxDate={new Date()} />
+              <Text style={[modalStyles.label, { color: T.textSecondary }]}>{t('admin.clients.form.levelLabel')}</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
                 {([
-                  { value: null, label: 'Sin nivel' },
-                  { value: 'beginner', label: 'Principiante' },
-                  { value: 'intermediate', label: 'Intermedio' },
-                  { value: 'advanced', label: 'Avanzado' },
+                  { value: null, label: t('admin.clients.levelNames.none') },
+                  { value: 'beginner', label: t('admin.clients.levelNames.beginner') },
+                  { value: 'intermediate', label: t('admin.clients.levelNames.intermediate') },
+                  { value: 'advanced', label: t('admin.clients.levelNames.advanced') },
                 ] as const).map((opt) => {
                   const active = clientLevel === opt.value;
                   return (
@@ -487,16 +494,16 @@ function EditClientModal({ clientId, client, visible, onClose, onSaved }: {
 
               <View style={modalStyles.actions}>
                 <TouchableOpacity onPress={onClose} style={[modalStyles.btn, { borderColor: T.border, borderWidth: 1 }]}>
-                  <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSave} disabled={isBusy} style={[modalStyles.btn, { backgroundColor: T.accent }]}>
-                  {updateMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>Guardar</Text>}
+                  {updateMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>{t('common.save')}</Text>}
                 </TouchableOpacity>
               </View>
               <TouchableOpacity onPress={handleToggle} disabled={isBusy}
                 style={[modalStyles.toggleBtn, { borderColor: isActive ? T.red + '55' : T.green + '55', backgroundColor: isActive ? T.redSoft : T.greenSoft }]}>
                 <Text style={{ color: isActive ? T.red : T.green, fontWeight: '700', fontSize: 14 }}>
-                  {isActive ? '⛔ Desactivar cliente' : '✅ Activar cliente'}
+                  {isActive ? t('admin.clients.edit.deactivateButton') : t('admin.clients.edit.activateButton')}
                 </Text>
               </TouchableOpacity>
               <View style={{ height: 24 }} />
@@ -514,6 +521,7 @@ function AssignPlanModal({ client, visible, onClose, onSaved, tenantId }: {
   onClose: () => void; onSaved: () => void; tenantId: string;
 }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const { data: plans = [], isLoading: plansLoading } = useTenantPlans();
   const assignMutation = useAssignPlan();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -532,14 +540,14 @@ function AssignPlanModal({ client, visible, onClose, onSaved, tenantId }: {
   const isLoading = plansLoading || subsLoading;
 
   const handleAssign = async () => {
-    if (!client || !selectedPlanId) { Alert.alert('Error', 'Selecciona un plan.'); return; }
-    if (subscribedPlanIds.has(selectedPlanId)) { Alert.alert('Info', 'El cliente ya tiene este plan activo.'); return; }
+    if (!client || !selectedPlanId) { Alert.alert(t('common.error'), t('admin.clients.plan.selectRequired')); return; }
+    if (subscribedPlanIds.has(selectedPlanId)) { Alert.alert(t('admin.clients.plan.infoTitle'), t('admin.clients.plan.alreadyHasPlan')); return; }
     const plan = plans.find((p) => p.id === selectedPlanId);
     try {
       await assignMutation.mutateAsync({ userId: client.id, tenantId, planId: selectedPlanId, planPrice: plan?.price ?? 0 });
-      ToastManager.show({ message: `Plan "${plan?.name}" asignado`, type: 'success' });
+      ToastManager.show({ message: t('admin.clients.plan.assignedToast', { name: plan?.name }), type: 'success' });
       onSaved(); onClose();
-    } catch (err: any) { Alert.alert('Error', err.message ?? 'No se pudo asignar el plan.'); }
+    } catch (err: any) { Alert.alert(t('common.error'), err.message ?? t('admin.clients.plan.assignFailed')); }
   };
 
   return (
@@ -549,20 +557,20 @@ function AssignPlanModal({ client, visible, onClose, onSaved, tenantId }: {
           <View style={modalStyles.handle} />
           <ScrollView showsVerticalScrollIndicator={false}>
             <Text style={[modalStyles.title, { color: T.text }]}>
-              Gestionar planes — {client?.full_name?.split(' ')[0]}
+              {t('admin.clients.plan.title', { name: client?.full_name?.split(' ')[0] })}
             </Text>
             {clientSubs.length > 0 && (
               <View style={{ marginBottom: 16 }}>
-                <Text style={[modalStyles.label, { color: T.textSecondary }]}>Planes activos</Text>
+                <Text style={[modalStyles.label, { color: T.textSecondary }]}>{t('admin.clients.plan.activeSectionLabel')}</Text>
                 {clientSubs.map((sub) => (
                   <View key={sub.id} style={[modalStyles.planOption, { backgroundColor: T.greenSoft, borderColor: T.green + '55' }]}>
-                    <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: T.text }}>{sub.plan?.name ?? 'Plan'}</Text>
+                    <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: T.text }}>{sub.plan?.name ?? t('admin.clients.plan.planFallback')}</Text>
                     <Text style={{ fontSize: 18, color: T.green }}>✓</Text>
                   </View>
                 ))}
               </View>
             )}
-            <Text style={[modalStyles.label, { color: T.textSecondary }]}>Agregar nuevo plan</Text>
+            <Text style={[modalStyles.label, { color: T.textSecondary }]}>{t('admin.clients.plan.addNewLabel')}</Text>
             {isLoading ? (
               <ActivityIndicator color={T.accent} style={{ marginVertical: 24 }} />
             ) : plans.map((plan) => {
@@ -578,7 +586,7 @@ function AssignPlanModal({ client, visible, onClose, onSaved, tenantId }: {
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 15, fontWeight: '700', color: T.text }}>{plan.name}</Text>
                     <Text style={{ fontSize: 13, color: T.accent, fontWeight: '600', marginTop: 4 }}>
-                      {plan.currency} {plan.price.toLocaleString('es-CR')} / {plan.billing_cycle === 'monthly' ? 'mes' : plan.billing_cycle === 'yearly' ? 'año' : 'único'}
+                      {plan.currency} {plan.price.toLocaleString('es-CR')} / {plan.billing_cycle === 'monthly' ? t('admin.clients.plan.cycleMonthly') : plan.billing_cycle === 'yearly' ? t('admin.clients.plan.cycleYearly') : t('admin.clients.plan.cycleOneTime')}
                     </Text>
                   </View>
                   {!alreadyHas && (
@@ -586,17 +594,17 @@ function AssignPlanModal({ client, visible, onClose, onSaved, tenantId }: {
                       {active && <Text style={{ color: '#fff', fontSize: 11 }}>✓</Text>}
                     </View>
                   )}
-                  {alreadyHas && <Text style={{ fontSize: 10, color: T.green, fontWeight: '700' }}>YA TIENE</Text>}
+                  {alreadyHas && <Text style={{ fontSize: 10, color: T.green, fontWeight: '700' }}>{t('admin.clients.plan.alreadyHasLabel')}</Text>}
                 </TouchableOpacity>
               );
             })}
             <View style={[modalStyles.actions, { marginTop: 16 }]}>
               <TouchableOpacity onPress={onClose} style={[modalStyles.btn, { borderColor: T.border, borderWidth: 1 }]}>
-                <Text style={{ color: T.text, fontWeight: '600' }}>Cerrar</Text>
+                <Text style={{ color: T.text, fontWeight: '600' }}>{t('admin.clients.plan.closeButton')}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleAssign} disabled={!selectedPlanId || assignMutation.isPending}
                 style={[modalStyles.btn, { backgroundColor: selectedPlanId ? T.accent : T.bgCard, opacity: selectedPlanId ? 1 : 0.5 }]}>
-                {assignMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: selectedPlanId ? '#fff' : T.textMuted, fontWeight: '700' }}>Asignar</Text>}
+                {assignMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: selectedPlanId ? '#fff' : T.textMuted, fontWeight: '700' }}>{t('admin.clients.plan.assignButton')}</Text>}
               </TouchableOpacity>
             </View>
             <View style={{ height: 24 }} />
@@ -612,6 +620,7 @@ function CreateClientModal({ visible, onClose, onCreated }: {
   visible: boolean; onClose: () => void; onCreated: () => void;
 }) {
   const T = useTheme();
+  const { t } = useTranslation();
   const createMutation = useCreateUser('client');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -621,18 +630,18 @@ function CreateClientModal({ visible, onClose, onCreated }: {
   const reset = () => { setFullName(''); setEmail(''); setPhone(''); setDob(''); setPassword(''); };
 
   const handleCreate = async () => {
-    if (!fullName.trim()) { Alert.alert('Error', 'El nombre es requerido.'); return; }
-    if (!email.trim()) { Alert.alert('Error', 'El email es requerido.'); return; }
-    if (password.length < 6) { Alert.alert('Error', 'Contraseña mínimo 6 caracteres.'); return; }
+    if (!fullName.trim()) { Alert.alert(t('common.error'), t('admin.clients.edit.nameRequired')); return; }
+    if (!email.trim()) { Alert.alert(t('common.error'), t('admin.clients.create.emailRequired')); return; }
+    if (password.length < 6) { Alert.alert(t('common.error'), t('admin.clients.create.passwordMinLength')); return; }
     try {
       await createMutation.mutateAsync({
         email: email.trim().toLowerCase(), password: password.trim(),
         full_name: fullName.trim(), role: 'client',
         phone: phone.trim() || undefined, date_of_birth: dob.trim() || undefined,
       });
-      ToastManager.show({ message: 'Cliente creado correctamente', type: 'success' });
+      ToastManager.show({ message: t('admin.clients.create.success'), type: 'success' });
       reset(); onCreated(); onClose();
-    } catch (err: any) { Alert.alert('Error', err.message ?? 'No se pudo crear el cliente.'); }
+    } catch (err: any) { Alert.alert(t('common.error'), err.message ?? t('admin.clients.create.failed')); }
   };
 
   return (
@@ -642,27 +651,27 @@ function CreateClientModal({ visible, onClose, onCreated }: {
           <View style={[modalStyles.sheet, { backgroundColor: T.bgCard }]}>
             <View style={modalStyles.handle} />
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <Text style={[modalStyles.title, { color: T.text }]}>Nuevo cliente</Text>
-              <Text style={[modalStyles.label, { color: T.textSecondary }]}>Nombre completo *</Text>
+              <Text style={[modalStyles.title, { color: T.text }]}>{t('admin.clients.create.title')}</Text>
+              <Text style={[modalStyles.label, { color: T.textSecondary }]}>{t('admin.clients.form.fullNameLabelRequired')}</Text>
               <TextInput style={[modalStyles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                value={fullName} onChangeText={setFullName} placeholder="Nombre completo" placeholderTextColor={T.textMuted} />
-              <Text style={[modalStyles.label, { color: T.textSecondary }]}>Email *</Text>
+                value={fullName} onChangeText={setFullName} placeholder={t('admin.clients.form.fullNamePlaceholder')} placeholderTextColor={T.textMuted} />
+              <Text style={[modalStyles.label, { color: T.textSecondary }]}>{t('admin.clients.form.emailLabel')}</Text>
               <TextInput style={[modalStyles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                value={email} onChangeText={setEmail} placeholder="cliente@email.com" placeholderTextColor={T.textMuted}
+                value={email} onChangeText={setEmail} placeholder={t('admin.clients.form.emailPlaceholder')} placeholderTextColor={T.textMuted}
                 autoCapitalize="none" keyboardType="email-address" />
-              <Text style={[modalStyles.label, { color: T.textSecondary }]}>Contraseña temporal *</Text>
+              <Text style={[modalStyles.label, { color: T.textSecondary }]}>{t('admin.clients.form.passwordLabel')}</Text>
               <TextInput style={[modalStyles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                value={password} onChangeText={setPassword} placeholder="Mínimo 6 caracteres" placeholderTextColor={T.textMuted} secureTextEntry />
-              <Text style={[modalStyles.label, { color: T.textSecondary }]}>Teléfono</Text>
+                value={password} onChangeText={setPassword} placeholder={t('admin.clients.form.passwordPlaceholder')} placeholderTextColor={T.textMuted} secureTextEntry />
+              <Text style={[modalStyles.label, { color: T.textSecondary }]}>{t('admin.clients.form.phoneLabel')}</Text>
               <TextInput style={[modalStyles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                value={phone} onChangeText={setPhone} placeholder="+506 8888-8888" placeholderTextColor={T.textMuted} keyboardType="phone-pad" />
-              <DatePickerField label="Fecha de nacimiento" value={dob} onChange={setDob} placeholder="Seleccionar fecha" maxDate={new Date()} />
+                value={phone} onChangeText={setPhone} placeholder={t('admin.clients.form.phonePlaceholder')} placeholderTextColor={T.textMuted} keyboardType="phone-pad" />
+              <DatePickerField label={t('admin.clients.form.dobLabel')} value={dob} onChange={setDob} placeholder={t('admin.clients.form.dobPlaceholder')} maxDate={new Date()} />
               <View style={modalStyles.actions}>
                 <TouchableOpacity onPress={() => { reset(); onClose(); }} style={[modalStyles.btn, { borderColor: T.border, borderWidth: 1 }]}>
-                  <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleCreate} disabled={createMutation.isPending} style={[modalStyles.btn, { backgroundColor: T.accent }]}>
-                  {createMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>Crear</Text>}
+                  {createMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>{t('admin.clients.create.submitButton')}</Text>}
                 </TouchableOpacity>
               </View>
               <View style={{ height: 24 }} />
@@ -677,6 +686,7 @@ function CreateClientModal({ visible, onClose, onCreated }: {
 // ─── Main screen ──────────────────────────────────────────────
 export default function AdminClientsScreen() {
   const T = useTheme();
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const tenantId = user?.tenant_id ?? '';
 
@@ -732,18 +742,18 @@ export default function AdminClientsScreen() {
   }, [allClients, activeTab, search]);
 
   // Section header label for active tab
-  const tabConfig = LEVEL_TABS.find((t) => t.key === activeTab);
+  const tabConfig = LEVEL_TABS.find((lt) => lt.key === activeTab);
   const sectionLabel = activeTab === 'pending'
-    ? `${pendingUsers.length} pendientes`
-    : `${filtered.length} cliente${filtered.length !== 1 ? 's' : ''}`;
+    ? t('admin.clients.pendingCountLabel', { count: pendingUsers.length })
+    : t('admin.clients.countLabel', { count: filtered.length });
 
   return (
     <SafeAreaView style={[{ flex: 1, backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
       <AdminTopBar
-        title="Clientes"
+        title={t('navigation.clients')}
         subtitle={sectionLabel}
-        actionLabel="+ Nuevo"
+        actionLabel={t('admin.clients.newAction')}
         onAction={() => setShowCreate(true)}
       />
 
@@ -757,14 +767,14 @@ export default function AdminClientsScreen() {
         active={activeTab}
         counts={counts}
         pendingCount={pendingUsers.length}
-        onChange={(t) => { setActiveTab(t); setSearch(''); }}
+        onChange={(newTab) => { setActiveTab(newTab); setSearch(''); }}
       />
 
       {/* Section divider */}
       <View style={{ paddingHorizontal: 16, paddingBottom: 6 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={{ fontSize: 11, fontWeight: '700', color: T.textMuted, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-            {tabConfig?.emoji} {tabConfig?.label}
+            {tabConfig?.emoji} {tabConfig ? t(tabConfig.labelKey) : ''}
           </Text>
           <View style={{ flex: 1, height: 1, backgroundColor: T.border }} />
           <Text style={{ fontSize: 11, color: T.textMuted }}>{sectionLabel}</Text>
@@ -785,7 +795,7 @@ export default function AdminClientsScreen() {
             ListEmptyComponent={
               <View style={{ padding: 40, alignItems: 'center' }}>
                 <Text style={{ fontSize: 32, marginBottom: 8 }}>⏳</Text>
-                <Text style={{ color: T.textMuted, fontSize: 14 }}>No hay solicitudes pendientes</Text>
+                <Text style={{ color: T.textMuted, fontSize: 14 }}>{t('admin.clients.noPendingRequests')}</Text>
               </View>
             }
             renderItem={({ item }) => (
@@ -800,10 +810,10 @@ export default function AdminClientsScreen() {
       ) : error ? (
         <View style={{ padding: 40, alignItems: 'center' }}>
           <Text style={{ color: T.red, fontSize: 14, textAlign: 'center', marginBottom: 12 }}>
-            No se pudieron cargar los clientes.
+            {t('admin.clients.loadError')}
           </Text>
           <TouchableOpacity onPress={() => refetch()}>
-            <Text style={{ color: T.accent, fontWeight: '700' }}>Reintentar</Text>
+            <Text style={{ color: T.accent, fontWeight: '700' }}>{t('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -817,7 +827,7 @@ export default function AdminClientsScreen() {
                 {search ? '🔍' : tabConfig?.emoji ?? '👥'}
               </Text>
               <Text style={{ color: T.textMuted, fontSize: 14, textAlign: 'center' }}>
-                {search ? `Sin resultados para "${search}"` : `No hay clientes en esta categoría`}
+                {search ? t('admin.clients.noSearchResults', { query: search }) : t('admin.clients.noClientsInCategory')}
               </Text>
             </View>
           }

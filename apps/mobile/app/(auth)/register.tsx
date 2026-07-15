@@ -7,6 +7,7 @@ import {
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/lib/supabase';
 import { registerSchema, type RegisterFormValues } from '@/lib/validations';
 import { useTheme } from '@/hooks/useTheme';
@@ -14,6 +15,7 @@ import { useTheme } from '@/hooks/useTheme';
 type Branch = { id: string; name: string; address: string | null; tenant_id: string };
 
 export default function RegisterScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const T = useTheme();
   const [isLoading, setIsLoading] = useState(false);
@@ -74,7 +76,7 @@ export default function RegisterScreen() {
 
   const onSubmit = async (values: RegisterFormValues) => {
     if (!selectedBranch) {
-      setBranchError('Selecciona tu sucursal de la lista');
+      setBranchError(t('auth.register.selectBranch'));
       return;
     }
     setIsLoading(true);
@@ -95,19 +97,19 @@ export default function RegisterScreen() {
 
       if (signUpError) {
         if (signUpError.message.includes('already registered') || signUpError.message.includes('already exists')) {
-          setError('Este correo ya tiene una cuenta. Intenta iniciar sesión.');
+          setError(t('auth.register.errors.emailAlreadyRegistered'));
         } else if (signUpError.message.includes('password')) {
-          setError('La contraseña no cumple los requisitos mínimos.');
+          setError(t('auth.register.errors.passwordRequirements'));
         } else if (signUpError.message.includes('email')) {
-          setError('El correo electrónico no es válido.');
+          setError(t('auth.register.errors.invalidEmail'));
         } else {
-          setError('No se pudo completar el registro. Intenta de nuevo más tarde.');
+          setError(t('auth.register.errors.generic'));
         }
         return;
       }
       setSuccess(true);
     } catch {
-      setError('Ocurrió un error inesperado. Intenta de nuevo.');
+      setError(t('auth.register.errors.unexpected'));
     } finally {
       setIsLoading(false);
     }
@@ -131,16 +133,16 @@ export default function RegisterScreen() {
           <Text style={{ fontSize: 40 }}>✅</Text>
         </View>
         <Text style={{ fontSize: 22, fontWeight: '800', color: T.textPrimary, textAlign: 'center', marginBottom: 12 }}>
-          ¡Registro exitoso!
+          {t('auth.register.successTitle')}
         </Text>
         <Text style={{ fontSize: 15, color: T.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 32 }}>
-          Tu cuenta fue creada. Un administrador revisará tu solicitud y te asignará un rol para que puedas acceder al sistema.
+          {t('auth.register.successMessage')}
         </Text>
         <TouchableOpacity
           onPress={() => router.replace('/(auth)/login')}
           style={{ backgroundColor: T.accent, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32 }}
         >
-          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Ir al inicio de sesión</Text>
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>{t('auth.register.goToLogin')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -161,10 +163,10 @@ export default function RegisterScreen() {
             <Text style={{ fontSize: 26, fontWeight: '900', color: T.accent }}>S</Text>
           </View>
           <Text style={{ fontSize: 26, fontWeight: '800', color: T.textPrimary, marginBottom: 6 }}>
-            Crear cuenta
+            {t('auth.register.title')}
           </Text>
           <Text style={{ fontSize: 14, color: T.textSecondary, textAlign: 'center' }}>
-            Tu cuenta será revisada por un administrador
+            {t('auth.register.subtitle')}
           </Text>
         </View>
 
@@ -176,13 +178,13 @@ export default function RegisterScreen() {
 
         {/* Full name */}
         <View style={{ marginBottom: 14 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: T.textSecondary, marginBottom: 6 }}>Nombre completo</Text>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: T.textSecondary, marginBottom: 6 }}>{t('auth.fullName')}</Text>
           <Controller
             control={control} name="full_name"
             render={({ field: { onChange, onBlur, value } }) => (
               <TextInput
                 style={inputStyle(!!errors.full_name)}
-                placeholder="Juan Pérez"
+                placeholder={t('auth.register.fullNamePlaceholder')}
                 placeholderTextColor={T.textMuted}
                 autoCapitalize="words"
                 onBlur={onBlur} onChangeText={onChange} value={value}
@@ -194,13 +196,13 @@ export default function RegisterScreen() {
 
         {/* Email */}
         <View style={{ marginBottom: 14 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: T.textSecondary, marginBottom: 6 }}>Correo electrónico</Text>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: T.textSecondary, marginBottom: 6 }}>{t('auth.email')}</Text>
           <Controller
             control={control} name="email"
             render={({ field: { onChange, onBlur, value } }) => (
               <TextInput
                 style={inputStyle(!!errors.email)}
-                placeholder="correo@ejemplo.com"
+                placeholder={t('auth.emailPlaceholder')}
                 placeholderTextColor={T.textMuted}
                 keyboardType="email-address"
                 autoCapitalize="none" autoCorrect={false}
@@ -213,7 +215,7 @@ export default function RegisterScreen() {
 
         {/* Branch search */}
         <View style={{ marginBottom: 14 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: T.textSecondary, marginBottom: 6 }}>Sucursal / Gimnasio</Text>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: T.textSecondary, marginBottom: 6 }}>{t('auth.register.branchLabel')}</Text>
           <View style={{ position: 'relative' }}>
             <View style={{
               flexDirection: 'row', alignItems: 'center',
@@ -225,7 +227,7 @@ export default function RegisterScreen() {
             }}>
               <TextInput
                 style={{ flex: 1, paddingVertical: 12, fontSize: 16, color: T.textPrimary }}
-                placeholder="Buscar gimnasio..."
+                placeholder={t('auth.register.branchSearchPlaceholder')}
                 placeholderTextColor={T.textMuted}
                 value={searchQuery}
                 onFocus={onSearchFocus}
@@ -283,14 +285,14 @@ export default function RegisterScreen() {
 
             {showDropdown && !isSearching && branchResults.length === 0 && searchQuery.trim().length > 0 && (
               <View style={{ backgroundColor: T.card, borderWidth: 1, borderColor: T.border, borderRadius: 10, marginTop: 4, padding: 14 }}>
-                <Text style={{ color: T.textMuted, fontSize: 13, textAlign: 'center' }}>No se encontraron sucursales</Text>
+                <Text style={{ color: T.textMuted, fontSize: 13, textAlign: 'center' }}>{t('auth.register.noBranchesFound')}</Text>
               </View>
             )}
           </View>
 
           {selectedBranch && (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
-              <Text style={{ fontSize: 12, color: T.accent }}>✓ {selectedBranch.name} seleccionado</Text>
+              <Text style={{ fontSize: 12, color: T.accent }}>✓ {t('auth.register.branchSelected', { name: selectedBranch.name })}</Text>
             </View>
           )}
           {branchError && <Text style={{ color: T.red, fontSize: 12, marginTop: 4 }}>{branchError}</Text>}
@@ -298,14 +300,14 @@ export default function RegisterScreen() {
 
         {/* Password */}
         <View style={{ marginBottom: 14 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: T.textSecondary, marginBottom: 6 }}>Contraseña</Text>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: T.textSecondary, marginBottom: 6 }}>{t('auth.password')}</Text>
           <View style={{ position: 'relative' }}>
             <Controller
               control={control} name="password"
               render={({ field: { onChange, onBlur, value } }) => (
                 <TextInput
                   style={{ ...inputStyle(!!errors.password), paddingRight: 52 }}
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder={t('auth.register.passwordPlaceholder')}
                   placeholderTextColor={T.textMuted}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
@@ -317,7 +319,7 @@ export default function RegisterScreen() {
               onPress={() => setShowPassword(!showPassword)}
               style={{ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }}
             >
-              <Text style={{ color: T.textMuted, fontSize: 12 }}>{showPassword ? 'Ocultar' : 'Ver'}</Text>
+              <Text style={{ color: T.textMuted, fontSize: 12 }}>{showPassword ? t('auth.register.hidePassword') : t('auth.register.showPassword')}</Text>
             </TouchableOpacity>
           </View>
           {errors.password && <Text style={{ color: T.red, fontSize: 12, marginTop: 4 }}>{errors.password.message}</Text>}
@@ -325,13 +327,13 @@ export default function RegisterScreen() {
 
         {/* Confirm password */}
         <View style={{ marginBottom: 24 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: T.textSecondary, marginBottom: 6 }}>Confirmar contraseña</Text>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: T.textSecondary, marginBottom: 6 }}>{t('auth.confirmPassword')}</Text>
           <Controller
             control={control} name="confirmPassword"
             render={({ field: { onChange, onBlur, value } }) => (
               <TextInput
                 style={inputStyle(!!errors.confirmPassword)}
-                placeholder="Repite tu contraseña"
+                placeholder={t('auth.register.confirmPasswordPlaceholder')}
                 placeholderTextColor={T.textMuted}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
@@ -350,16 +352,16 @@ export default function RegisterScreen() {
         >
           {isLoading
             ? <ActivityIndicator color="#fff" />
-            : <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Crear cuenta</Text>
+            : <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{t('auth.register.title')}</Text>
           }
         </TouchableOpacity>
 
         {/* Login link */}
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 4 }}>
-          <Text style={{ color: T.textSecondary, fontSize: 14 }}>¿Ya tienes cuenta?</Text>
+          <Text style={{ color: T.textSecondary, fontSize: 14 }}>{t('auth.register.alreadyHaveAccount')}</Text>
           <Link href="/(auth)/login" asChild>
             <TouchableOpacity>
-              <Text style={{ color: T.accent, fontSize: 14, fontWeight: '700' }}>Iniciar sesión</Text>
+              <Text style={{ color: T.accent, fontSize: 14, fontWeight: '700' }}>{t('auth.login')}</Text>
             </TouchableOpacity>
           </Link>
         </View>

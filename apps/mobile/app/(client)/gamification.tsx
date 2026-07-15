@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/auth.store';
 import { useGamificationStore } from '@/store/gamification.store';
@@ -36,6 +37,7 @@ function darkenColor(hex: string, amount = 0.35): string {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function GamificationScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const T = useTheme();
   const { user } = useAuthStore();
@@ -100,7 +102,7 @@ export default function GamificationScreen() {
   const nextLevelDef = stats ? levelDefs.find((l) => l.level === (stats.level ?? 0) + 1) : null;
 
   const levelColor = currentLevelDef?.color ?? '#6366f1';
-  const levelName = currentLevelDef?.name ?? 'Novato';
+  const levelName = currentLevelDef?.name ?? t('client.gamification.levelCard.defaultName');
   const nextLevelName = nextLevelDef?.name ?? null;
 
   const xpForCurrentLevel = currentLevelDef?.xp_required ?? 0;
@@ -144,9 +146,12 @@ export default function GamificationScreen() {
     } catch (err: any) {
       const msg: string = err?.message ?? '';
       if (msg.includes('already_checked_in') || msg.includes('already checked')) {
-        Alert.alert('Check-in', 'Ya registraste tu asistencia hoy. ¡Vuelve mañana! 💪');
+        Alert.alert(
+          t('client.gamification.checkin.alreadyTitle'),
+          t('client.gamification.checkin.alreadyMessage'),
+        );
       } else {
-        Alert.alert('Error', 'No se pudo registrar el check-in. Intenta de nuevo.');
+        Alert.alert(t('common.error'), t('client.gamification.checkin.errorMessage'));
       }
     }
   }
@@ -156,7 +161,7 @@ export default function GamificationScreen() {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <ClientTopBar title="Gamificación" />
+      <ClientTopBar title={t('client.gamification.title')} />
 
       <ScrollView
         style={{ flex: 1 }}
@@ -167,7 +172,7 @@ export default function GamificationScreen() {
         {isLoadingStats && !stats ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={T.accent} />
-            <Text style={[styles.loadingText, { color: T.textMuted }]}>Cargando stats...</Text>
+            <Text style={[styles.loadingText, { color: T.textMuted }]}>{t('client.gamification.loadingStats')}</Text>
           </View>
         ) : (
           <>
@@ -256,6 +261,7 @@ function LevelCard({
   xpBarAnim: Animated.Value;
   T: any;
 }) {
+  const { t } = useTranslation();
   const darkColor = darkenColor(levelColor, 0.45);
 
   const barWidth = xpBarAnim.interpolate({
@@ -277,7 +283,7 @@ function LevelCard({
       <View style={styles.levelCardContent}>
         {/* Left: level info */}
         <View style={{ flex: 1 }}>
-          <Text style={styles.levelLabel}>NIVEL</Text>
+          <Text style={styles.levelLabel}>{t('client.gamification.levelCard.label')}</Text>
           <Text style={styles.levelNumber}>{level}</Text>
           <Text style={styles.levelName}>{levelName}</Text>
         </View>
@@ -302,11 +308,13 @@ function LevelCard({
         <Text style={styles.xpLabelText}>{xpTotal} XP</Text>
         {xpForNextLevel != null && xpNeededForNext != null ? (
           <Text style={styles.xpLabelText}>
-            {xpNeededForNext > 0 ? `${xpNeededForNext} XP para nivel ${nextLevel}` : `¡Nivel ${nextLevel} desbloqueado!`}
+            {xpNeededForNext > 0
+              ? t('client.gamification.levelCard.xpToNextLevel', { xp: xpNeededForNext, level: nextLevel })
+              : t('client.gamification.levelCard.levelUnlocked', { level: nextLevel })}
             {nextLevelName ? ` · ${nextLevelName}` : ''}
           </Text>
         ) : (
-          <Text style={styles.xpLabelText}>Nivel máximo 🏆</Text>
+          <Text style={styles.xpLabelText}>{t('client.gamification.levelCard.maxLevel')}</Text>
         )}
       </View>
     </LinearGradient>
@@ -323,6 +331,7 @@ function CheckinButton({
   onPress: () => void;
   T: any;
 }) {
+  const { t } = useTranslation();
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -343,8 +352,8 @@ function CheckinButton({
       <View style={[styles.checkinDone, { backgroundColor: T.bgCard, borderColor: T.green + '44' }]}>
         <Text style={styles.checkinDoneIcon}>✓</Text>
         <View>
-          <Text style={[styles.checkinDoneTitle, { color: T.green }]}>Ya hiciste check-in hoy</Text>
-          <Text style={[styles.checkinDoneSub, { color: T.textMuted }]}>Vuelve mañana para mantener tu racha 🔥</Text>
+          <Text style={[styles.checkinDoneTitle, { color: T.green }]}>{t('client.gamification.checkin.doneTitle')}</Text>
+          <Text style={[styles.checkinDoneSub, { color: T.textMuted }]}>{t('client.gamification.checkin.doneSubtitle')}</Text>
         </View>
       </View>
     );
@@ -371,8 +380,8 @@ function CheckinButton({
               <View style={styles.checkinLeft}>
                 <Text style={styles.checkinEmoji}>📍</Text>
                 <View>
-                  <Text style={styles.checkinTitle}>CHECK IN HOY</Text>
-                  <Text style={styles.checkinSub}>Gana 50+ XP · Mantén tu racha 🔥</Text>
+                  <Text style={styles.checkinTitle}>{t('client.gamification.checkin.title')}</Text>
+                  <Text style={styles.checkinSub}>{t('client.gamification.checkin.subtitle')}</Text>
                 </View>
               </View>
               <Text style={styles.checkinArrow}>→</Text>
@@ -387,11 +396,12 @@ function CheckinButton({
 // ─── Stats Row ────────────────────────────────────────────────────────────────
 
 function StatsRow({ stats, T }: { stats: any; T: any }) {
+  const { t } = useTranslation();
   const items = [
-    { icon: '🔥', value: stats?.current_streak ?? 0, label: 'Racha actual' },
-    { icon: '🏆', value: stats?.total_checkins ?? 0, label: 'Total visitas' },
-    { icon: '⚡', value: stats?.xp_this_week ?? 0, label: 'XP esta semana' },
-    { icon: '🎯', value: stats?.total_challenges_won ?? 0, label: 'Retos ganados' },
+    { icon: '🔥', value: stats?.current_streak ?? 0, label: t('client.gamification.stats.currentStreak') },
+    { icon: '🏆', value: stats?.total_checkins ?? 0, label: t('client.gamification.stats.totalVisits') },
+    { icon: '⚡', value: stats?.xp_this_week ?? 0, label: t('client.gamification.stats.xpThisWeek') },
+    { icon: '🎯', value: stats?.total_challenges_won ?? 0, label: t('client.gamification.stats.challengesWon') },
   ];
 
   return (
@@ -418,25 +428,26 @@ function StatsRow({ stats, T }: { stats: any; T: any }) {
 // ─── Navigation Cards ─────────────────────────────────────────────────────────
 
 function NavCards({ router, T }: { router: any; T: any }) {
+  const { t } = useTranslation();
   const cards = [
     {
       icon: '🏆',
-      title: 'Rankings',
-      subtitle: '¿Dónde estás en el ranking esta semana?',
+      title: t('client.gamification.nav.rankings.title'),
+      subtitle: t('client.gamification.nav.rankings.subtitle'),
       colors: ['#3b82f6', '#1d4ed8'] as [string, string],
       route: '/(client)/leaderboard',
     },
     {
       icon: '🏅',
-      title: 'Logros',
-      subtitle: 'Colecciona insignias y desbloquea recompensas',
+      title: t('client.gamification.nav.achievements.title'),
+      subtitle: t('client.gamification.nav.achievements.subtitle'),
       colors: ['#a855f7', '#7c3aed'] as [string, string],
       route: '/(client)/achievements',
     },
     {
       icon: '⚔️',
-      title: 'Retos',
-      subtitle: 'Reta a otros miembros y gana XP',
+      title: t('client.gamification.nav.challenges.title'),
+      subtitle: t('client.gamification.nav.challenges.subtitle'),
       colors: ['#f97316', '#b45309'] as [string, string],
       route: '/(client)/challenges',
     },
@@ -444,7 +455,7 @@ function NavCards({ router, T }: { router: any; T: any }) {
 
   return (
     <View style={styles.navCardsContainer}>
-      <Text style={[styles.navCardsTitle, { color: T.textSecondary }]}>EXPLORAR</Text>
+      <Text style={[styles.navCardsTitle, { color: T.textSecondary }]}>{t('client.gamification.nav.sectionTitle')}</Text>
       {cards.map((card, i) => (
         <TouchableOpacity
           key={i}
@@ -488,6 +499,7 @@ function StreakInfo({
   longestStreak: number;
   T: any;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={[styles.streakCard, { backgroundColor: T.bgCard, borderColor: T.border }]}>
       {currentStreak > 0 ? (
@@ -495,10 +507,10 @@ function StreakInfo({
           <Text style={styles.streakEmoji}>🔥</Text>
           <View style={{ flex: 1 }}>
             <Text style={[styles.streakTitle, { color: T.text }]}>
-              Llevas {currentStreak} {currentStreak === 1 ? 'día seguido' : 'días seguidos'}
+              {t('client.gamification.streak.days', { count: currentStreak })}
             </Text>
             <Text style={[styles.streakSub, { color: T.textMuted }]}>
-              Racha máxima: {longestStreak} días
+              {t('client.gamification.streak.max', { count: longestStreak })}
             </Text>
           </View>
         </>
@@ -506,8 +518,8 @@ function StreakInfo({
         <>
           <Text style={styles.streakEmoji}>💪</Text>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.streakTitle, { color: T.text }]}>Empieza tu racha hoy con el check-in</Text>
-            <Text style={[styles.streakSub, { color: T.textMuted }]}>Racha máxima: {longestStreak} días</Text>
+            <Text style={[styles.streakTitle, { color: T.text }]}>{t('client.gamification.streak.startToday')}</Text>
+            <Text style={[styles.streakSub, { color: T.textMuted }]}>{t('client.gamification.streak.max', { count: longestStreak })}</Text>
           </View>
         </>
       )}

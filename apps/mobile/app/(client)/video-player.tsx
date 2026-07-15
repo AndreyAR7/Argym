@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useVideosStore } from '@/store/videos.store';
 import { useAuthStore } from '@/store/auth.store';
@@ -17,6 +18,7 @@ export default function VideoPlayerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const T = useTheme();
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const { clientVideos } = useVideosStore();
 
@@ -60,7 +62,7 @@ export default function VideoPlayerScreen() {
   useEffect(() => {
     if (!video?.video_storage_path) {
       setLoadingUrl(false);
-      setUrlError('Este video no tiene archivo disponible aún.');
+      setUrlError(t('client.videoPlayer.noFileAvailable'));
       return;
     }
     getVideoSignedUrl(video.video_storage_path)
@@ -100,9 +102,9 @@ export default function VideoPlayerScreen() {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: '#fff' }}>Video no encontrado</Text>
+          <Text style={{ color: '#fff' }}>{t('client.videoPlayer.notFound')}</Text>
           <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 16 }}>
-            <Text style={{ color: T.accent }}>Volver</Text>
+            <Text style={{ color: T.accent }}>{t('client.videoPlayer.back')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -110,7 +112,9 @@ export default function VideoPlayerScreen() {
   }
 
   const LEVEL_LABELS: Record<string, string> = {
-    beginner: 'Principiante', intermediate: 'Intermedio', advanced: 'Avanzado',
+    beginner: t('client.videoPlayer.levels.beginner'),
+    intermediate: t('client.videoPlayer.levels.intermediate'),
+    advanced: t('client.videoPlayer.levels.advanced'),
   };
   const LEVEL_COLORS: Record<string, string> = {
     beginner: T.green, intermediate: T.accent, advanced: T.red,
@@ -124,7 +128,7 @@ export default function VideoPlayerScreen() {
         {loadingUrl ? (
           <View style={styles.center}>
             <ActivityIndicator color="#fff" size="large" />
-            <Text style={{ color: '#aaa', marginTop: 12, fontSize: 13 }}>Preparando video...</Text>
+            <Text style={{ color: '#aaa', marginTop: 12, fontSize: 13 }}>{t('client.videoPlayer.preparingVideo')}</Text>
           </View>
         ) : urlError ? (
           <View style={styles.center}>
@@ -185,7 +189,7 @@ export default function VideoPlayerScreen() {
 
           {video.progress?.completed && (
             <View style={[styles.completedBanner, { backgroundColor: T.green + '22', borderColor: T.green + '44' }]}>
-              <Text style={{ color: T.green, fontWeight: '700', fontSize: 14 }}>✓ Completado</Text>
+              <Text style={{ color: T.green, fontWeight: '700', fontSize: 14 }}>{`✓ ${t('client.videoPlayer.completed')}`}</Text>
             </View>
           )}
         </View>

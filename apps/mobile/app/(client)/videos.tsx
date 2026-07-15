@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { VideoCard } from '@/components/client/VideoCard';
 import { SectionHeader } from '@/components/client/SectionHeader';
@@ -13,18 +14,19 @@ import { ClientTopBar } from '@/components/client/ClientTopBar';
 import { useClientVideos } from '@/hooks/useVideos';
 import type { ClientVideo, VideoLevel } from '@/types/videos';
 
-const LEVELS: { label: string; value: VideoLevel | 'all' }[] = [
-  { label: 'Todos', value: 'all' },
-  { label: 'Principiante', value: 'beginner' },
-  { label: 'Intermedio', value: 'intermediate' },
-  { label: 'Avanzado', value: 'advanced' },
-];
-
 export default function VideosScreen() {
+  const { t } = useTranslation();
   const T = useTheme();
   const router = useRouter();
   const [activeLevel, setActiveLevel] = useState<VideoLevel | 'all'>('all');
   const { featured, assigned, accessible, isLoading, error, reload, openVideo, clientPlan, clientLevel } = useClientVideos();
+
+  const LEVELS: { label: string; value: VideoLevel | 'all' }[] = [
+    { label: t('client.videos.levels.all'), value: 'all' },
+    { label: t('client.videos.levels.beginner'), value: 'beginner' },
+    { label: t('client.videos.levels.intermediate'), value: 'intermediate' },
+    { label: t('client.videos.levels.advanced'), value: 'advanced' },
+  ];
 
   const filtered: ClientVideo[] = activeLevel === 'all'
     ? accessible
@@ -38,7 +40,7 @@ export default function VideosScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['left', 'right']}>
-        <ClientTopBar title="Videos" />
+        <ClientTopBar title={t('client.videos.title')} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={T.accent} size="large" />
         </View>
@@ -49,13 +51,13 @@ export default function VideosScreen() {
   if (error) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: T.bg }} edges={['left', 'right']}>
-        <ClientTopBar title="Videos" />
+        <ClientTopBar title={t('client.videos.title')} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
           <Text style={{ color: T.red, fontSize: 14, textAlign: 'center', marginBottom: 16 }}>
-            No se pudieron cargar los videos.
+            {t('client.videos.loadError')}
           </Text>
           <TouchableOpacity onPress={reload}>
-            <Text style={{ color: T.accent, fontWeight: '700' }}>Reintentar</Text>
+            <Text style={{ color: T.accent, fontWeight: '700' }}>{t('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -65,14 +67,14 @@ export default function VideosScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <ClientTopBar title="Videos" />
+      <ClientTopBar title={t('client.videos.title')} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
         <View style={styles.header}>
-          <Text style={[styles.title, { color: T.text }]}>Videos</Text>
+          <Text style={[styles.title, { color: T.text }]}>{t('client.videos.title')}</Text>
           <Text style={[styles.subtitle, { color: T.textMuted }]}>
-            {accessible.length} {accessible.length === 1 ? 'video disponible' : 'videos disponibles'}
-            {clientPlan ? ` · Plan ${clientPlan}` : ''}
+            {t('client.videos.availableCount', { count: accessible.length })}
+            {clientPlan ? ` · ${t('client.videos.planLabel', { plan: clientPlan })}` : ''}
             {clientLevel ? ` · ${clientLevel}` : ''}
           </Text>
         </View>
@@ -80,7 +82,7 @@ export default function VideosScreen() {
         {/* Featured */}
         {featured.length > 0 && (
           <View style={styles.section}>
-            <SectionHeader title="Destacados" subtitle="Selección de tu coach" />
+            <SectionHeader title={t('client.videos.featuredTitle')} subtitle={t('client.videos.featuredSubtitle')} />
             <ScrollView
               horizontal showsHorizontalScrollIndicator={false}
               style={{ marginHorizontal: -16 }}
@@ -95,7 +97,7 @@ export default function VideosScreen() {
 
         {/* Explore by level */}
         <View style={styles.section}>
-          <SectionHeader title="Explorar por nivel" />
+          <SectionHeader title={t('client.videos.exploreByLevel')} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
             {LEVELS.map((l) => (
               <TouchableOpacity
@@ -115,7 +117,7 @@ export default function VideosScreen() {
             ))}
           </ScrollView>
           {filtered.length === 0
-            ? <EmptyState icon="🎬" title="Sin videos en este nivel" description="Tu coach aún no ha publicado videos de este nivel." />
+            ? <EmptyState icon="🎬" title={t('client.videos.emptyLevelTitle')} description={t('client.videos.emptyLevelDescription')} />
             : filtered.map((v) => (
               <VideoCard key={v.id} video={v} horizontal onPress={() => handlePress(v)} />
             ))
@@ -124,9 +126,9 @@ export default function VideosScreen() {
 
         {/* Assigned to me */}
         <View style={styles.section}>
-          <SectionHeader title="Mis videos" subtitle="Asignados personalmente" />
+          <SectionHeader title={t('client.videos.myVideosTitle')} subtitle={t('client.videos.myVideosSubtitle')} />
           {assigned.length === 0
-            ? <EmptyState icon="🔒" title="Sin videos asignados" description="Tu coach asignará videos personalizados para ti pronto." />
+            ? <EmptyState icon="🔒" title={t('client.videos.emptyAssignedTitle')} description={t('client.videos.emptyAssignedDescription')} />
             : assigned.map((v) => (
               <VideoCard key={v.id} video={v} horizontal onPress={() => handlePress(v)} />
             ))

@@ -4,6 +4,7 @@ import {
   TextInput, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useClients } from '@/hooks/useProfiles';
 import { SkeletonCard } from '@/components/shared/SkeletonLoader';
@@ -21,6 +22,7 @@ function getInitials(name: string) {
 }
 
 function ClientRow({ item, T }: { item: ProfileRecord; T: ReturnType<typeof useTheme> }) {
+  const { t } = useTranslation();
   const levelColor = item.client_level ? LEVEL_COLORS[item.client_level] : T.textMuted;
   const isPending = item.approval_status === 'pending';
 
@@ -47,17 +49,17 @@ function ClientRow({ item, T }: { item: ProfileRecord; T: ReturnType<typeof useT
             </View>
           ) : (
             <View style={[s.badge, { backgroundColor: T.border, borderColor: T.border }]}>
-              <Text style={{ color: T.textMuted, fontSize: 11 }}>Sin nivel</Text>
+              <Text style={{ color: T.textMuted, fontSize: 11 }}>{t('coach.clients.noLevel')}</Text>
             </View>
           )}
           {isPending && (
             <View style={[s.badge, { backgroundColor: T.orange + '22', borderColor: T.orange + '44' }]}>
-              <Text style={{ color: T.orange, fontSize: 11, fontWeight: '600' }}>Pendiente</Text>
+              <Text style={{ color: T.orange, fontSize: 11, fontWeight: '600' }}>{t('coach.clients.pending')}</Text>
             </View>
           )}
           {item.is_active === false && (
             <View style={[s.badge, { backgroundColor: T.border, borderColor: T.border }]}>
-              <Text style={{ color: T.textMuted, fontSize: 11 }}>Inactivo</Text>
+              <Text style={{ color: T.textMuted, fontSize: 11 }}>{t('common.inactive')}</Text>
             </View>
           )}
         </View>
@@ -71,6 +73,7 @@ function ClientRow({ item, T }: { item: ProfileRecord; T: ReturnType<typeof useT
 
 export default function CoachClients() {
   const T = useTheme();
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const { data: clients = [], isLoading, refetch } = useClients();
   const [refreshing, setRefreshing] = useState(false);
@@ -100,7 +103,7 @@ export default function CoachClients() {
 
       {/* Header */}
       <View style={[s.header, { borderBottomColor: T.border }]}>
-        <Text style={{ fontSize: 20, fontWeight: '800', color: T.text }}>Mis Clientes</Text>
+        <Text style={{ fontSize: 20, fontWeight: '800', color: T.text }}>{t('coach.clients.title')}</Text>
         <View style={[s.countBadge, { backgroundColor: T.accent + '22' }]}>
           <Text style={{ color: T.accent, fontSize: 13, fontWeight: '700' }}>{active.length}</Text>
         </View>
@@ -113,7 +116,7 @@ export default function CoachClients() {
           style={[s.searchInput, { color: T.text }]}
           value={search}
           onChangeText={setSearch}
-          placeholder="Buscar cliente..."
+          placeholder={t('coach.clients.searchPlaceholder')}
           placeholderTextColor={T.textMuted}
         />
         {search.length > 0 && (
@@ -126,9 +129,9 @@ export default function CoachClients() {
       {/* Stats row */}
       {!isLoading && (
         <View style={[s.statsRow, { borderBottomColor: T.border }]}>
-          <StatChip label="Activos" value={active.length} color={T.green} bg={T.bgCard} border={T.border} />
-          <StatChip label="Pendientes" value={pending.length} color={T.orange} bg={T.bgCard} border={T.border} />
-          <StatChip label="Inactivos" value={inactive.length} color={T.textMuted} bg={T.bgCard} border={T.border} />
+          <StatChip label={t('coach.clients.statsActive')} value={active.length} color={T.green} bg={T.bgCard} border={T.border} />
+          <StatChip label={t('coach.clients.statsPending')} value={pending.length} color={T.orange} bg={T.bgCard} border={T.border} />
+          <StatChip label={t('coach.clients.statsInactive')} value={inactive.length} color={T.textMuted} bg={T.bgCard} border={T.border} />
         </View>
       )}
 
@@ -142,10 +145,10 @@ export default function CoachClients() {
         <View style={s.empty}>
           <Text style={{ fontSize: 36, marginBottom: 12 }}>👥</Text>
           <Text style={{ color: T.text, fontWeight: '700', fontSize: 16, marginBottom: 4 }}>
-            {search ? 'Sin resultados' : 'Sin clientes aún'}
+            {search ? t('common.noResults') : t('coach.clients.emptyTitle')}
           </Text>
           <Text style={{ color: T.textMuted, fontSize: 13, textAlign: 'center' }}>
-            {search ? 'Prueba con otro nombre o número' : 'Los clientes asignados aparecerán aquí'}
+            {search ? t('coach.clients.emptySearchHint') : t('coach.clients.emptyHint')}
           </Text>
         </View>
       ) : (

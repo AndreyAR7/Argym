@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/auth.store';
 import { useTheme } from '@/hooks/useTheme';
 import { useAppointmentsCoach } from '@/hooks/useAppointments';
@@ -11,7 +12,9 @@ import { SkeletonCard } from '@/components/shared/SkeletonLoader';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import type { Appointment } from '@/types/appointments';
 
-function formatTime(iso: string) {
+type TFunc = ReturnType<typeof useTranslation>['t'];
+
+function formatTime(iso: string, t: TFunc) {
   const d = new Date(iso);
   const today = new Date();
   const tomorrow = new Date(today);
@@ -19,18 +22,19 @@ function formatTime(iso: string) {
   const isToday = d.toDateString() === today.toDateString();
   const isTomorrow = d.toDateString() === tomorrow.toDateString();
   const time = d.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' });
-  const day = isToday ? 'Hoy' : isTomorrow ? 'Mañana' : d.toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric', month: 'short' });
+  const day = isToday ? t('coach.dashboard.today') : isTomorrow ? t('coach.dashboard.tomorrow') : d.toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric', month: 'short' });
   return `${day} · ${time}`;
 }
 
-function getGreeting() {
+function getGreeting(t: TFunc) {
   const h = new Date().getHours();
-  if (h < 12) return 'Buenos días';
-  if (h < 18) return 'Buenas tardes';
-  return 'Buenas noches';
+  if (h < 12) return t('coach.dashboard.greeting.morning');
+  if (h < 18) return t('coach.dashboard.greeting.afternoon');
+  return t('coach.dashboard.greeting.evening');
 }
 
 export default function CoachDashboard() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuthStore();
   const T = useTheme();
@@ -64,7 +68,7 @@ export default function CoachDashboard() {
     setRefreshing(false);
   };
 
-  const firstName = user?.full_name?.split(' ')[0] ?? 'Coach';
+  const firstName = user?.full_name?.split(' ')[0] ?? t('coach.dashboard.defaultName');
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
@@ -76,38 +80,38 @@ export default function CoachDashboard() {
       >
         {/* Header */}
         <View style={{ marginBottom: 24 }}>
-          <Text style={{ fontSize: 14, color: T.textSecondary, fontWeight: '500' }}>{getGreeting()},</Text>
+          <Text style={{ fontSize: 14, color: T.textSecondary, fontWeight: '500' }}>{getGreeting(t)},</Text>
           <Text style={{ fontSize: 26, fontWeight: '800', color: T.text }}>{firstName} 👋</Text>
-          <Text style={{ fontSize: 13, color: T.textMuted, marginTop: 2 }}>Panel de coach</Text>
+          <Text style={{ fontSize: 13, color: T.textMuted, marginTop: 2 }}>{t('dashboard.coach.title')}</Text>
         </View>
 
         {/* Metrics */}
         <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
           <MetricCard
-            label="Citas hoy" value={isLoading ? '—' : String(todayCount)}
+            label={t('coach.dashboard.metrics.todayAppointments')} value={isLoading ? '—' : String(todayCount)}
             color={T.accent} bg={T.bgCard} border={T.border} text={T.text} muted={T.textSecondary}
           />
           <MetricCard
-            label="Próximas" value={isLoading ? '—' : String(upcoming.length)}
+            label={t('coach.dashboard.metrics.upcoming')} value={isLoading ? '—' : String(upcoming.length)}
             color={T.green} bg={T.bgCard} border={T.border} text={T.text} muted={T.textSecondary}
           />
         </View>
         <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24 }}>
           <MetricCard
-            label="Completadas" value={isLoading ? '—' : String(completedCount)}
+            label={t('coach.dashboard.metrics.completed')} value={isLoading ? '—' : String(completedCount)}
             color={T.blue} bg={T.bgCard} border={T.border} text={T.text} muted={T.textSecondary}
           />
           <MetricCard
-            label="Clientes" value={isLoading ? '—' : String(uniqueClients)}
+            label={t('coach.dashboard.metrics.clients')} value={isLoading ? '—' : String(uniqueClients)}
             color={T.orange} bg={T.bgCard} border={T.border} text={T.text} muted={T.textSecondary}
           />
         </View>
 
         {/* Upcoming appointments */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: T.text }}>Próximas citas</Text>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: T.text }}>{t('dashboard.coach.upcomingAppointments')}</Text>
           <TouchableOpacity onPress={() => router.push('/(coach)/coach-appointments')}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: T.accent }}>Ver todas →</Text>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: T.accent }}>{t('coach.dashboard.seeAll')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -118,7 +122,7 @@ export default function CoachDashboard() {
           </>
         ) : upcoming.length === 0 ? (
           <View style={[s.emptyCard, { backgroundColor: T.bgCard, borderColor: T.border }]}>
-            <Text style={{ color: T.textMuted, fontSize: 14 }}>No hay citas próximas programadas</Text>
+            <Text style={{ color: T.textMuted, fontSize: 14 }}>{t('coach.dashboard.noUpcomingAppointments')}</Text>
           </View>
         ) : (
           <View style={[s.listCard, { backgroundColor: T.bgCard, borderColor: T.border }]}>
@@ -132,7 +136,7 @@ export default function CoachDashboard() {
               >
                 <View style={[s.timeChip, { backgroundColor: T.accent + '20' }]}>
                   <Text style={{ color: T.accent, fontSize: 11, fontWeight: '700' }}>
-                    {formatTime(apt.start_time)}
+                    {formatTime(apt.start_time, t)}
                   </Text>
                 </View>
                 <View style={{ flex: 1 }}>
@@ -140,8 +144,8 @@ export default function CoachDashboard() {
                     {apt.title}
                   </Text>
                   <Text style={{ color: T.textSecondary, fontSize: 12, marginTop: 1 }}>
-                    {apt.client_name ?? 'Cliente'}
-                    {apt.appointment_type === 'virtual' ? ' · 📹 Virtual' : apt.location ? ` · 📍 ${apt.location}` : ''}
+                    {apt.client_name ?? t('coach.dashboard.defaultClientName')}
+                    {apt.appointment_type === 'virtual' ? ` · 📹 ${t('coach.dashboard.virtual')}` : apt.location ? ` · 📍 ${apt.location}` : ''}
                   </Text>
                 </View>
                 <StatusBadge status={apt.status} size="sm" />

@@ -10,17 +10,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/auth.store';
 import { useGamificationStore } from '@/store/gamification.store';
 import type { LeaderboardEntry } from '@/store/gamification.store';
 import { useTheme } from '@/hooks/useTheme';
 import { ClientTopBar } from '@/components/client/ClientTopBar';
-
-const PERIODS = [
-  { key: 'week' as const, label: 'Semana' },
-  { key: 'month' as const, label: 'Mes' },
-  { key: 'all' as const, label: 'Total' },
-];
 
 const RANK_MEDALS: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
@@ -40,8 +35,16 @@ function getInitials(name: string): string {
 }
 
 export default function LeaderboardScreen() {
+  const { t } = useTranslation();
   const T = useTheme();
   const { user } = useAuthStore();
+
+  const PERIODS = [
+    { key: 'week' as const, label: t('client.leaderboard.periods.week') },
+    { key: 'month' as const, label: t('client.leaderboard.periods.month') },
+    { key: 'all' as const, label: t('client.leaderboard.periods.all') },
+  ];
+
   const {
     leaderboard,
     leaderboardPeriod,
@@ -135,7 +138,7 @@ export default function LeaderboardScreen() {
               numberOfLines={1}
             >
               {item.full_name}
-              {item.is_me ? '  (Tú)' : ''}
+              {item.is_me ? t('client.leaderboard.youSuffix') : ''}
             </Text>
           </View>
           <View style={styles.metaRow}>
@@ -159,7 +162,7 @@ export default function LeaderboardScreen() {
             ]}
           >
             <Text style={[styles.levelText, { color: T.accent }]}>
-              Nv {item.level}
+              {t('client.leaderboard.levelAbbrev', { level: item.level })}
             </Text>
           </View>
           <Text style={[styles.xp, { color: T.gold }]}>
@@ -173,7 +176,7 @@ export default function LeaderboardScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <ClientTopBar title="Ranking" />
+      <ClientTopBar title={t('client.leaderboard.title')} />
 
       {/* Period tabs */}
       <View style={[styles.tabsRow, { borderBottomColor: T.border }]}>
@@ -213,7 +216,7 @@ export default function LeaderboardScreen() {
         <View style={styles.centered}>
           <Text style={styles.emptyIcon}>🏆</Text>
           <Text style={[styles.emptyText, { color: T.textMuted }]}>
-            Sin datos de ranking todavía
+            {t('client.leaderboard.emptyText')}
           </Text>
         </View>
       ) : (
@@ -225,7 +228,7 @@ export default function LeaderboardScreen() {
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             <Text style={[styles.listHeader, { color: T.textMuted }]}>
-              {leaderboard.length} participantes
+              {t('client.leaderboard.participantsCount', { count: leaderboard.length })}
             </Text>
           }
         />

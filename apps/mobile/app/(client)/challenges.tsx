@@ -16,6 +16,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useAuthStore } from '@/store/auth.store';
 import { useGamificationStore } from '@/store/gamification.store';
 import type { Challenge } from '@/store/gamification.store';
@@ -26,10 +28,10 @@ import { ClientTopBar } from '@/components/client/ClientTopBar';
 
 type FilterKey = 'active' | 'mine' | 'completed';
 
-const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: 'active', label: 'Activos' },
-  { key: 'mine', label: 'Mis retos' },
-  { key: 'completed', label: 'Completados' },
+const FILTERS: { key: FilterKey; i18nKey: string }[] = [
+  { key: 'active', i18nKey: 'client.challenges.filters.active' },
+  { key: 'mine', i18nKey: 'client.challenges.filters.mine' },
+  { key: 'completed', i18nKey: 'client.challenges.filters.completed' },
 ];
 
 const XP_PRESETS = [50, 100, 150, 200] as const;
@@ -40,21 +42,21 @@ const TYPE_GRADIENTS: Record<Challenge['challenge_type'], [string, string]> = {
   group: ['#c2410c', '#f97316'],
 };
 
-const TYPE_LABELS: Record<Challenge['challenge_type'], string> = {
-  global: 'Global',
-  '1v1': '1 vs 1',
-  group: 'Grupal',
+const TYPE_LABEL_KEYS: Record<Challenge['challenge_type'], string> = {
+  global: 'client.challenges.types.global',
+  '1v1': 'client.challenges.types.oneVOne',
+  group: 'client.challenges.types.group',
 };
 
 const STATUS_CONFIG: Record<
   NonNullable<Challenge['my_status']>,
-  { label: string; color: string }
+  { i18nKey: string; color: string }
 > = {
-  pending: { label: 'Invitación', color: '#f59e0b' },
-  accepted: { label: 'En curso', color: '#3b82f6' },
-  completed: { label: 'Completado', color: '#22c55e' },
-  declined: { label: 'Rechazado', color: '#6b7280' },
-  failed: { label: 'Fallido', color: '#ef4444' },
+  pending: { i18nKey: 'client.challenges.status.pending', color: '#f59e0b' },
+  accepted: { i18nKey: 'client.challenges.status.accepted', color: '#3b82f6' },
+  completed: { i18nKey: 'client.challenges.status.completed', color: '#22c55e' },
+  declined: { i18nKey: 'client.challenges.status.declined', color: '#6b7280' },
+  failed: { i18nKey: 'client.challenges.status.failed', color: '#ef4444' },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────
@@ -83,9 +85,9 @@ function filterChallenges(
   }
 }
 
-function formatCountdown(expiresAt: string): string {
+function formatCountdown(expiresAt: string, t: TFunction): string {
   const diff = new Date(expiresAt).getTime() - Date.now();
-  if (diff <= 0) return 'Expirado';
+  if (diff <= 0) return t('client.challenges.countdown.expired');
   const days = Math.floor(diff / 86400000);
   const hours = Math.floor((diff % 86400000) / 3600000);
   if (days > 0) return `${days}d ${hours}h`;
@@ -96,6 +98,7 @@ function formatCountdown(expiresAt: string): string {
 // ─── XP Toast ─────────────────────────────────────────────────
 
 function XpToast({ xp, visible }: { xp: number; visible: boolean }) {
+  const { t } = useTranslation();
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -121,7 +124,7 @@ function XpToast({ xp, visible }: { xp: number; visible: boolean }) {
       ]}
       pointerEvents="none"
     >
-      <Text style={styles.toastText}>⚡ +{xp} XP ganados!</Text>
+      <Text style={styles.toastText}>{t('client.challenges.toast.xpEarned', { xp })}</Text>
     </Animated.View>
   );
 }
@@ -141,8 +144,11 @@ function ChallengeCard({
   onRespond: (id: string, response: 'accepted' | 'declined') => void;
   onComplete: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   const gradientColors = TYPE_GRADIENTS[item.challenge_type];
-  const statusCfg = item.my_status ? STATUS_CONFIG[item.my_status] : null;
+  const statusCfg = item.my_status
+    ? { label: t(STATUS_CONFIG[item.my_status].i18nKey), color: STATUS_CONFIG[item.my_status].color }
+    : null;
 
   return (
     <View style={[styles.challengeCard, { borderColor: T.border }]}>
@@ -161,7 +167,7 @@ function ChallengeCard({
             ]}
           >
             <Text style={[styles.typeChipText, { color: gradientColors[1] }]}>
-              {TYPE_LABELS[item.challenge_type]}
+              {t(TYPE_LABEL_KEYS[item.challenge_type])}
             </Text>
           </View>
           {statusCfg && (
@@ -195,7 +201,7 @@ function ChallengeCard({
           )}
           {item.expires_at && (
             <Text style={[styles.metaItem, { color: '#ffffffBB' }]}>
-              ⏱ {formatCountdown(item.expires_at)}
+              ⏱ {formatCountdown(item.expires_at, t)}
             </Text>
           )}
         </View>
@@ -208,14 +214,14 @@ function ChallengeCard({
               onPress={() => onRespond(item.id, 'accepted')}
               activeOpacity={0.8}
             >
-              <Text style={styles.acceptBtnText}>Aceptar</Text>
+              <Text style={styles.acceptBtnText}>{t('client.challenges.actions.accept')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionBtn, styles.rejectBtn]}
               onPress={() => onRespond(item.id, 'declined')}
               activeOpacity={0.8}
             >
-              <Text style={styles.rejectBtnText}>Rechazar</Text>
+              <Text style={styles.rejectBtnText}>{t('client.challenges.actions.reject')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -226,7 +232,7 @@ function ChallengeCard({
             onPress={() => onComplete(item.id)}
             activeOpacity={0.8}
           >
-            <Text style={styles.completeBtnText}>✓ Marcar completado</Text>
+            <Text style={styles.completeBtnText}>{t('client.challenges.actions.complete')}</Text>
           </TouchableOpacity>
         )}
       </LinearGradient>
@@ -255,6 +261,7 @@ function CreateChallengeModal({
     inviteNote: string;
   }) => void;
 }) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [challengeType, setChallengeType] = useState<'global' | '1v1'>('global');
@@ -289,7 +296,7 @@ function CreateChallengeModal({
       >
         <View style={[styles.modalHandle, { backgroundColor: T.border }]} />
         <View style={[styles.modalHeader, { borderBottomColor: T.border }]}>
-          <Text style={[styles.modalTitle, { color: T.text }]}>Crear reto</Text>
+          <Text style={[styles.modalTitle, { color: T.text }]}>{t('client.challenges.modal.title')}</Text>
           <TouchableOpacity onPress={handleClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={[styles.modalClose, { color: T.textMuted }]}>✕</Text>
           </TouchableOpacity>
@@ -297,10 +304,10 @@ function CreateChallengeModal({
 
         <ScrollView contentContainerStyle={styles.modalBody} keyboardShouldPersistTaps="handled">
           {/* Title */}
-          <Text style={[styles.fieldLabel, { color: T.textSecondary }]}>Título *</Text>
+          <Text style={[styles.fieldLabel, { color: T.textSecondary }]}>{t('client.challenges.modal.fields.title')}</Text>
           <TextInput
             style={[styles.input, { backgroundColor: T.bgCard, borderColor: T.border, color: T.text }]}
-            placeholder="Nombre del reto"
+            placeholder={t('client.challenges.modal.placeholders.title')}
             placeholderTextColor={T.textMuted}
             value={title}
             onChangeText={setTitle}
@@ -308,10 +315,10 @@ function CreateChallengeModal({
           />
 
           {/* Description */}
-          <Text style={[styles.fieldLabel, { color: T.textSecondary }]}>Descripción</Text>
+          <Text style={[styles.fieldLabel, { color: T.textSecondary }]}>{t('client.challenges.modal.fields.description')}</Text>
           <TextInput
             style={[styles.input, styles.inputMultiline, { backgroundColor: T.bgCard, borderColor: T.border, color: T.text }]}
-            placeholder="Describe el reto (opcional)"
+            placeholder={t('client.challenges.modal.placeholders.description')}
             placeholderTextColor={T.textMuted}
             value={description}
             onChangeText={setDescription}
@@ -322,14 +329,14 @@ function CreateChallengeModal({
           />
 
           {/* Type selector */}
-          <Text style={[styles.fieldLabel, { color: T.textSecondary }]}>Tipo</Text>
+          <Text style={[styles.fieldLabel, { color: T.textSecondary }]}>{t('client.challenges.modal.fields.type')}</Text>
           <View style={styles.typeRow}>
-            {(['global', '1v1'] as const).map((t) => {
-              const active = challengeType === t;
+            {(['global', '1v1'] as const).map((typeOption) => {
+              const active = challengeType === typeOption;
               return (
                 <TouchableOpacity
-                  key={t}
-                  onPress={() => setChallengeType(t)}
+                  key={typeOption}
+                  onPress={() => setChallengeType(typeOption)}
                   activeOpacity={0.8}
                   style={[
                     styles.typeBtn,
@@ -340,7 +347,7 @@ function CreateChallengeModal({
                   ]}
                 >
                   <Text style={[styles.typeBtnText, { color: active ? '#fff' : T.textSecondary }]}>
-                    {t === 'global' ? '🌐 Global' : '⚔️ 1 vs 1'}
+                    {typeOption === 'global' ? t('client.challenges.modal.types.global') : t('client.challenges.modal.types.oneVOne')}
                   </Text>
                 </TouchableOpacity>
               );
@@ -350,10 +357,10 @@ function CreateChallengeModal({
           {/* 1v1 invite */}
           {challengeType === '1v1' && (
             <>
-              <Text style={[styles.fieldLabel, { color: T.textSecondary }]}>ID o nombre del retado</Text>
+              <Text style={[styles.fieldLabel, { color: T.textSecondary }]}>{t('client.challenges.modal.fields.opponent')}</Text>
               <TextInput
                 style={[styles.input, { backgroundColor: T.bgCard, borderColor: T.border, color: T.text }]}
-                placeholder="Usuario a retar"
+                placeholder={t('client.challenges.modal.placeholders.opponent')}
                 placeholderTextColor={T.textMuted}
                 value={inviteNote}
                 onChangeText={setInviteNote}
@@ -362,7 +369,7 @@ function CreateChallengeModal({
           )}
 
           {/* XP reward */}
-          <Text style={[styles.fieldLabel, { color: T.textSecondary }]}>Recompensa XP</Text>
+          <Text style={[styles.fieldLabel, { color: T.textSecondary }]}>{t('client.challenges.modal.fields.xpReward')}</Text>
           <View style={styles.xpRow}>
             {XP_PRESETS.map((preset) => {
               const active = xpReward === preset;
@@ -397,7 +404,7 @@ function CreateChallengeModal({
             ]}
           >
             <Text style={[styles.submitBtnText, { color: title.trim() ? '#fff' : T.textMuted }]}>
-              Crear reto
+              {t('client.challenges.modal.createButton')}
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -409,6 +416,7 @@ function CreateChallengeModal({
 // ─── Screen ───────────────────────────────────────────────────
 
 export default function ChallengesScreen() {
+  const { t } = useTranslation();
   const T = useTheme();
   const { user } = useAuthStore();
   const {
@@ -501,7 +509,7 @@ export default function ChallengesScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
-      <ClientTopBar title="Retos" />
+      <ClientTopBar title={t('client.challenges.title')} />
 
       {/* XP toast */}
       <XpToast xp={toastXp} visible={toastVisible} />
@@ -524,7 +532,7 @@ export default function ChallengesScreen() {
               ]}
             >
               <Text style={[styles.tabText, { color: active ? '#fff' : T.textSecondary }]}>
-                {f.label}
+                {t(f.i18nKey)}
               </Text>
             </TouchableOpacity>
           );
@@ -546,13 +554,13 @@ export default function ChallengesScreen() {
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyIcon}>⚔️</Text>
               <Text style={[styles.emptyText, { color: T.textMuted }]}>
-                No hay retos activos · ¡Crea el primero!
+                {t('client.challenges.empty.message')}
               </Text>
               <TouchableOpacity
                 onPress={() => setModalVisible(true)}
                 style={[styles.emptyAction, { backgroundColor: T.accent + '22', borderColor: T.accent + '55' }]}
               >
-                <Text style={[styles.emptyActionText, { color: T.accent }]}>+ Crear reto</Text>
+                <Text style={[styles.emptyActionText, { color: T.accent }]}>{t('client.challenges.empty.action')}</Text>
               </TouchableOpacity>
             </View>
           }

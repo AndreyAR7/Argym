@@ -4,6 +4,7 @@ import {
   StyleSheet, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { AdminTopBar } from '@/components/admin/AdminTopBar';
 import { useAuthStore } from '@/store/auth.store';
@@ -28,16 +29,16 @@ function dayKey(iso: string): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
-function dayLabel(iso: string): string {
+function dayLabel(iso: string, t: (key: string, options?: Record<string, unknown>) => string): string {
   const d = new Date(iso);
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today.getTime() - 86400000);
   const itemDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  if (itemDay.getTime() === today.getTime()) return 'Hoy';
-  if (itemDay.getTime() === yesterday.getTime()) return 'Ayer';
+  if (itemDay.getTime() === today.getTime()) return t('admin.notifications.today');
+  if (itemDay.getTime() === yesterday.getTime()) return t('admin.notifications.yesterday');
   const diff = Math.floor((today.getTime() - itemDay.getTime()) / 86400000);
-  if (diff < 7) return `Hace ${diff} días`;
+  if (diff < 7) return t('admin.notifications.daysAgo', { count: diff });
   return d.toLocaleDateString('es-CR', { weekday: 'long', day: 'numeric', month: 'short' });
 }
 
@@ -47,6 +48,7 @@ type ListItem =
 
 export default function AdminNotificationsScreen() {
   const T = useTheme();
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const {
     data, isLoading, isFetchingNextPage,
@@ -70,13 +72,13 @@ export default function AdminNotificationsScreen() {
     for (const n of notifications) {
       const key = dayKey(n.created_at);
       if (key !== lastKey) {
-        items.push({ _type: 'header', id: `header-${key}`, label: dayLabel(n.created_at) });
+        items.push({ _type: 'header', id: `header-${key}`, label: dayLabel(n.created_at, t) });
         lastKey = key;
       }
       items.push({ _type: 'notif', id: n.id, notif: n });
     }
     return items;
-  }, [notifications]);
+  }, [notifications, t]);
 
   const renderItem = ({ item }: { item: ListItem }) => {
     if (item._type === 'header') {
@@ -117,7 +119,7 @@ export default function AdminNotificationsScreen() {
           {isUnread && <View style={[s.dot, { backgroundColor: T.accent }]} />}
           {isUnread && (
             <TouchableOpacity onPress={() => markRead.mutate(notif.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ fontSize: 10, color: T.accent, fontWeight: '700' }}>✓ Leída</Text>
+              <Text style={{ fontSize: 10, color: T.accent, fontWeight: '700' }}>{`✓ ${t('admin.notifications.markRead')}`}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -129,9 +131,9 @@ export default function AdminNotificationsScreen() {
     <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor={T.bg} />
       <AdminTopBar
-        title="Notificaciones"
-        subtitle={unread > 0 ? `${unread} sin leer` : 'Todo al día'}
-        actionLabel={unread > 0 ? 'Marcar todo' : undefined}
+        title={t('admin.notifications.title')}
+        subtitle={unread > 0 ? t('admin.notifications.unreadCount', { count: unread }) : t('admin.notifications.allCaughtUp')}
+        actionLabel={unread > 0 ? t('admin.notifications.markAll') : undefined}
         onAction={unread > 0 ? () => markAll.mutate() : undefined}
       />
 
@@ -149,7 +151,7 @@ export default function AdminNotificationsScreen() {
           ListEmptyComponent={
             <View style={s.center}>
               <Text style={{ fontSize: 40, marginBottom: 12 }}>🔔</Text>
-              <Text style={{ color: T.textMuted, fontSize: 15 }}>Sin notificaciones</Text>
+              <Text style={{ color: T.textMuted, fontSize: 15 }}>{t('admin.notifications.empty')}</Text>
             </View>
           }
           ListFooterComponent={

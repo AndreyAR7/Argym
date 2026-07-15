@@ -15,6 +15,7 @@ import {
   StyleSheet, StatusBar, ActivityIndicator, SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/auth.store';
@@ -22,6 +23,7 @@ import { useClientSelectionStore, type SelectedClient } from '@/store/clientSele
 import { CLIENT_LEVEL_LABELS, type ClientWithPlan } from '@/services/profiles.service';
 
 export default function SelectClientsScreen() {
+  const { t } = useTranslation();
   const T = useTheme();
   const router = useRouter();
   const { selected, toggle } = useClientSelectionStore();
@@ -93,7 +95,7 @@ export default function SelectClientsScreen() {
       <SafeAreaView style={[s.safe, { backgroundColor: T.bg }]}>
         <View style={s.center}>
           <ActivityIndicator color={T.accent} />
-          <Text style={{ color: T.textMuted, marginTop: 12 }}>Cargando datos del tenant...</Text>
+          <Text style={{ color: T.textMuted, marginTop: 12 }}>{t('admin.selectClients.loadingTenant')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -106,14 +108,14 @@ export default function SelectClientsScreen() {
       {/* ── Header ── */}
       <View style={[s.header, { borderBottomColor: T.border }]}>
         <TouchableOpacity onPress={handleCancel} style={s.cancelBtn}>
-          <Text style={{ color: T.textSecondary, fontSize: 15 }}>Cancelar</Text>
+          <Text style={{ color: T.textSecondary, fontSize: 15 }}>{t('common.cancel')}</Text>
         </TouchableOpacity>
         <Text style={[s.title, { color: T.text }]}>
-          Clientes{selected.length > 0 ? ` (${selected.length})` : ''}
+          {t('navigation.clients')}{selected.length > 0 ? ` (${selected.length})` : ''}
         </Text>
         <TouchableOpacity onPress={handleConfirm}
           style={[s.confirmBtn, { backgroundColor: T.accent }]}>
-          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Confirmar</Text>
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>{t('common.confirm')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -122,7 +124,7 @@ export default function SelectClientsScreen() {
         <Text style={s.searchIcon}>🔍</Text>
         <TextInput
           style={[s.searchInput, { color: T.text }]}
-          placeholder="Buscar cliente..."
+          placeholder={t('admin.selectClients.searchPlaceholder')}
           placeholderTextColor={T.textMuted}
           value={query}
           onChangeText={(v) => {
@@ -161,16 +163,16 @@ export default function SelectClientsScreen() {
       {loading ? (
         <View style={s.center}>
           <ActivityIndicator color={T.accent} size="large" />
-          <Text style={{ color: T.textMuted, marginTop: 12 }}>Cargando clientes...</Text>
+          <Text style={{ color: T.textMuted, marginTop: 12 }}>{t('admin.selectClients.loadingClients')}</Text>
         </View>
       ) : loadError ? (
         <View style={s.center}>
           <Text style={{ color: T.red, fontSize: 14, marginBottom: 12 }}>
-            No se pudieron cargar los clientes.
+            {t('admin.selectClients.loadError')}
           </Text>
           <TouchableOpacity onPress={loadClients}
             style={[s.retryBtn, { borderColor: T.accent }]}>
-            <Text style={{ color: T.accent, fontWeight: '700' }}>Reintentar</Text>
+            <Text style={{ color: T.accent, fontWeight: '700' }}>{t('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -185,7 +187,7 @@ export default function SelectClientsScreen() {
             <View style={s.center}>
               <Text style={{ fontSize: 32, marginBottom: 8 }}>👤</Text>
               <Text style={{ color: T.textMuted, fontSize: 14, textAlign: 'center' }}>
-                {query ? `Sin resultados para "${query}"` : 'No hay clientes disponibles'}
+                {query ? t('admin.selectClients.noResultsFor', { query }) : t('admin.selectClients.noClientsAvailable')}
               </Text>
             </View>
           }
