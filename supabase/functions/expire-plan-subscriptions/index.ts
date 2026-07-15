@@ -7,11 +7,20 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 //   Edge Functions → expire-plan-subscriptions → Schedule → "0 1 * * *"
 
 Deno.serve(async (req: Request) => {
-  // Allow manual POST triggers (e.g. from admin panel) in addition to cron
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
+
+  // This function has verify_jwt disabled by default (unlisted in config.toml
+  // falls back to true, but nothing should reach it with a plain user JWT).
+  // Require the same internal shared secret as notify-push/send-communication
+  // so an arbitrary authenticated user can't trigger this privileged operation.
+  const webhookSecret = req.headers.get('x-webhook-secret');
+  const { data: expectedSecret } = await supabase.rpc('get_webhook_secret') as { data: string | null };
+  if (!webhookSecret || !expectedSecret || webhookSecret !== expectedSecret) {
+    return new Response('Forbidden', { status: 403 });
+  }
 
   const { data, error } = await supabase.rpc('expire_subscriptions_for_expired_plans');
 

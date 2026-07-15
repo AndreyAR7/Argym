@@ -81,3 +81,6 @@ verify_jwt = false
 
 [functions.send-communication]
 verify_jwt = false
+
+[functions.expire-plan-subscriptions]
+verify_jwt = false

@@ -1,7 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// JWT verification is disabled for this function (set in config.toml).
-// The function is only called from our own service layer, never directly by users.
+// JWT verification is disabled for this function (set in config.toml), so it
+// must authenticate itself: only process_notification_queue() (a DB cron job)
+// calls this, and it already sends x-webhook-secret — see
+// supabase/migrations/20240101000095_notification_triggers.sql.
 
 interface NotificationInput {
   user_id: string;
@@ -30,6 +32,18 @@ Deno.serve(async (req: Request) => {
     return new Response('Method Not Allowed', { status: 405 });
   }
 
+  // Use service role to bypass RLS when reading device tokens
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+  );
+
+  const webhookSecret = req.headers.get('x-webhook-secret');
+  const { data: expectedSecret } = await supabase.rpc('get_webhook_secret') as { data: string | null };
+  if (!webhookSecret || !expectedSecret || webhookSecret !== expectedSecret) {
+    return new Response('Forbidden', { status: 403 });
+  }
+
   let notifications: NotificationInput[];
   try {
     const body = await req.json();
@@ -43,12 +57,6 @@ Deno.serve(async (req: Request) => {
       headers: { 'Content-Type': 'application/json' },
     });
   }
-
-  // Use service role to bypass RLS when reading device tokens
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-  );
 
   const userIds = [...new Set(notifications.map((n) => n.user_id))];
 
