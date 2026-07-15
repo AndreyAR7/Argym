@@ -21,6 +21,12 @@ export default async function SelectBranchPage() {
     redirect(profile.approval_status === 'approved' ? '/' : '/pending-approval')
   }
 
+  // Approved users with no branch (data migration gap) — skip branch selection
+  // and send them directly to their dashboard. The root page will route by role.
+  if (profile?.approval_status === 'approved') {
+    redirect('/')
+  }
+
   const { data: branches } = await supabase
     .from('branches')
     .select('id, name, address')
