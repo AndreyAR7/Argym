@@ -18,6 +18,7 @@ interface VideoRowActionsProps {
     status: string
     storage_path: string | null
     thumbnail_storage_path?: string | null
+    updated_at?: string | null
   }
   tenantId: string
 }

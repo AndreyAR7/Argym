@@ -5,7 +5,7 @@ import { ClientVideoList } from '@/components/client/video-list'
 
 export const metadata = { title: 'Mis Videos' }
 
-const VIDEO_FIELDS = 'id, title, description, level, duration_seconds, video_storage_path, thumbnail_storage_path, thumbnail_color'
+const VIDEO_FIELDS = 'id, title, description, level, duration_seconds, video_storage_path, thumbnail_storage_path, thumbnail_color, updated_at'
 
 export default async function ClientVideosPage() {
   const supabase = await createClient()

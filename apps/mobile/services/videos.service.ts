@@ -210,12 +210,17 @@ export async function getVideoSignedUrl(
 
 /**
  * Get public CDN URL for thumbnail (public bucket).
+ *
+ * `updatedAt` is used as a cache-busting query param — the storage path
+ * for a video's thumbnail stays the same when replaced (upsert), so
+ * without this the client/CDN keeps serving the previously-cached image.
  */
-export function getThumbnailPublicUrl(storagePath: string): string {
+export function getThumbnailPublicUrl(storagePath: string, updatedAt?: string): string {
   const { data } = supabase.storage
     .from('video-thumbnails')
     .getPublicUrl(storagePath);
-  return data.publicUrl;
+  const version = updatedAt ? new Date(updatedAt).getTime() : 0;
+  return `${data.publicUrl}?v=${version}`;
 }
 
 // ─── Client access ────────────────────────────────────────────
@@ -292,7 +297,7 @@ export async function fetchVideosForClient(
       promoVideoIds.has(v.id);
 
     const thumbnail_public_url = v.thumbnail_storage_path
-      ? getThumbnailPublicUrl(v.thumbnail_storage_path)
+      ? getThumbnailPublicUrl(v.thumbnail_storage_path, v.updated_at)
       : undefined;
 
     return {

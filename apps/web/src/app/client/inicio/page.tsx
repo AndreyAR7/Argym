@@ -69,7 +69,7 @@ export default async function ClientHomePage() {
     // last 35 days for streak
     supabase.from('exercise_progress').select('session_date, completed').eq('client_id', user.id).gte('session_date', since35.toISOString().split('T')[0]).eq('completed', true),
     // recent videos
-    supabase.from('video_assignments').select('id, note, videos(id, title, level, duration_seconds, thumbnail_color, video_storage_path, thumbnail_storage_path)').eq('client_id', user.id).order('assigned_at', { ascending: false }).limit(3),
+    supabase.from('video_assignments').select('id, note, videos(id, title, level, duration_seconds, thumbnail_color, video_storage_path, thumbnail_storage_path, updated_at)').eq('client_id', user.id).order('assigned_at', { ascending: false }).limit(3),
     // active promotion for this user's plan
     supabase.from('promotions').select('id, title, description, end_date, discount_pct, discount_flat').eq('is_active', true).lte('start_date', todayStr).gte('end_date', todayStr).limit(1).single(),
     // gamification stats
@@ -228,7 +228,7 @@ export default async function ClientHomePage() {
           <div className="space-y-2.5">
             {videos.map((v: any) => {
               const thumbUrl = v.thumbnail_storage_path
-                ? `${supabaseUrl}/storage/v1/object/public/video-thumbnails/${v.thumbnail_storage_path}`
+                ? `${supabaseUrl}/storage/v1/object/public/video-thumbnails/${v.thumbnail_storage_path}?v=${v.updated_at ? new Date(v.updated_at).getTime() : 0}`
                 : null
               return (
                 <Link

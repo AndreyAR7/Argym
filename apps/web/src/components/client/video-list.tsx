@@ -14,6 +14,7 @@ interface VideoItem {
   thumbnail_storage_path: string | null
   thumbnail_color: string | null
   note: string | null
+  updated_at?: string | null
 }
 
 interface Props {
@@ -95,7 +96,7 @@ export function ClientVideoList({ videos, supabaseUrl }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map((video) => {
           const thumbUrl = video.thumbnail_storage_path
-            ? `${supabaseUrl}/storage/v1/object/public/video-thumbnails/${video.thumbnail_storage_path}`
+            ? `${supabaseUrl}/storage/v1/object/public/video-thumbnails/${video.thumbnail_storage_path}?v=${video.updated_at ? new Date(video.updated_at).getTime() : 0}`
             : null
           const duration = formatDuration(video.duration_seconds)
 

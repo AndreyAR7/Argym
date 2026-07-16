@@ -16,6 +16,7 @@ interface VideoEditModalProps {
     status: string
     storage_path?: string | null
     thumbnail_storage_path?: string | null
+    updated_at?: string | null
   }
   tenantId: string
   onClose: () => void
@@ -282,7 +283,7 @@ export function VideoEditModal({ video, tenantId, onClose }: VideoEditModalProps
                   <img src={thumbPreviewUrl} alt="" className="w-full h-full object-cover" />
                 ) : video.thumbnail_storage_path ? (
                   <img
-                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/video-thumbnails/${video.thumbnail_storage_path}`}
+                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/video-thumbnails/${video.thumbnail_storage_path}?v=${video.updated_at ? new Date(video.updated_at).getTime() : 0}`}
                     alt=""
                     className="w-full h-full object-cover"
                   />

@@ -51,7 +51,7 @@ export default async function VideosPage({
 
   let query = supabase
     .from('videos')
-    .select('id, title, description, level, status, is_featured, is_free, duration_seconds, views_count, thumbnail_storage_path, thumbnail_color, video_storage_path, created_at', { count: 'exact' })
+    .select('id, title, description, level, status, is_featured, is_free, duration_seconds, views_count, thumbnail_storage_path, thumbnail_color, video_storage_path, created_at, updated_at', { count: 'exact' })
     .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false })
 
@@ -133,7 +133,7 @@ export default async function VideosPage({
             <tbody className="bg-[var(--color-card)] divide-y divide-[var(--color-border)]">
               {videos.map((video) => {
                 const thumbUrl = video.thumbnail_storage_path
-                  ? `${supabaseUrl}/storage/v1/object/public/video-thumbnails/${video.thumbnail_storage_path}`
+                  ? `${supabaseUrl}/storage/v1/object/public/video-thumbnails/${video.thumbnail_storage_path}?v=${new Date(video.updated_at).getTime()}`
                   : null
 
                 return (

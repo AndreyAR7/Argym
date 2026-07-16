@@ -36,7 +36,7 @@ export default async function CoachVideosPage({
 
   let query = supabase
     .from('videos')
-    .select('id, title, description, level, status, duration_seconds, thumbnail_color, thumbnail_storage_path, video_storage_path')
+    .select('id, title, description, level, status, duration_seconds, thumbnail_color, thumbnail_storage_path, video_storage_path, updated_at')
     .eq('tenant_id', tenantId)
     .eq('status', 'published')
     .order('title', { ascending: true })

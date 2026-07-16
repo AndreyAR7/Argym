@@ -1797,7 +1797,7 @@ export default function AdminContentScreen() {
             </View>
           ) : (
             videos.map((v) => {
-              const thumbUrl = v.thumbnail_storage_path ? getThumbnailPublicUrl(v.thumbnail_storage_path) : null;
+              const thumbUrl = v.thumbnail_storage_path ? getThumbnailPublicUrl(v.thumbnail_storage_path, v.updated_at) : null;
               return (
                 <View key={v.id} style={[styles.card, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
                   {/* Thumbnail */}

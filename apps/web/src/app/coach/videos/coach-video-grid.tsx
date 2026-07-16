@@ -16,6 +16,7 @@ interface VideoItem {
   thumbnail_color: string | null
   thumbnail_storage_path: string | null
   video_storage_path: string | null
+  updated_at?: string | null
 }
 
 interface Props {
@@ -38,7 +39,7 @@ export function CoachVideoGrid({ videos, supabaseUrl }: Props) {
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {videos.map((video) => {
           const thumbUrl = video.thumbnail_storage_path
-            ? `${supabaseUrl}/storage/v1/object/public/video-thumbnails/${video.thumbnail_storage_path}`
+            ? `${supabaseUrl}/storage/v1/object/public/video-thumbnails/${video.thumbnail_storage_path}?v=${video.updated_at ? new Date(video.updated_at).getTime() : 0}`
             : null
 
           return (
