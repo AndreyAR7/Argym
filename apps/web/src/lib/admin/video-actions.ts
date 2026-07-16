@@ -56,7 +56,32 @@ export async function updateVideoFileAction(
   const { error } = await supabase.from('videos').update(updates).eq('id', videoId)
   if (error) return { error: error.message }
 
-  if (data.previous_path) {
+  if (data.previous_path && data.previous_path !== data.storage_path) {
+    await supabase.storage.from(data.storage_bucket).remove([data.previous_path])
+  }
+
+  revalidatePath('/admin/videos')
+  return { success: true }
+}
+
+export async function updateVideoThumbnailAction(
+  videoId: string,
+  data: { storage_path: string; storage_bucket: string; previous_path?: string | null },
+): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { error } = await supabase
+    .from('videos')
+    .update({
+      thumbnail_storage_path: data.storage_path,
+      thumbnail_bucket: data.storage_bucket,
+    })
+    .eq('id', videoId)
+  if (error) return { error: error.message }
+
+  if (data.previous_path && data.previous_path !== data.storage_path) {
     await supabase.storage.from(data.storage_bucket).remove([data.previous_path])
   }
 
@@ -144,6 +169,8 @@ export async function createVideoRecordAction(data: {
   is_free: boolean
   storage_path: string
   storage_bucket: string
+  thumbnail_storage_path?: string | null
+  thumbnail_bucket?: string | null
 }): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createClient()
 
@@ -166,11 +193,13 @@ export async function createVideoRecordAction(data: {
     title: data.title,
     description: data.description,
     level: data.level,
-    is_featured: false,
-    is_free: false,
+    is_featured: data.is_featured,
+    is_free: data.is_free,
     status: 'draft',
     video_storage_path: data.storage_path,
     video_bucket: data.storage_bucket,
+    thumbnail_storage_path: data.thumbnail_storage_path ?? null,
+    thumbnail_bucket: data.thumbnail_bucket ?? 'video-thumbnails',
     views_count: 0,
     allowed_plans: [],
     allowed_levels: [],

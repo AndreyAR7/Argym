@@ -17,6 +17,7 @@ interface VideoRowActionsProps {
     is_free: boolean
     status: string
     storage_path: string | null
+    thumbnail_storage_path?: string | null
   }
   tenantId: string
 }

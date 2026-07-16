@@ -1,8 +1,8 @@
 'use client'
 
 import { useRef, useState, useTransition } from 'react'
-import { X, Upload, Film, AlertCircle } from 'lucide-react'
-import { updateVideoMetadataAction, updateVideoFileAction } from '@/lib/admin/video-actions'
+import { X, Upload, Film, Image as ImageIcon } from 'lucide-react'
+import { updateVideoMetadataAction, updateVideoFileAction, updateVideoThumbnailAction } from '@/lib/admin/video-actions'
 import { createClient } from '@/lib/supabase/client'
 
 interface VideoEditModalProps {
@@ -15,6 +15,7 @@ interface VideoEditModalProps {
     is_free: boolean
     status: string
     storage_path?: string | null
+    thumbnail_storage_path?: string | null
   }
   tenantId: string
   onClose: () => void
@@ -60,9 +61,32 @@ export function VideoEditModal({ video, tenantId, onClose }: VideoEditModalProps
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploadPct, setUploadPct] = useState<number | null>(null)
 
+  const thumbInputRef = useRef<HTMLInputElement>(null)
+  const [selectedThumb, setSelectedThumb] = useState<File | null>(null)
+  const [thumbPreviewUrl, setThumbPreviewUrl] = useState<string | null>(null)
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null
     if (file) setSelectedFile(file)
+  }
+
+  function handleThumbChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null
+    if (!file) return
+    setSelectedThumb(file)
+    setThumbPreviewUrl(URL.createObjectURL(file))
+  }
+
+  async function uploadSelectedThumb(): Promise<{ storage_path: string; storage_bucket: string } | null> {
+    if (!selectedThumb) return null
+    const supabase = createClient()
+    const ext = selectedThumb.name.split('.').pop() ?? 'jpg'
+    const storagePath = `${tenantId}/${video.id}/thumb.${ext}`
+    const { error } = await supabase.storage
+      .from('video-thumbnails')
+      .upload(storagePath, selectedThumb, { upsert: true, contentType: selectedThumb.type || 'image/jpeg' })
+    if (error) throw error
+    return { storage_path: storagePath, storage_bucket: 'video-thumbnails' }
   }
 
   async function uploadSelectedFile(): Promise<{ storage_path: string; storage_bucket: string } | null> {
@@ -116,6 +140,18 @@ export function VideoEditModal({ video, tenantId, onClose }: VideoEditModalProps
               previous_path: video.storage_path ?? null,
             })
             if (fileResult?.error) { setError(fileResult.error); return }
+          }
+        }
+
+        if (selectedThumb) {
+          const uploadedThumb = await uploadSelectedThumb()
+          if (uploadedThumb) {
+            const thumbResult = await updateVideoThumbnailAction(video.id, {
+              storage_path: uploadedThumb.storage_path,
+              storage_bucket: uploadedThumb.storage_bucket,
+              previous_path: video.thumbnail_storage_path ?? null,
+            })
+            if (thumbResult?.error) { setError(thumbResult.error); return }
           }
         }
 
@@ -219,6 +255,55 @@ export function VideoEditModal({ video, tenantId, onClose }: VideoEditModalProps
                 <p className="text-xs text-[var(--color-muted-foreground)]">Subiendo video… {Math.round(uploadPct)}%</p>
               </div>
             )}
+          </div>
+
+          {/* Thumbnail */}
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-foreground)] mb-1.5">
+              Miniatura
+              <span className="text-[var(--color-muted-foreground)] font-normal ml-1">(imagen previa antes de reproducir)</span>
+            </label>
+            <input
+              ref={thumbInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleThumbChange}
+              disabled={isPending}
+            />
+            <button
+              type="button"
+              onClick={() => thumbInputRef.current?.click()}
+              disabled={isPending}
+              className="w-full flex items-center gap-3 rounded-xl border border-dashed border-[var(--color-border)] px-4 py-3 text-left hover:border-[var(--color-admin)] transition-colors disabled:opacity-50"
+            >
+              <div className="w-9 h-9 rounded-lg overflow-hidden bg-[var(--color-admin)]/10 flex items-center justify-center shrink-0">
+                {thumbPreviewUrl ? (
+                  <img src={thumbPreviewUrl} alt="" className="w-full h-full object-cover" />
+                ) : video.thumbnail_storage_path ? (
+                  <img
+                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/video-thumbnails/${video.thumbnail_storage_path}`}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <ImageIcon size={16} className="text-[var(--color-admin)]" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[var(--color-foreground)] truncate">
+                  {selectedThumb
+                    ? selectedThumb.name
+                    : video.thumbnail_storage_path
+                      ? 'Miniatura ya cargada'
+                      : 'Sin miniatura'}
+                </p>
+              </div>
+              <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-admin)]">
+                <Upload size={12} />
+                {video.thumbnail_storage_path || selectedThumb ? 'Cambiar' : 'Elegir'}
+              </span>
+            </button>
           </div>
 
           {/* Title */}

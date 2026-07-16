@@ -50,9 +50,20 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
   const [description, setDescription] = useState('')
   const [level, setLevel] = useState<Level>('beginner')
 
+  const thumbInputRef = useRef<HTMLInputElement>(null)
+  const [selectedThumb, setSelectedThumb] = useState<File | null>(null)
+  const [thumbPreviewUrl, setThumbPreviewUrl] = useState<string | null>(null)
+
   const [uploadState, setUploadState] = useState<UploadState>('idle')
   const [progress, setProgress] = useState(0)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  function handleThumbChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null
+    if (!file) return
+    setSelectedThumb(file)
+    setThumbPreviewUrl(URL.createObjectURL(file))
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null
@@ -138,6 +149,16 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
       setProgress(100)
       setUploadState('saving')
 
+      let thumbStoragePath: string | null = null
+      if (selectedThumb) {
+        const thumbExt = selectedThumb.name.split('.').pop() ?? 'jpg'
+        thumbStoragePath = `${tenantId}/${generateUUID()}-thumb.${thumbExt}`
+        const { error: thumbError } = await supabase.storage
+          .from('video-thumbnails')
+          .upload(thumbStoragePath, selectedThumb, { upsert: true, contentType: selectedThumb.type || 'image/jpeg' })
+        if (thumbError) throw thumbError
+      }
+
       const result = await createVideoRecordAction({
         title: title.trim(),
         description: description.trim() || null,
@@ -146,6 +167,8 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
         is_free: false,
         storage_path: storagePath,
         storage_bucket: 'videos',
+        thumbnail_storage_path: thumbStoragePath,
+        thumbnail_bucket: thumbStoragePath ? 'video-thumbnails' : null,
       })
 
       if (result.error) {
@@ -268,6 +291,42 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
               )}
             </div>
           )}
+
+          {/* Thumbnail picker (optional) */}
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-foreground)] mb-1.5">
+              Miniatura
+              <span className="text-[var(--color-muted-foreground)] font-normal ml-1">(opcional)</span>
+            </label>
+            <input
+              ref={thumbInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleThumbChange}
+              disabled={isWorking || isDone}
+            />
+            <button
+              type="button"
+              onClick={() => thumbInputRef.current?.click()}
+              disabled={isWorking || isDone}
+              className="w-full flex items-center gap-3 rounded-xl border border-dashed border-[var(--color-border)] px-4 py-2.5 text-left hover:border-[var(--color-admin)] transition-colors disabled:opacity-50"
+            >
+              <div className="w-8 h-8 rounded-lg overflow-hidden bg-[var(--color-admin)]/10 flex items-center justify-center shrink-0">
+                {thumbPreviewUrl ? (
+                  <img src={thumbPreviewUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <Film size={14} className="text-[var(--color-admin)]" />
+                )}
+              </div>
+              <p className="flex-1 text-sm text-[var(--color-foreground)] truncate">
+                {selectedThumb ? selectedThumb.name : 'Seleccionar imagen'}
+              </p>
+              <span className="text-xs font-medium text-[var(--color-admin)]">
+                {selectedThumb ? 'Cambiar' : 'Elegir'}
+              </span>
+            </button>
+          </div>
 
           {/* Progress bar */}
           {(uploadState === 'uploading' || uploadState === 'saving' || uploadState === 'done') && (
