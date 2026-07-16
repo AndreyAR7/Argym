@@ -25,7 +25,7 @@ export default async function TenantDetailPage({
 
   const session = await getSessionData()
   if (!session) redirect('/login')
-  if (session.role !== 'admin') redirect('/')
+  if (!session.isPlatformAdmin) redirect('/')
 
   const db = adminClient()
 
@@ -84,6 +84,16 @@ export default async function TenantDetailPage({
         <ArrowLeft size={14} />
         Volver a gimnasios
       </Link>
+
+      {/* No plan assigned yet */}
+      {(!activeSub || (activeSub.status !== 'active' && activeSub.status !== 'trialing')) && (
+        <div
+          className="rounded-lg border px-4 py-3 mb-6 text-sm"
+          style={{ background: '#2a1f11', borderColor: '#3a2a15', color: '#f0b429' }}
+        >
+          Este negocio no tiene un plan asignado — la app no mostrará ningún módulo hasta asignar uno abajo.
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-8">

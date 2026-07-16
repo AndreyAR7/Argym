@@ -24,6 +24,10 @@ export const getSessionData = cache(async () => {
     ckStore.get('x-role')?.value ??
     undefined
 
+  // Never cookie-cached: this gates /super-admin, must always be fresh.
+  const { data: isPA } = await supabase.rpc('is_platform_admin')
+  const isPlatformAdmin = !!isPA
+
   if (tenantId) {
     // Fetch approval_status fresh from DB — never trust the cached cookie for
     // this field because an admin can approve/reject a user mid-session and
@@ -52,6 +56,7 @@ export const getSessionData = cache(async () => {
       },
       tenantId,
       role,
+      isPlatformAdmin,
     }
   }
 
@@ -81,5 +86,6 @@ export const getSessionData = cache(async () => {
     profile,
     tenantId: profile?.tenant_id as string,
     role: dbRole,
+    isPlatformAdmin,
   }
 })

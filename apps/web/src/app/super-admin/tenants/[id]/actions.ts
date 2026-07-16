@@ -15,7 +15,7 @@ function adminClient() {
 
 async function assertSuperAdmin() {
   const session = await getSessionData()
-  if (!session || session.role !== 'admin') redirect('/')
+  if (!session || !session.isPlatformAdmin) redirect('/')
   return adminClient()
 }
 
@@ -49,6 +49,22 @@ export async function upsertPlatformSubscriptionAction(data: {
   // Sync tenant.is_active based on status
   const isActive = data.status === 'active' || data.status === 'trialing'
   await db.from('tenants').update({ is_active: isActive }).eq('id', data.tenantId)
+
+  // Sync tenant_modules from the plan's module list, so module gating never
+  // drifts from whichever plan the tenant is currently assigned.
+  const { data: plan } = await db
+    .from('subscription_plans')
+    .select('modules')
+    .eq('id', data.planId)
+    .single()
+
+  await db.from('tenant_modules').delete().eq('tenant_id', data.tenantId)
+  const modules = (plan?.modules as string[] | undefined) ?? []
+  if (modules.length > 0) {
+    await db.from('tenant_modules').insert(
+      modules.map((module) => ({ tenant_id: data.tenantId, module, enabled: true })),
+    )
+  }
 
   revalidatePath(`/super-admin/tenants/${data.tenantId}`)
   return { success: true }
@@ -87,10 +103,7 @@ export async function reactivateTenantPlatformAction(tenantId: string) {
 }
 
 export async function toggleTenantActiveAction(tenantId: string, isActive: boolean) {
-  const session = await getSessionData()
-  if (!session || session.role !== 'admin') redirect('/')
-
-  const db = adminClient()
+  const db = await assertSuperAdmin()
   const { error } = await db
     .from('tenants')
     .update({ is_active: isActive })
@@ -109,10 +122,7 @@ export async function createTenantAction(data: {
   currency: string
   locale: string
 }) {
-  const session = await getSessionData()
-  if (!session || session.role !== 'admin') redirect('/')
-
-  const db = adminClient()
+  const db = await assertSuperAdmin()
   const { data: tenant, error } = await db
     .from('tenants')
     .insert({

@@ -9,7 +9,7 @@ export const metadata = { title: 'Nuevo gimnasio — ARGYM HQ' }
 export default async function NewTenantPage() {
   const session = await getSessionData()
   if (!session) redirect('/login')
-  if (session.role !== 'admin') redirect('/')
+  if (!session.isPlatformAdmin) redirect('/')
 
   return (
     <div className="p-6 md:p-8 max-w-lg">

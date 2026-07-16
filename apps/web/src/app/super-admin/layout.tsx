@@ -6,11 +6,9 @@ export default async function SuperAdminLayout({ children }: { children: React.R
   const session = await getSessionData()
   if (!session) redirect('/login')
 
-  const { user, profile, role } = session
+  const { user, profile, isPlatformAdmin } = session
 
-  // Gate: must have admin role. In production, add a super_admin role or
-  // check against an env-var allowlist of user IDs for tighter access control.
-  if (role !== 'admin') redirect('/pending-approval')
+  if (!isPlatformAdmin) redirect('/')
 
   return (
     <SuperAdminShell

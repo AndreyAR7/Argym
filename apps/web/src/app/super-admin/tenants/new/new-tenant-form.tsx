@@ -53,7 +53,7 @@ export function NewTenantForm() {
       if (result?.error) {
         setError(result.error)
       } else {
-        router.push('/super-admin/tenants')
+        router.push(`/super-admin/tenants/${result.tenantId}`)
       }
     })
   }

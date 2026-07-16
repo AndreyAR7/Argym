@@ -30,7 +30,7 @@ export default async function TenantsPage({
 
   const session = await getSessionData()
   if (!session) redirect('/login')
-  if (session.role !== 'admin') redirect('/')
+  if (!session.isPlatformAdmin) redirect('/')
 
   const db = adminClient()
 
