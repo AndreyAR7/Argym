@@ -368,7 +368,9 @@
         "deleted": "Video deleted",
         "deleteTitle": "Delete video",
         "emptyStateLine1": "No videos yet.",
-        "emptyStateLine2": "Tap \"+ New\" to add the first one."
+        "emptyStateLine2": "Tap \"+ New\" to add the first one.",
+        "hasVideo": "Video already uploaded — tap to change",
+        "noVideo": "No video — tap to add one"
       }
     },
     "clients": {

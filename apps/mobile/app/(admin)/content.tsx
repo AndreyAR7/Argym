@@ -20,7 +20,7 @@ import { useRoutinesStore } from '@/store/routines.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useClientsWithPlan } from '@/hooks/useProfiles';
 import { useRouter } from 'expo-router';
-import { uploadVideoFile, uploadThumbnail, getThumbnailPublicUrl, assignVideoToClient } from '@/services/videos.service';
+import { uploadVideoFile, uploadThumbnail, getThumbnailPublicUrl, assignVideoToClient, deleteVideoFile } from '@/services/videos.service';
 import { addExercise, updateExercise, uploadExerciseDemoVideo, deleteExerciseDemoVideo } from '@/services/routines.service';
 import type { Video, VideoLevel, VideoPlan } from '@/types/videos';
 import type { Routine, Exercise, RoutineLevel, ExerciseMuscle, RoutinePlan } from '@/types/routines';
@@ -645,7 +645,8 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
     medium: t('admin.content.plans.medium'),
     premium: t('admin.content.plans.premium'),
   };
-  const { editVideo } = useVideosStore();
+  const { user } = useAuthStore();
+  const { editVideo, changeVideoStatus } = useVideosStore();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [level, setLevel] = useState<VideoLevel>('beginner');
@@ -654,6 +655,8 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
   const [isFeatured, setIsFeatured] = useState(false);
   const [isFree, setIsFree] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
+  const [videoFile, setVideoFile] = useState<{ uri: string; name: string; mimeType: string; size: number } | null>(null);
 
   React.useEffect(() => {
     if (video && visible) {
@@ -664,6 +667,8 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
       setAllowedLevels((video.allowed_levels ?? []) as VideoLevel[]);
       setIsFeatured(video.is_featured);
       setIsFree(video.is_free ?? false);
+      setVideoFile(null);
+      setUploadProgress('');
     }
   }, [video, visible]);
 
@@ -672,10 +677,51 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
   const toggleLevel = (l: VideoLevel) =>
     setAllowedLevels((prev) => prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l]);
 
+  const pickVideo = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['video/mp4', 'video/quicktime', 'video/webm', 'video/*'],
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    setVideoFile({
+      uri: asset.uri,
+      name: asset.name,
+      mimeType: asset.mimeType ?? 'video/mp4',
+      size: asset.size ?? 0,
+    });
+  };
+
   const handleSave = async () => {
     if (!video || !title.trim()) { Alert.alert(t('common.error'), t('admin.content.errors.titleRequired')); return; }
     setSaving(true);
     try {
+      const previousPath = video.video_storage_path;
+      const hadNoVideo = !previousPath;
+
+      if (videoFile) {
+        setUploadProgress(t('admin.content.videos.uploadingProgress', { percent: 0 }));
+        const ext = videoFile.name.split('.').pop() ?? 'mp4';
+        const { path } = await uploadVideoFile(
+          video.tenant_id,
+          video.id,
+          { uri: videoFile.uri, mimeType: videoFile.mimeType, extension: ext, size: videoFile.size },
+          (pct) => setUploadProgress(t('admin.content.videos.uploadingProgress', { percent: pct })),
+        );
+        await editVideo(video.id, {
+          video_storage_path: path,
+          video_mime_type: videoFile.mimeType,
+          video_file_size_bytes: videoFile.size,
+        });
+        if (previousPath) {
+          deleteVideoFile(video.video_bucket, previousPath).catch(() => {});
+        }
+        if (hadNoVideo && video.status === 'draft') {
+          await changeVideoStatus(video.id, 'published', user?.id ?? '');
+        }
+      }
+
+      setUploadProgress('');
       await editVideo(video.id, {
         title: title.trim(),
         description: description.trim() || null,
@@ -687,7 +733,7 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
       });
       onSaved(); onClose();
     } catch (e: any) { Alert.alert(t('common.error'), e.message); }
-    finally { setSaving(false); }
+    finally { setSaving(false); setUploadProgress(''); }
   };
 
   return (
@@ -698,6 +744,33 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
             <View style={styles.handle} />
             <ScrollView keyboardShouldPersistTaps="handled">
               <Text style={[styles.sheetTitle, { color: T.text }]}>{t('admin.content.videos.editTitle')}</Text>
+
+              {/* Video file picker — replace existing file, or add one if missing */}
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.videos.fileLabel')}</Text>
+              <TouchableOpacity onPress={pickVideo} disabled={saving}
+                style={[styles.filePicker, { borderColor: videoFile ? T.accent : (video?.video_storage_path ? T.border : T.orange), backgroundColor: T.bg }]}>
+                <Text style={{ fontSize: 20 }}>🎬</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: videoFile ? T.text : T.textMuted, fontSize: 14, fontWeight: videoFile ? '600' : '400' }}>
+                    {videoFile
+                      ? videoFile.name
+                      : video?.video_storage_path
+                        ? t('admin.content.videos.hasVideo')
+                        : t('admin.content.videos.noVideo')}
+                  </Text>
+                  {videoFile?.size ? (
+                    <Text style={{ color: T.textMuted, fontSize: 11, marginTop: 2 }}>
+                      {(videoFile.size / 1024 / 1024).toFixed(1)} MB
+                    </Text>
+                  ) : null}
+                </View>
+                <Text style={{ color: T.accent, fontWeight: '700', fontSize: 13 }}>
+                  {videoFile || video?.video_storage_path ? t('admin.content.change') : t('admin.content.choose')}
+                </Text>
+              </TouchableOpacity>
+              {uploadProgress ? (
+                <Text style={{ color: T.accent, fontSize: 12, marginTop: 6, marginBottom: 4 }}>{uploadProgress}</Text>
+              ) : null}
 
               <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.fields.titleRequired')}</Text>
               <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
@@ -751,11 +824,11 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
               </View>
 
               <View style={{ flexDirection: 'row', gap: 12 }}>
-                <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
+                <TouchableOpacity onPress={onClose} disabled={saving} style={[styles.btn, { borderColor: T.border, borderWidth: 1, flex: 1 }]}>
                   <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.btn, { backgroundColor: T.accent, flex: 1 }]}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? t('admin.content.saving') : t('common.save')}</Text>
+                  {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>{t('common.save')}</Text>}
                 </TouchableOpacity>
               </View>
             </ScrollView>

@@ -65,6 +65,16 @@ export async function deleteVideo(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Remove a previously-uploaded video file from storage (e.g. after
+ * replacing it with a new upload). Best-effort — caller decides whether
+ * to surface failures.
+ */
+export async function deleteVideoFile(bucket: string, storagePath: string): Promise<void> {
+  const { error } = await supabase.storage.from(bucket).remove([storagePath]);
+  if (error) throw error;
+}
+
 // ─── Storage ──────────────────────────────────────────────────
 
 /**
