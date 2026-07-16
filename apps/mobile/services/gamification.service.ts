@@ -13,6 +13,10 @@ export interface GameStats {
   longest_streak: number;
   last_checkin_date: string | null;
   total_checkins: number;
+  app_current_streak: number;
+  app_longest_streak: number;
+  app_last_checkin_date: string | null;
+  app_total_checkins: number;
   total_challenges_completed: number;
   total_challenges_won: number;
   streak_shield_count: number;
@@ -176,18 +180,18 @@ export async function fetchChallenges(
 }
 
 /**
- * Record a check-in for the user and award XP / badges via RPC.
- * branchId is optional and may be null for gym-agnostic check-ins.
+ * Record an async app-engagement check-in (the in-app "check in today"
+ * button) and award XP via RPC. Distinct from the physical QR check-in
+ * flow (apps/mobile/app/(client)/checkin-scan.tsx), which requires an
+ * active gym membership — this one only requires an approved account.
  */
 export async function performCheckin(
   userId: string,
   tenantId: string,
-  branchId?: string,
 ): Promise<CheckinResult> {
-  const { data, error } = await supabase.rpc('award_checkin', {
+  const { data, error } = await supabase.rpc('award_app_checkin', {
     p_user_id: userId,
     p_tenant_id: tenantId,
-    p_branch_id: branchId ?? null,
   });
   if (error) throw error;
   return data as CheckinResult;

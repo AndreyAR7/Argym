@@ -47,7 +47,7 @@ interface GamificationActions {
   fetchBadges: (userId: string, tenantId: string) => Promise<void>;
   fetchChallenges: (userId: string, tenantId: string) => Promise<void>;
   fetchLevelDefs: () => Promise<void>;
-  performCheckin: (userId: string, tenantId: string, branchId?: string) => Promise<CheckinResult>;
+  performCheckin: (userId: string, tenantId: string) => Promise<CheckinResult>;
   createChallenge: (params: Parameters<typeof GamificationService.createChallenge>[0]) => Promise<void>;
   respondToChallenge: (challengeId: string, userId: string, response: 'accepted' | 'declined') => Promise<void>;
   completeChallenge: (challengeId: string, userId: string) => Promise<{ xp_earned: number; badges_earned: BadgeDefinition[] }>;
@@ -146,10 +146,10 @@ export const useGamificationStore = create<GamificationState & GamificationActio
 
     // ── Check-in ───────────────────────────────────────────────
 
-    performCheckin: async (userId, tenantId, branchId) => {
+    performCheckin: async (userId, tenantId) => {
       set({ isCheckingIn: true, error: null });
       try {
-        const result = await GamificationService.performCheckin(userId, tenantId, branchId);
+        const result = await GamificationService.performCheckin(userId, tenantId);
         set({ isCheckingIn: false });
 
         // Refresh stats in the background so XP, streak, and level are up to date.

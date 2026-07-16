@@ -109,7 +109,7 @@ export default function GamificationScreen() {
   const xpForNextLevel = nextLevelDef?.xp_required ?? null;
   const xpNeededForNext = xpForNextLevel != null ? xpForNextLevel - (stats?.xp_total ?? 0) : null;
 
-  const checkedInToday = stats?.last_checkin_date === TODAY;
+  const checkedInToday = stats?.app_last_checkin_date === TODAY;
 
   // ── XP Overlay animation ─────────────────────────────────────
 
@@ -140,7 +140,7 @@ export default function GamificationScreen() {
     if (checkedInToday) return;
 
     try {
-      const result = await performCheckin(user.id, user.tenant_id, (user as any).branch_id);
+      const result = await performCheckin(user.id, user.tenant_id);
       const badgeNames = result.new_badges.map((b) => b.name);
       playXpGainAnimation(result.xp_earned, badgeNames);
     } catch (err: any) {
@@ -206,8 +206,8 @@ export default function GamificationScreen() {
 
             {/* ─── 5. STREAK INFO ─────────────────────────────── */}
             <StreakInfo
-              currentStreak={stats?.current_streak ?? 0}
-              longestStreak={stats?.longest_streak ?? 0}
+              currentStreak={stats?.app_current_streak ?? 0}
+              longestStreak={stats?.app_longest_streak ?? 0}
               T={T}
             />
           </>
@@ -398,8 +398,8 @@ function CheckinButton({
 function StatsRow({ stats, T }: { stats: any; T: any }) {
   const { t } = useTranslation();
   const items = [
-    { icon: '🔥', value: stats?.current_streak ?? 0, label: t('client.gamification.stats.currentStreak') },
-    { icon: '🏆', value: stats?.total_checkins ?? 0, label: t('client.gamification.stats.totalVisits') },
+    { icon: '🔥', value: stats?.app_current_streak ?? 0, label: t('client.gamification.stats.currentStreak') },
+    { icon: '🏆', value: stats?.app_total_checkins ?? 0, label: t('client.gamification.stats.totalVisits') },
     { icon: '⚡', value: stats?.xp_this_week ?? 0, label: t('client.gamification.stats.xpThisWeek') },
     { icon: '🎯', value: stats?.total_challenges_won ?? 0, label: t('client.gamification.stats.challengesWon') },
   ];

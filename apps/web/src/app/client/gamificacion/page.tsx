@@ -18,6 +18,9 @@ interface GameStats {
   current_streak: number
   longest_streak: number
   total_checkins: number
+  app_current_streak: number
+  app_longest_streak: number
+  app_total_checkins: number
 }
 
 interface LevelDefinition {
@@ -103,6 +106,7 @@ export default async function GamificacionPage() {
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('tenant_id', tenantId)
+      .eq('method', 'app')
       .gte('checked_in_at', todayStart.toISOString()),
 
     supabase
@@ -238,12 +242,12 @@ export default async function GamificacionPage() {
           {
             icon: '🔥',
             label: 'Racha',
-            value: `${stats?.current_streak ?? 0} días`,
+            value: `${stats?.app_current_streak ?? 0} días`,
           },
           {
             icon: '📍',
-            label: 'Visitas',
-            value: stats?.total_checkins ?? 0,
+            label: 'Check-ins en app',
+            value: stats?.app_total_checkins ?? 0,
           },
           {
             icon: '⚡',

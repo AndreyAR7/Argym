@@ -94,7 +94,30 @@ export function CheckinResult({ result }: Props) {
   const isNew = result?.success && !result?.already_checked_in
   const alreadyIn = result?.already_checked_in
   const wrongGym = !result?.success && result?.error === 'branch_not_in_tenant'
+  const noMembership = !result?.success && result?.error === 'no_active_membership'
   const confettiRef = useConfetti(isNew)
+
+  if (noMembership) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)] p-4">
+        <div className="w-full max-w-sm text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto">
+            <span className="text-3xl">🔒</span>
+          </div>
+          <h1 className="text-xl font-semibold text-[var(--color-foreground)]">Sin membresía activa</h1>
+          <p className="text-sm text-[var(--color-muted-foreground)]">
+            Necesitás una membresía activa para hacer check-in presencial. Contacta al staff o revisa tus planes.
+          </p>
+          <Link
+            href="/client/planes"
+            className="inline-block rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90 transition-opacity"
+          >
+            Ver planes
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   if (wrongGym) {
     return (

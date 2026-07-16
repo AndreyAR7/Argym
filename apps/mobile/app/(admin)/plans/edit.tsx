@@ -38,6 +38,7 @@ export default function EditPlanScreen() {
   const [features, setFeatures] = useState<PlanFeature[]>([]);
   const [isActive, setIsActive] = useState(true);
   const [expiryDate, setExpiryDate] = useState('');
+  const [grantsPhysicalAccess, setGrantsPhysicalAccess] = useState(false);
   const [videoIds, setVideoIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(!plan);
@@ -66,6 +67,7 @@ export default function EditPlanScreen() {
     setFeatures(p.features?.length ? p.features : [{ name: '', value: 'true' }]);
     setIsActive(p.is_active);
     setExpiryDate(p.expiry_date ? p.expiry_date.slice(0, 10) : '');
+    setGrantsPhysicalAccess(p.grants_physical_access ?? false);
     setLoading(false);
   }
 
@@ -92,6 +94,7 @@ export default function EditPlanScreen() {
           features: features.filter((f) => f.name.trim()),
           is_active: isActive,
           expiry_date: expiryDate || null,
+          grants_physical_access: grantsPhysicalAccess,
         } as any),
         setPlanVideos(id, videoIds),
       ]);
@@ -217,6 +220,19 @@ export default function EditPlanScreen() {
         <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 16, marginTop: 4 }}>
           Dejar vacío si el plan no tiene fecha de vencimiento.
         </Text>
+
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+          borderWidth: 1, borderColor: T.border, borderRadius: 10, padding: 12, marginBottom: 16,
+        }}>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: T.text }}>Otorga acceso físico al gimnasio</Text>
+            <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>
+              Los suscriptores podrán hacer check-in por QR en la sucursal
+            </Text>
+          </View>
+          <Switch value={grantsPhysicalAccess} onValueChange={setGrantsPhysicalAccess} trackColor={{ true: T.accent }} />
+        </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <Text style={{ fontSize: 13, fontWeight: '500', color: T.textSecondary }}>Características</Text>

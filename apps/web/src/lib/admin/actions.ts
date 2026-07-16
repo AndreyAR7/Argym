@@ -168,6 +168,7 @@ export async function createPlanAction(data: {
   expiry_date?: string | null
   plan_tier?: string | null
   branch_id?: string | null
+  grants_physical_access?: boolean
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -196,6 +197,7 @@ export async function createPlanAction(data: {
       expiry_date: data.expiry_date || null,
       plan_tier: data.plan_tier || null,
       branch_id: data.branch_id || null,
+      grants_physical_access: data.grants_physical_access ?? false,
     })
 
   if (error) return { error: error.message }
@@ -213,6 +215,7 @@ export async function updatePlanAction(planId: string, data: {
   expiry_date?: string | null
   plan_tier?: string | null
   branch_id?: string | null
+  grants_physical_access?: boolean
 }) {
   const supabase = await createClient()
 
@@ -232,6 +235,7 @@ export async function updatePlanAction(planId: string, data: {
       expiry_date: data.expiry_date || null,
       plan_tier: data.plan_tier || null,
       branch_id: data.branch_id || null,
+      grants_physical_access: data.grants_physical_access ?? false,
     })
     .eq('id', planId)
 

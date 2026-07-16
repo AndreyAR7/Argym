@@ -16,6 +16,7 @@ interface Plan {
   expiry_date?: string | null
   plan_tier?: string | null
   branch_id?: string | null
+  grants_physical_access?: boolean
 }
 
 interface Branch {
@@ -51,6 +52,9 @@ export function PlanFormModal({ plan, branches = [], onClose }: PlanFormModalPro
   )
   const [planTier, setPlanTier] = useState<string>(plan?.plan_tier ?? 'all')
   const [branchId, setBranchId] = useState<string>(plan?.branch_id ?? '')
+  const [grantsPhysicalAccess, setGrantsPhysicalAccess] = useState<boolean>(
+    plan?.grants_physical_access ?? false
+  )
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -83,6 +87,7 @@ export function PlanFormModal({ plan, branches = [], onClose }: PlanFormModalPro
         expiry_date: expiryDate || null,
         plan_tier: planTier === 'all' ? null : planTier,
         branch_id: branchId || null,
+        grants_physical_access: grantsPhysicalAccess,
       }
 
       const result = plan
@@ -254,6 +259,33 @@ export function PlanFormModal({ plan, branches = [], onClose }: PlanFormModalPro
               </select>
             </div>
           )}
+
+          {/* Physical access */}
+          <div className="flex items-center justify-between rounded-lg border border-[var(--color-border)] px-3.5 py-2.5">
+            <div>
+              <p className="text-xs font-medium text-[var(--color-foreground)]">
+                Otorga acceso físico al gimnasio
+              </p>
+              <p className="text-[10px] text-[var(--color-muted-foreground)] mt-0.5">
+                Los suscriptores de este plan podrán hacer check-in por QR en la sucursal
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={grantsPhysicalAccess}
+              onClick={() => setGrantsPhysicalAccess((v) => !v)}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
+                grantsPhysicalAccess ? 'bg-[var(--color-admin)]' : 'bg-[var(--color-muted)]'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  grantsPhysicalAccess ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
 
           {/* Expiry date */}
           <div>

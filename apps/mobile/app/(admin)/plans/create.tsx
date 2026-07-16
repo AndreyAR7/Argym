@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert,
+  ActivityIndicator, Alert, Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -36,6 +36,7 @@ export default function CreatePlanScreen() {
   const [cycle, setCycle] = useState<'monthly' | 'yearly' | 'one_time'>('monthly');
   const [expiryDate, setExpiryDate] = useState('');
   const [features, setFeatures] = useState<PlanFeature[]>([{ name: '', value: 'true' }]);
+  const [grantsPhysicalAccess, setGrantsPhysicalAccess] = useState(false);
   const [videoIds, setVideoIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -63,6 +64,7 @@ export default function CreatePlanScreen() {
         is_active: true,
         sort_order: 0,
         expiry_date: expiryDate || null,
+        grants_physical_access: grantsPhysicalAccess,
         updated_at: new Date().toISOString(),
       } as any);
       if (videoIds.length > 0) await setPlanVideos(newPlan.id, videoIds);
@@ -143,6 +145,19 @@ export default function CreatePlanScreen() {
         <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 16, marginTop: 4 }}>
           Dejar vacío si el plan no tiene fecha de vencimiento.
         </Text>
+
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+          borderWidth: 1, borderColor: T.border, borderRadius: 10, padding: 12, marginBottom: 16,
+        }}>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: T.text }}>Otorga acceso físico al gimnasio</Text>
+            <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>
+              Los suscriptores podrán hacer check-in por QR en la sucursal
+            </Text>
+          </View>
+          <Switch value={grantsPhysicalAccess} onValueChange={setGrantsPhysicalAccess} trackColor={{ true: T.accent }} />
+        </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <Text style={{ fontSize: 13, fontWeight: '500', color: T.textSecondary }}>Características</Text>

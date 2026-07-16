@@ -983,7 +983,7 @@
       },
       "stats": {
         "currentStreak": "Current streak",
-        "totalVisits": "Total visits",
+        "totalVisits": "App check-ins",
         "xpThisWeek": "XP this week",
         "challengesWon": "Challenges won"
       },
@@ -1376,7 +1376,8 @@
         "qrNotRecognized": "QR not recognized. Scan the gym's official QR code.",
         "qrInvalid": "Invalid QR. Try again.",
         "checkinFailed": "Could not register the check-in.",
-        "connectionError": "Connection error. Check your internet and try again."
+        "connectionError": "Connection error. Check your internet and try again.",
+        "noActiveMembership": "You need an active membership to check in at the gym."
       },
       "permission": {
         "title": "Camera permission",

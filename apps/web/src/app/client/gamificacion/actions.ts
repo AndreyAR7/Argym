@@ -20,7 +20,7 @@ export async function checkinAction(): Promise<CheckinResult> {
   const { supabase, tenantId, user } = session
   const userId = user.id
 
-  const { data, error } = await supabase.rpc('award_checkin', {
+  const { data, error } = await supabase.rpc('award_app_checkin', {
     p_user_id: userId,
     p_tenant_id: tenantId,
   })

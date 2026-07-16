@@ -19,6 +19,7 @@ export interface Plan {
   is_active: boolean;
   sort_order: number;
   expiry_date: string | null;
+  grants_physical_access: boolean;
   created_at: string;
 }
 

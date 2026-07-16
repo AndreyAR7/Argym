@@ -983,7 +983,7 @@
       },
       "stats": {
         "currentStreak": "Racha actual",
-        "totalVisits": "Total visitas",
+        "totalVisits": "Check-ins en app",
         "xpThisWeek": "XP esta semana",
         "challengesWon": "Retos ganados"
       },
@@ -1376,7 +1376,8 @@
         "qrNotRecognized": "QR no reconocido. Escanea el código QR oficial del gimnasio.",
         "qrInvalid": "QR inválido. Intenta de nuevo.",
         "checkinFailed": "No se pudo registrar el check-in.",
-        "connectionError": "Error de conexión. Verifica tu internet e intenta de nuevo."
+        "connectionError": "Error de conexión. Verifica tu internet e intenta de nuevo.",
+        "noActiveMembership": "Necesitás una membresía activa para hacer check-in presencial."
       },
       "permission": {
         "title": "Permiso de cámara",

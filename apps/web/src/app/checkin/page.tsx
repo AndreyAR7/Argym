@@ -90,7 +90,7 @@ export default async function CheckinPage({ searchParams }: Props) {
   }
 
   // Call the check-in RPC
-  const { data, error } = await supabase.rpc('award_checkin', {
+  const { data, error } = await supabase.rpc('award_gym_checkin', {
     p_user_id: user.id,
     p_tenant_id: tenantId,
     p_branch_id: branch,

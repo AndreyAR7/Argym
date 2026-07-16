@@ -15,6 +15,7 @@ type Status = 'scanning' | 'loading' | 'success' | 'already' | 'error';
 
 interface CheckinData {
   success: boolean;
+  error?: string;
   already_checked_in: boolean;
   xp_earned: number;
   new_streak: number;
@@ -56,7 +57,7 @@ export default function CheckinScanScreen() {
     }
 
     try {
-      const { data: result, error } = await supabase.rpc('award_checkin', {
+      const { data: result, error } = await supabase.rpc('award_gym_checkin', {
         p_user_id: user.id,
         p_tenant_id: user.tenant_id,
         p_branch_id: branchId,
@@ -75,6 +76,9 @@ export default function CheckinScanScreen() {
         setStatus('already');
       } else if (r?.success !== false) {
         setStatus('success');
+      } else if (r?.error === 'no_active_membership') {
+        setStatus('error');
+        setMessage(t('client.checkinScan.errors.noActiveMembership'));
       } else {
         setStatus('error');
         setMessage(t('client.checkinScan.errors.checkinFailed'));
