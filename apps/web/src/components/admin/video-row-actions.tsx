@@ -18,9 +18,10 @@ interface VideoRowActionsProps {
     status: string
     storage_path: string | null
   }
+  tenantId: string
 }
 
-export function VideoRowActions({ video }: VideoRowActionsProps) {
+export function VideoRowActions({ video, tenantId }: VideoRowActionsProps) {
   const [isPending, startTransition] = useTransition()
   const [editOpen, setEditOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -137,6 +138,7 @@ export function VideoRowActions({ video }: VideoRowActionsProps) {
       {editOpen && (
         <VideoEditModal
           video={video}
+          tenantId={tenantId}
           onClose={() => setEditOpen(false)}
         />
       )}

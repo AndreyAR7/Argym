@@ -178,7 +178,10 @@ export default async function VideosPage({
                       <Badge value={video.status} />
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <VideoRowActions video={{ ...video, storage_path: (video as any).video_storage_path ?? null }} />
+                      <VideoRowActions
+                        video={{ ...video, storage_path: (video as any).video_storage_path ?? null }}
+                        tenantId={tenantId}
+                      />
                     </td>
                   </tr>
                 )

@@ -33,6 +33,37 @@ export async function updateVideoMetadataAction(
   return { success: true }
 }
 
+export async function updateVideoFileAction(
+  videoId: string,
+  data: { storage_path: string; storage_bucket: string; previous_path?: string | null },
+): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { data: existing } = await supabase
+    .from('videos')
+    .select('status')
+    .eq('id', videoId)
+    .single()
+
+  const updates: Record<string, unknown> = {
+    video_storage_path: data.storage_path,
+    video_bucket: data.storage_bucket,
+  }
+  if (existing?.status === 'draft') updates.status = 'published'
+
+  const { error } = await supabase.from('videos').update(updates).eq('id', videoId)
+  if (error) return { error: error.message }
+
+  if (data.previous_path) {
+    await supabase.storage.from(data.storage_bucket).remove([data.previous_path])
+  }
+
+  revalidatePath('/admin/videos')
+  return { success: true }
+}
+
 export async function deleteVideoAction(
   videoId: string,
 ): Promise<{ success?: boolean; error?: string }> {

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { X } from 'lucide-react'
-import { updateVideoMetadataAction } from '@/lib/admin/video-actions'
+import { useRef, useState, useTransition } from 'react'
+import { X, Upload, Film, AlertCircle } from 'lucide-react'
+import { updateVideoMetadataAction, updateVideoFileAction } from '@/lib/admin/video-actions'
+import { createClient } from '@/lib/supabase/client'
 
 interface VideoEditModalProps {
   video: {
@@ -13,8 +14,23 @@ interface VideoEditModalProps {
     is_featured: boolean
     is_free: boolean
     status: string
+    storage_path?: string | null
   }
+  tenantId: string
   onClose: () => void
+}
+
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
 }
 
 const LEVEL_OPTIONS = [
@@ -29,7 +45,8 @@ const STATUS_OPTIONS = [
   { value: 'archived', label: 'Archivado' },
 ] as const
 
-export function VideoEditModal({ video, onClose }: VideoEditModalProps) {
+export function VideoEditModal({ video, tenantId, onClose }: VideoEditModalProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [title, setTitle] = useState(video.title)
   const [description, setDescription] = useState(video.description ?? '')
   const [level, setLevel] = useState(video.level)
@@ -40,6 +57,46 @@ export function VideoEditModal({ video, onClose }: VideoEditModalProps) {
   const [success, setSuccess] = useState(false)
   const [isPending, startTransition] = useTransition()
 
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [uploadPct, setUploadPct] = useState<number | null>(null)
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null
+    if (file) setSelectedFile(file)
+  }
+
+  async function uploadSelectedFile(): Promise<{ storage_path: string; storage_bucket: string } | null> {
+    if (!selectedFile) return null
+    const supabase = createClient()
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData?.session?.access_token
+    if (!token) throw new Error('No hay sesión activa.')
+
+    const ext = selectedFile.name.split('.').pop() ?? 'mp4'
+    const storagePath = `${tenantId}/${generateUUID()}.${ext}`
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const uploadUrl = `${supabaseUrl}/storage/v1/object/videos/${storagePath}`
+
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) setUploadPct((e.loaded / e.total) * 100)
+      }
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve()
+        else reject(new Error(`Error al subir el video (${xhr.status})`))
+      }
+      xhr.onerror = () => reject(new Error('Error de red al subir el video.'))
+      xhr.open('POST', uploadUrl)
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+      xhr.setRequestHeader('Content-Type', selectedFile.type || 'video/mp4')
+      xhr.setRequestHeader('x-upsert', 'true')
+      xhr.send(selectedFile)
+    })
+
+    return { storage_path: storagePath, storage_bucket: 'videos' }
+  }
+
   function handleSubmit() {
     if (!title.trim()) {
       setError('El título es obligatorio')
@@ -48,20 +105,39 @@ export function VideoEditModal({ video, onClose }: VideoEditModalProps) {
     setError(null)
 
     startTransition(async () => {
-      const result = await updateVideoMetadataAction(video.id, {
-        title: title.trim(),
-        description: description.trim(),
-        level,
-        is_featured: isFeatured,
-        is_free: isFree,
-        status: status as 'draft' | 'published' | 'archived',
-      })
+      try {
+        if (selectedFile) {
+          setUploadPct(0)
+          const uploaded = await uploadSelectedFile()
+          if (uploaded) {
+            const fileResult = await updateVideoFileAction(video.id, {
+              storage_path: uploaded.storage_path,
+              storage_bucket: uploaded.storage_bucket,
+              previous_path: video.storage_path ?? null,
+            })
+            if (fileResult?.error) { setError(fileResult.error); return }
+          }
+        }
 
-      if (result?.error) {
-        setError(result.error)
-      } else {
-        setSuccess(true)
-        setTimeout(() => onClose(), 800)
+        const result = await updateVideoMetadataAction(video.id, {
+          title: title.trim(),
+          description: description.trim(),
+          level,
+          is_featured: isFeatured,
+          is_free: isFree,
+          status: status as 'draft' | 'published' | 'archived',
+        })
+
+        if (result?.error) {
+          setError(result.error)
+        } else {
+          setSuccess(true)
+          setTimeout(() => onClose(), 800)
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error desconocido.')
+      } finally {
+        setUploadPct(null)
       }
     })
   }
@@ -93,6 +169,58 @@ export function VideoEditModal({ video, onClose }: VideoEditModalProps) {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* Video file */}
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-foreground)] mb-1.5">
+              Archivo de video
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={handleFileChange}
+              disabled={isPending}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isPending}
+              className="w-full flex items-center gap-3 rounded-xl border border-dashed border-[var(--color-border)] px-4 py-3 text-left hover:border-[var(--color-admin)] transition-colors disabled:opacity-50"
+            >
+              <div className="w-9 h-9 rounded-lg bg-[var(--color-admin)]/10 flex items-center justify-center shrink-0">
+                <Film size={16} className="text-[var(--color-admin)]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[var(--color-foreground)] truncate">
+                  {selectedFile
+                    ? selectedFile.name
+                    : video.storage_path
+                      ? 'Video ya cargado'
+                      : 'Sin video'}
+                </p>
+                <p className="text-xs text-[var(--color-muted-foreground)]">
+                  {selectedFile ? formatBytes(selectedFile.size) : 'Toca para ' + (video.storage_path ? 'reemplazar' : 'agregar')}
+                </p>
+              </div>
+              <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-admin)]">
+                <Upload size={12} />
+                {video.storage_path || selectedFile ? 'Cambiar' : 'Elegir'}
+              </span>
+            </button>
+            {uploadPct !== null && (
+              <div className="mt-2 space-y-1">
+                <div className="w-full h-1.5 rounded-full bg-[var(--color-muted)] overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-[var(--color-admin)] transition-all duration-200"
+                    style={{ width: `${uploadPct}%` }}
+                  />
+                </div>
+                <p className="text-xs text-[var(--color-muted-foreground)]">Subiendo video… {Math.round(uploadPct)}%</p>
+              </div>
+            )}
+          </div>
+
           {/* Title */}
           <div>
             <label className="block text-xs font-medium text-[var(--color-foreground)] mb-1.5">
