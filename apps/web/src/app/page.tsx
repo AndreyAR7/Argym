@@ -38,7 +38,11 @@ export default async function RootPage() {
 
     const role = (userRole as any)?.roles?.name as string | undefined
 
-    if (role === 'admin') redirect('/admin/dashboard')
+    if (role === 'admin') {
+      const { data: isPlatformAdmin } = await supabase.rpc('is_platform_admin')
+      if (isPlatformAdmin) redirect('/admin/select-gym')
+      redirect('/admin/dashboard')
+    }
     if (role === 'coach') redirect('/coach')
     if (role === 'client') redirect('/client/inicio')
     // No role assigned yet — send to pending-approval to avoid redirect loop
