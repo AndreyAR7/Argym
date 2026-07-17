@@ -19,16 +19,14 @@ interface AdminShellProps {
   isPlatformAdmin?: boolean
   tenants?: TenantOption[]
   currentTenantId?: string
+  currentTenantName?: string
   homeTenantId?: string | null
 }
 
 export function AdminShell({
   children, userName, userEmail, avatarUrl, userId, isPlatformAdmin,
-  tenants, currentTenantId, homeTenantId,
+  tenants, currentTenantId, currentTenantName, homeTenantId,
 }: AdminShellProps) {
-  const actingAsOtherTenant =
-    isPlatformAdmin && currentTenantId && homeTenantId && currentTenantId !== homeTenantId
-  const currentTenantName = tenants?.find((t) => t.id === currentTenantId)?.name
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
@@ -41,15 +39,6 @@ export function AdminShell({
 
   return (
     <div className="flex flex-col h-dvh overflow-hidden bg-[var(--color-background)]">
-      {actingAsOtherTenant && (
-        <div
-          className="flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-medium flex-shrink-0"
-          style={{ background: '#f97316', color: '#fff' }}
-        >
-          Estás operando como <strong>{currentTenantName ?? 'otro gimnasio'}</strong> — no es tu gimnasio
-        </div>
-      )}
-
       {/* ── Topbar: full width ── */}
       <Topbar
         onMenuOpen={() => setOpen(true)}
@@ -59,6 +48,7 @@ export function AdminShell({
         userId={userId}
         accentColor="var(--color-admin)"
         brandLabel="ARGYM Admin"
+        tenantName={currentTenantName}
         profileHref="/admin/profile"
         helpHref="/admin/help"
         contactHref="/admin/contact"

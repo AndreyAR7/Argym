@@ -25,6 +25,7 @@ interface TopbarProps {
   userId?: string
   accentColor?: string
   brandLabel?: string
+  tenantName?: string
   profileHref?: string
   helpHref?: string
   contactHref?: string
@@ -38,6 +39,7 @@ export function Topbar({
   userId,
   accentColor = 'var(--color-admin)',
   brandLabel = 'ARGYM',
+  tenantName,
   profileHref = '#',
   helpHref = '#',
   contactHref = '#',
@@ -86,6 +88,17 @@ export function Topbar({
           <span className="font-semibold text-sm tracking-tight" style={{ color: 'var(--color-foreground)' }}>
             {brandLabel}
           </span>
+          {tenantName && (
+            <>
+              <span className="hidden sm:inline text-sm" style={{ color: 'var(--color-border)' }}>/</span>
+              <span
+                className="hidden sm:inline text-sm font-medium truncate max-w-[160px]"
+                style={{ color: 'var(--color-muted-foreground)' }}
+              >
+                {tenantName}
+              </span>
+            </>
+          )}
         </div>
       </div>
 
