@@ -23,6 +23,7 @@ import {
   TrendingUp,
   Trophy,
   QrCode,
+  ShieldCheck,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logoutAction } from '@/lib/auth/actions'
@@ -32,6 +33,7 @@ interface SidebarProps {
   userEmail: string
   avatarUrl: string | null
   onClose?: () => void
+  isPlatformAdmin?: boolean
 }
 
 interface NavItem {
@@ -106,7 +108,7 @@ const NAV: NavSection[] = [
   },
 ]
 
-export function AdminSidebar({ userName, userEmail, avatarUrl, onClose }: SidebarProps) {
+export function AdminSidebar({ userName, userEmail, avatarUrl, onClose, isPlatformAdmin }: SidebarProps) {
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
 
@@ -172,6 +174,21 @@ export function AdminSidebar({ userName, userEmail, avatarUrl, onClose }: Sideba
           </div>
         ))}
       </nav>
+
+      {/* ── Platform admin ── */}
+      {isPlatformAdmin && (
+        <div className="px-3 pb-1 flex-shrink-0">
+          <Link
+            href="/super-admin/tenants"
+            onClick={onClose}
+            className="flex items-center gap-2.5 px-2 py-2 md:py-1.5 rounded-md text-sm font-medium transition-all"
+            style={{ background: '#f9731620', color: '#f97316' }}
+          >
+            <ShieldCheck size={15} className="flex-shrink-0" />
+            ARGYM HQ
+          </Link>
+        </div>
+      )}
 
       {/* ── User footer ── */}
       <div className="px-3 pb-4 pt-3 border-t border-[var(--color-sidebar-border)] flex-shrink-0 space-y-1">

@@ -6,7 +6,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const session = await getSessionData()
   if (!session) redirect('/login')
 
-  const { user, profile, role } = session
+  const { user, profile, role, isPlatformAdmin } = session
   if (!profile || profile.approval_status !== 'approved') redirect('/pending-approval')
   if (role !== 'admin') redirect('/pending-approval')
 
@@ -16,6 +16,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       userEmail={user.email ?? ''}
       avatarUrl={profile?.avatar_url ?? null}
       userId={user.id}
+      isPlatformAdmin={isPlatformAdmin}
     >
       {children}
     </AdminShell>

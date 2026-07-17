@@ -11,9 +11,10 @@ interface AdminShellProps {
   userEmail: string
   avatarUrl: string | null
   userId: string
+  isPlatformAdmin?: boolean
 }
 
-export function AdminShell({ children, userName, userEmail, avatarUrl, userId }: AdminShellProps) {
+export function AdminShell({ children, userName, userEmail, avatarUrl, userId, isPlatformAdmin }: AdminShellProps) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
@@ -68,6 +69,7 @@ export function AdminShell({ children, userName, userEmail, avatarUrl, userId }:
             userEmail={userEmail}
             avatarUrl={avatarUrl}
             onClose={() => setOpen(false)}
+            isPlatformAdmin={isPlatformAdmin}
           />
         </div>
 
