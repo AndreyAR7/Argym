@@ -15,6 +15,13 @@ export default async function RootPage() {
   } = await supabase.auth.getUser()
 
   if (user) {
+    // Platform admins are a trusted, already-vetted identity independent of
+    // any single tenant's approval workflow — check this FIRST and skip
+    // approval_status entirely. They pick which gym to operate every login
+    // instead of being tied to whatever tenant_id their profile last pointed to.
+    const { data: isPlatformAdmin } = await supabase.rpc('is_platform_admin')
+    if (isPlatformAdmin) redirect('/select-gym')
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('approval_status')
@@ -38,11 +45,7 @@ export default async function RootPage() {
 
     const role = (userRole as any)?.roles?.name as string | undefined
 
-    if (role === 'admin') {
-      const { data: isPlatformAdmin } = await supabase.rpc('is_platform_admin')
-      if (isPlatformAdmin) redirect('/admin/select-gym')
-      redirect('/admin/dashboard')
-    }
+    if (role === 'admin') redirect('/admin/dashboard')
     if (role === 'coach') redirect('/coach')
     if (role === 'client') redirect('/client/inicio')
     // No role assigned yet — send to pending-approval to avoid redirect loop

@@ -16,8 +16,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!session) redirect('/login')
 
   const { user, profile, role, isPlatformAdmin, tenantId } = session
-  if (!profile || profile.approval_status !== 'approved') redirect('/pending-approval')
-  if (role !== 'admin') redirect('/pending-approval')
+
+  // Platform admins are a trusted identity independent of any single
+  // tenant's approval workflow — never gate them on approval_status/role.
+  if (!isPlatformAdmin) {
+    if (!profile || profile.approval_status !== 'approved') redirect('/pending-approval')
+    if (role !== 'admin') redirect('/pending-approval')
+  }
 
   let tenants: { id: string; name: string }[] | undefined
   let homeTenantId: string | null = null

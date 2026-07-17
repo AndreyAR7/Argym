@@ -1,10 +1,8 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
-import { getSessionData } from '@/lib/auth/session'
 
 function getAppBaseUrl(): string {
   // NEXT_PUBLIC_APP_URL is the authoritative source in production.
@@ -85,32 +83,6 @@ export async function logoutAction() {
   }
 
   redirect('/login')
-}
-
-export async function switchActiveTenantAction(tenantId: string) {
-  const session = await getSessionData()
-  if (!session || !session.isPlatformAdmin) redirect('/')
-
-  const supabase = await createClient()
-  const { data: tenantIsActive, error } = await supabase.rpc('switch_platform_admin_tenant', {
-    p_tenant_id: tenantId,
-  })
-  if (error) return { error: error.message }
-
-  const cookieStore = await cookies()
-  const cookieOpts = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax' as const,
-    maxAge: 60 * 60 * 8,
-  }
-  cookieStore.set('x-tid', tenantId, cookieOpts)
-  cookieStore.set('x-active', String(tenantIsActive ?? true), cookieOpts)
-
-  // Every layout/page reading session/tenant data must be re-rendered fresh —
-  // otherwise Next.js can serve a cached RSC payload from before the switch.
-  revalidatePath('/', 'layout')
-  redirect('/admin/dashboard')
 }
 
 export async function forgotPasswordAction(

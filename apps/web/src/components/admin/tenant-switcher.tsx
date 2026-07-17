@@ -1,9 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { ShieldCheck, RotateCcw } from 'lucide-react'
-import { switchActiveTenantAction } from '@/lib/auth/actions'
 
 interface TenantOption {
   id: string
@@ -14,27 +12,18 @@ export function TenantSwitcher({
   tenants,
   currentTenantId,
   homeTenantId,
-  onNavigate,
 }: {
   tenants: TenantOption[]
   currentTenantId: string
   homeTenantId: string | null
   onNavigate?: () => void
 }) {
-  const [isPending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
-
-  function switchTo(tenantId: string) {
-    if (tenantId === currentTenantId) return
-    setError(null)
-    startTransition(async () => {
-      const result = await switchActiveTenantAction(tenantId)
-      if (result?.error) {
-        setError(result.error)
-      } else {
-        onNavigate?.()
-      }
-    })
+  // Plain navigation to a Route Handler (not a Server Action) — Server
+  // Actions that set cookies and then redirect() can silently drop the
+  // Set-Cookie header in Next.js 15; a Route Handler building the redirect
+  // response directly does not have this problem.
+  function switchHref(tenantId: string) {
+    return `/api/switch-gym?tenantId=${tenantId}`
   }
 
   return (
@@ -46,8 +35,7 @@ export function TenantSwitcher({
 
       <select
         value={currentTenantId}
-        disabled={isPending}
-        onChange={(e) => switchTo(e.target.value)}
+        onChange={(e) => { window.location.href = switchHref(e.target.value) }}
         className="w-full rounded-md border text-xs px-2 py-1.5 outline-none disabled:opacity-50"
         style={{ background: 'var(--color-card)', borderColor: 'var(--color-border)', color: 'var(--color-foreground)' }}
       >
@@ -56,26 +44,19 @@ export function TenantSwitcher({
         ))}
       </select>
 
-      {error && (
-        <p className="text-xs px-1" style={{ color: '#ef4444' }}>{error}</p>
-      )}
-
       {homeTenantId && currentTenantId !== homeTenantId && (
-        <button
-          type="button"
-          onClick={() => switchTo(homeTenantId)}
-          disabled={isPending}
-          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+        <a
+          href={switchHref(homeTenantId)}
+          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium transition-colors"
           style={{ color: 'var(--color-sidebar-muted)' }}
         >
           <RotateCcw size={12} className="flex-shrink-0" />
           Volver a mi gimnasio
-        </button>
+        </a>
       )}
 
       <Link
         href="/super-admin/tenants"
-        onClick={onNavigate}
         className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-xs transition-colors hover:bg-[var(--color-muted)]"
         style={{ color: 'var(--color-sidebar-muted)' }}
       >
