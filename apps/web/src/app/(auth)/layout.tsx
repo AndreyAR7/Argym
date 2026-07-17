@@ -1,6 +1,12 @@
 import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
-import { ARGYM_LOGO_URL, ARGYM_LOGIN_BANNER_URL } from '@/lib/branding'
+import { ARGYM_LOGO_URL } from '@/lib/branding'
+
+const FEATURES = [
+  { icon: '⚡', text: 'Multi-tenant con roles granulares' },
+  { icon: '📊', text: 'Dashboards de revenue en tiempo real' },
+  { icon: '🏋️', text: 'Biblioteca de rutinas y videos' },
+]
 
 async function getTenantBranding() {
   const slug = (await headers()).get('x-tenant-slug')
@@ -32,31 +38,25 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
           ...(tenant?.primary_color ? { '--color-admin': tenant.primary_color } : {}),
         } as React.CSSProperties}
       >
-        {tenant ? (
-          <>
-            {/* Subtle grid pattern */}
-            <div
-              className="absolute inset-0 opacity-[0.04]"
-              style={{
-                backgroundImage:
-                  'linear-gradient(oklch(99% 0 0) 1px, transparent 1px), linear-gradient(90deg, oklch(99% 0 0) 1px, transparent 1px)',
-                backgroundSize: '48px 48px',
-              }}
-            />
+        {/* Subtle grid pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.04]"
+          style={{
+            backgroundImage:
+              'linear-gradient(oklch(99% 0 0) 1px, transparent 1px), linear-gradient(90deg, oklch(99% 0 0) 1px, transparent 1px)',
+            backgroundSize: '48px 48px',
+          }}
+        />
 
-            {/* Glow orb */}
-            <div
-              className="absolute top-[-120px] left-[-80px] w-[400px] h-[400px] rounded-full opacity-[0.06] blur-3xl"
-              style={{ background: 'var(--color-admin)' }}
-            />
-          </>
-        ) : (
-          // Generic (no tenant selected) — ARGYM's own platform banner.
-          <div
-            className="absolute inset-0 bg-cover bg-center opacity-60"
-            style={{ backgroundImage: `url(${ARGYM_LOGIN_BANNER_URL})` }}
-          />
-        )}
+        {/* Drifting glow orbs */}
+        <div
+          className="argym-orb-1 absolute top-[-140px] left-[-100px] w-[420px] h-[420px] rounded-full opacity-[0.16] blur-3xl"
+          style={{ background: 'var(--color-admin)' }}
+        />
+        <div
+          className="argym-orb-2 absolute bottom-[-160px] right-[-120px] w-[380px] h-[380px] rounded-full opacity-[0.12] blur-3xl"
+          style={{ background: tenant?.primary_color ? 'oklch(65% 0.2 45)' : '#f97316' }}
+        />
 
         <div className="relative z-10">
           <div className="flex items-center gap-3">
@@ -65,31 +65,45 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
           </div>
         </div>
 
-        <div className="relative z-10 space-y-8">
-          <div>
-            <h2 className="text-3xl font-bold leading-snug" style={{ color: 'oklch(97% 0 0)' }}>
-              Gestión profesional<br />para tu gimnasio
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed" style={{ color: 'oklch(60% 0 0)' }}>
-              Administra clientes, coaches, rutinas y pagos desde una sola plataforma.
-            </p>
+        <div className="relative z-10 flex flex-col items-center text-center">
+          <div className="relative mb-8">
+            <div
+              className="argym-glow absolute inset-0 rounded-full blur-2xl"
+              style={{ background: 'var(--color-admin)' }}
+            />
+            <img
+              src={logoUrl}
+              alt={brandName}
+              className="argym-logo-float relative w-28 h-28 rounded-2xl object-cover shadow-2xl"
+            />
           </div>
 
-          <div className="space-y-4">
-            {[
-              { icon: '⚡', text: 'Multi-tenant con roles granulares' },
-              { icon: '📊', text: 'Dashboards de revenue en tiempo real' },
-              { icon: '🏋️', text: 'Biblioteca de rutinas y videos' },
-            ].map(({ icon, text }) => (
-              <div key={text} className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold leading-snug" style={{ color: 'oklch(97% 0 0)' }}>
+            Gestión profesional<br />para tu gimnasio
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed max-w-[320px]" style={{ color: 'oklch(60% 0 0)' }}>
+            Administra clientes, coaches, rutinas y pagos desde una sola plataforma.
+          </p>
+
+          <div className="mt-8 w-full space-y-2.5">
+            {FEATURES.map(({ icon, text }, i) => (
+              <div
+                key={text}
+                className="argym-fade-in flex items-center gap-3 rounded-xl px-4 py-2.5"
+                style={{
+                  background: 'oklch(20% 0.01 286 / 0.5)',
+                  border: '1px solid oklch(30% 0.01 286 / 0.5)',
+                  animationDelay: `${0.15 + i * 0.12}s`,
+                }}
+              >
                 <span className="text-base">{icon}</span>
-                <span className="text-sm" style={{ color: 'oklch(65% 0 0)' }}>{text}</span>
+                <span className="text-sm text-left" style={{ color: 'oklch(75% 0.005 286)' }}>{text}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="relative z-10">
+        <div className="relative z-10 text-center">
           <p className="text-xs" style={{ color: 'oklch(40% 0 0)' }}>
             © {new Date().getFullYear()} {brandName} Platform
           </p>

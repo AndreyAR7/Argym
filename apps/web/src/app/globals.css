@@ -97,3 +97,39 @@ body {
 ::-webkit-scrollbar-track  { background: transparent; }
 ::-webkit-scrollbar-thumb  { background: var(--color-border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-muted-foreground); }
+
+/* ── Auth brand panel animations ── */
+@keyframes argym-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(40px, 30px) scale(1.12); }
+}
+@keyframes argym-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-30px, -40px) scale(1.08); }
+}
+@keyframes argym-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
+}
+@keyframes argym-glow-pulse {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.6; }
+}
+@keyframes argym-fade-in-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.argym-orb-1  { animation: argym-drift-1 14s ease-in-out infinite; }
+.argym-orb-2  { animation: argym-drift-2 18s ease-in-out infinite; }
+.argym-logo-float { animation: argym-float 6s ease-in-out infinite; }
+.argym-glow   { animation: argym-glow-pulse 5s ease-in-out infinite; }
+.argym-fade-in {
+  opacity: 0;
+  animation: argym-fade-in-up 0.6s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .argym-orb-1, .argym-orb-2, .argym-logo-float, .argym-glow { animation: none; }
+  .argym-fade-in { opacity: 1; animation: none; }
+}
