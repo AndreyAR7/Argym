@@ -19,14 +19,21 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   expired:   { label: 'Expirado',   color: '#525252', bg: '#1f1f1f',   icon: XCircle },
 }
 
+function todayStr() {
+  return new Date().toISOString().split('T')[0]
+}
+
 function addMonths(dateStr: string, months: number): string {
   const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return todayStr()
   d.setMonth(d.getMonth() + months)
   return d.toISOString().split('T')[0]
 }
 
-function todayStr() {
-  return new Date().toISOString().split('T')[0]
+function toValidISO(dateStr: string): string | null {
+  if (!dateStr) return null
+  const d = new Date(dateStr)
+  return isNaN(d.getTime()) ? null : d.toISOString()
 }
 
 export function PlatformSubscriptionForm({
@@ -60,12 +67,18 @@ export function PlatformSubscriptionForm({
   ]
 
   async function handleSave() {
+    const periodStart = toValidISO(startDate)
+    const periodEnd   = toValidISO(endDate)
+    if (!periodStart || !periodEnd) {
+      setMsg({ type: 'err', text: 'Seleccioná fechas de inicio y vencimiento válidas.' })
+      return
+    }
+
     setLoading(true)
     setMsg(null)
     const result = await upsertPlatformSubscriptionAction({
       tenantId, planId, status, billingCycle: billing,
-      periodStart: new Date(startDate).toISOString(),
-      periodEnd:   new Date(endDate).toISOString(),
+      periodStart, periodEnd,
     })
     setLoading(false)
     setMsg(result.error
