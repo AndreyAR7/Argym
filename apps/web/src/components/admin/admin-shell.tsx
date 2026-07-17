@@ -20,12 +20,13 @@ interface AdminShellProps {
   tenants?: TenantOption[]
   currentTenantId?: string
   currentTenantName?: string
+  currentTenantLogoUrl?: string | null
   homeTenantId?: string | null
 }
 
 export function AdminShell({
   children, userName, userEmail, avatarUrl, userId, isPlatformAdmin,
-  tenants, currentTenantId, currentTenantName, homeTenantId,
+  tenants, currentTenantId, currentTenantName, currentTenantLogoUrl, homeTenantId,
 }: AdminShellProps) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
@@ -49,6 +50,7 @@ export function AdminShell({
         accentColor="var(--color-admin)"
         brandLabel="ARGYM Admin"
         tenantName={currentTenantName}
+        tenantLogoUrl={currentTenantLogoUrl}
         profileHref="/admin/profile"
         helpHref="/admin/help"
         contactHref="/admin/contact"

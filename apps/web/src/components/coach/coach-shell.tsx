@@ -11,9 +11,11 @@ interface CoachShellProps {
   userEmail: string
   avatarUrl: string | null
   userId: string
+  currentTenantName?: string
+  currentTenantLogoUrl?: string | null
 }
 
-export function CoachShell({ children, userName, userEmail, avatarUrl, userId }: CoachShellProps) {
+export function CoachShell({ children, userName, userEmail, avatarUrl, userId, currentTenantName, currentTenantLogoUrl }: CoachShellProps) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
@@ -34,6 +36,8 @@ export function CoachShell({ children, userName, userEmail, avatarUrl, userId }:
         userId={userId}
         accentColor="var(--color-coach)"
         brandLabel="ARGYM Coach"
+        tenantName={currentTenantName}
+        tenantLogoUrl={currentTenantLogoUrl}
         profileHref="/coach/profile"
         helpHref="/coach/help"
         contactHref="/coach/contact"

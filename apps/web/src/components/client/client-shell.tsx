@@ -11,9 +11,11 @@ interface ClientShellProps {
   userEmail: string
   avatarUrl: string | null
   userId: string
+  currentTenantName?: string
+  currentTenantLogoUrl?: string | null
 }
 
-export function ClientShell({ children, userName, userEmail, avatarUrl, userId }: ClientShellProps) {
+export function ClientShell({ children, userName, userEmail, avatarUrl, userId, currentTenantName, currentTenantLogoUrl }: ClientShellProps) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
@@ -35,6 +37,8 @@ export function ClientShell({ children, userName, userEmail, avatarUrl, userId }
         userId={userId}
         accentColor="var(--color-client)"
         brandLabel="ARGYM"
+        tenantName={currentTenantName}
+        tenantLogoUrl={currentTenantLogoUrl}
         profileHref="/client/profile"
         helpHref="/client/help"
         contactHref="/client/contact"

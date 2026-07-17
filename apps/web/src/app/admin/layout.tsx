@@ -27,20 +27,25 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   let tenants: { id: string; name: string }[] | undefined
   let homeTenantId: string | null = null
   let currentTenantName: string | undefined
+  let currentTenantLogoUrl: string | null | undefined
 
   const db = adminClient()
 
   if (isPlatformAdmin) {
     const [tenantsResult, platformAdminResult] = await Promise.all([
-      db.from('tenants').select('id, name').eq('is_active', true).order('name'),
+      db.from('tenants').select('id, name, logo_url').eq('is_active', true).order('name'),
       db.from('platform_admins').select('home_tenant_id').eq('user_id', user.id).single(),
     ])
-    tenants = tenantsResult.data ?? []
+    const allTenants = tenantsResult.data ?? []
+    tenants = allTenants.map(({ id, name }) => ({ id, name }))
     homeTenantId = platformAdminResult.data?.home_tenant_id ?? null
-    currentTenantName = tenants.find((t) => t.id === tenantId)?.name
+    const current = allTenants.find((t) => t.id === tenantId)
+    currentTenantName = current?.name
+    currentTenantLogoUrl = current?.logo_url
   } else if (tenantId) {
-    const { data: tenant } = await db.from('tenants').select('name').eq('id', tenantId).single()
+    const { data: tenant } = await db.from('tenants').select('name, logo_url').eq('id', tenantId).single()
     currentTenantName = tenant?.name
+    currentTenantLogoUrl = tenant?.logo_url
   }
 
   return (
@@ -53,6 +58,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       tenants={tenants}
       currentTenantId={tenantId}
       currentTenantName={currentTenantName}
+      currentTenantLogoUrl={currentTenantLogoUrl}
       homeTenantId={homeTenantId}
     >
       {children}

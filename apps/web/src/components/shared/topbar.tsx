@@ -10,6 +10,7 @@ import { useTheme, type Theme } from './theme-provider'
 import { NotificationBell } from './notification-bell'
 import { getInitials } from '@/lib/utils'
 import { logoutAction } from '@/lib/auth/actions'
+import { ARGYM_LOGO_URL } from '@/lib/branding'
 
 const THEME_OPTIONS: { value: Theme; Icon: React.ElementType; label: string }[] = [
   { value: 'light',  Icon: Sun,     label: 'Claro'   },
@@ -26,6 +27,7 @@ interface TopbarProps {
   accentColor?: string
   brandLabel?: string
   tenantName?: string
+  tenantLogoUrl?: string | null
   profileHref?: string
   helpHref?: string
   contactHref?: string
@@ -40,6 +42,7 @@ export function Topbar({
   accentColor = 'var(--color-admin)',
   brandLabel = 'ARGYM',
   tenantName,
+  tenantLogoUrl,
   profileHref = '#',
   helpHref = '#',
   contactHref = '#',
@@ -80,10 +83,10 @@ export function Topbar({
 
         <div className="flex items-center gap-2">
           <div
-            className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
+            className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden"
             style={{ background: accentColor }}
           >
-            <span className="text-white font-bold text-[10px]">A</span>
+            <img src={tenantLogoUrl ?? ARGYM_LOGO_URL} alt={tenantName ?? 'ARGYM'} className="w-full h-full object-cover" />
           </div>
           <span className="font-semibold text-sm tracking-tight" style={{ color: 'var(--color-foreground)' }}>
             {brandLabel}

@@ -6,6 +6,7 @@ import { useTransition } from 'react'
 import { Building2, LogOut, X, ArrowLeftRight } from 'lucide-react'
 import { logoutAction } from '@/lib/auth/actions'
 import { cn, getInitials } from '@/lib/utils'
+import { ARGYM_LOGO_URL } from '@/lib/branding'
 
 interface SuperAdminSidebarProps {
   userName: string
@@ -37,10 +38,10 @@ export function SuperAdminSidebar({ userName, userEmail, onClose }: SuperAdminSi
       >
         <div className="flex items-center gap-2.5">
           <div
-            className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold flex-shrink-0"
-            style={{ background: '#f97316', color: '#fff' }}
+            className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 overflow-hidden"
+            style={{ background: '#f97316' }}
           >
-            A
+            <img src={ARGYM_LOGO_URL} alt="ARGYM" className="w-full h-full object-cover" />
           </div>
           <span className="text-sm font-semibold tracking-tight" style={{ color: '#f0f0f0' }}>
             ARGYM HQ

@@ -1,5 +1,6 @@
 import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
+import { ARGYM_LOGO_URL, ARGYM_LOGIN_BANNER_URL } from '@/lib/branding'
 
 async function getTenantBranding() {
   const slug = (await headers()).get('x-tenant-slug')
@@ -19,6 +20,7 @@ async function getTenantBranding() {
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
   const tenant = await getTenantBranding()
   const brandName = tenant?.name ?? 'ARGYM'
+  const logoUrl = tenant?.logo_url ?? ARGYM_LOGO_URL
 
   return (
     <div className="min-h-screen flex">
@@ -30,34 +32,35 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
           ...(tenant?.primary_color ? { '--color-admin': tenant.primary_color } : {}),
         } as React.CSSProperties}
       >
-        {/* Subtle grid pattern */}
-        <div
-          className="absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage:
-              'linear-gradient(oklch(99% 0 0) 1px, transparent 1px), linear-gradient(90deg, oklch(99% 0 0) 1px, transparent 1px)',
-            backgroundSize: '48px 48px',
-          }}
-        />
+        {tenant ? (
+          <>
+            {/* Subtle grid pattern */}
+            <div
+              className="absolute inset-0 opacity-[0.04]"
+              style={{
+                backgroundImage:
+                  'linear-gradient(oklch(99% 0 0) 1px, transparent 1px), linear-gradient(90deg, oklch(99% 0 0) 1px, transparent 1px)',
+                backgroundSize: '48px 48px',
+              }}
+            />
 
-        {/* Glow orb */}
-        <div
-          className="absolute top-[-120px] left-[-80px] w-[400px] h-[400px] rounded-full opacity-[0.06] blur-3xl"
-          style={{ background: 'var(--color-admin)' }}
-        />
+            {/* Glow orb */}
+            <div
+              className="absolute top-[-120px] left-[-80px] w-[400px] h-[400px] rounded-full opacity-[0.06] blur-3xl"
+              style={{ background: 'var(--color-admin)' }}
+            />
+          </>
+        ) : (
+          // Generic (no tenant selected) — ARGYM's own platform banner.
+          <div
+            className="absolute inset-0 bg-cover bg-center opacity-60"
+            style={{ backgroundImage: `url(${ARGYM_LOGIN_BANNER_URL})` }}
+          />
+        )}
 
         <div className="relative z-10">
           <div className="flex items-center gap-3">
-            {tenant?.logo_url ? (
-              <img src={tenant.logo_url} alt={brandName} className="w-8 h-8 rounded-lg object-cover" />
-            ) : (
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{ background: 'var(--color-admin)' }}
-              >
-                <span className="text-white font-bold text-sm">{brandName[0]}</span>
-              </div>
-            )}
+            <img src={logoUrl} alt={brandName} className="w-8 h-8 rounded-lg object-cover" />
             <span className="text-white font-semibold text-lg tracking-tight">{brandName}</span>
           </div>
         </div>
@@ -101,16 +104,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
         <div className="w-full max-w-[400px]">
           {/* Logo visible solo en mobile */}
           <div className="flex items-center gap-2 mb-8 lg:hidden">
-            {tenant?.logo_url ? (
-              <img src={tenant.logo_url} alt={brandName} className="w-7 h-7 rounded-lg object-cover" />
-            ) : (
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center"
-                style={{ background: 'var(--color-admin)' }}
-              >
-                <span className="text-white font-bold text-xs">{brandName[0]}</span>
-              </div>
-            )}
+            <img src={logoUrl} alt={brandName} className="w-7 h-7 rounded-lg object-cover" />
             <span className="font-semibold text-base tracking-tight">{brandName}</span>
           </div>
 
