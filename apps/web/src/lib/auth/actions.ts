@@ -72,6 +72,17 @@ export async function loginAction(_prevState: { error: string } | null, formData
 export async function logoutAction() {
   const supabase = await createClient()
   await supabase.auth.signOut()
+
+  // Clear the custom session cookies middleware caches (x-tid/x-role/etc.) —
+  // signOut() only clears Supabase's own auth cookies. Without this, a
+  // different account logging in on the same browser could inherit the
+  // previous user's cached tenant/role until the fast path happened to
+  // refresh them, which only happens when these cookies are absent.
+  const cookieStore = await cookies()
+  for (const name of ['x-tid', 'x-role', 'x-approval', 'x-active', 'x-name', 'x-avatar']) {
+    cookieStore.delete(name)
+  }
+
   redirect('/login')
 }
 
