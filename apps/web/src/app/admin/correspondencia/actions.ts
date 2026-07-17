@@ -1,8 +1,6 @@
 'use server'
 
 import { getSessionData } from '@/lib/auth/session'
-import { createAdminClient } from '@/lib/supabase/server-admin'
-import { createTransport } from 'nodemailer'
 
 // ── Shared HTML helpers ────────────────────────────────────────
 
@@ -384,201 +382,47 @@ export async function getEmailLogsAction(limit = 100): Promise<{ logs?: EmailLog
   return { logs: (data ?? []) as EmailLog[] }
 }
 
+// SMTP verify/send/resend all run inside the "test-smtp" Supabase Edge
+// Function, not here — this Next.js app is hosted on Render, whose free
+// web-service tier blocks outbound SMTP ports (25/465/587). The edge
+// function runs on Supabase's own infrastructure instead (the same place
+// the real automated communication_rules emails already send from
+// successfully), so it isn't subject to that block.
+
 export async function retryEmailAction(logId: string): Promise<{ ok: boolean; error?: string }> {
   const session = await getSessionData()
   if (!session) return { ok: false, error: 'No autenticado' }
-  const { supabase } = session
+  const { supabase, tenantId } = session
 
-  const { data: log, error: fetchErr } = await supabase
-    .from('email_logs')
-    .select('to_email, subject, body_html, retry_count')
-    .eq('id', logId)
-    .single()
-
-  if (fetchErr || !log) return { ok: false, error: fetchErr?.message ?? 'Log no encontrado' }
-  if (!log.body_html) {
-    return { ok: false, error: 'Este email no tiene cuerpo almacenado. Los emails nuevos sí lo guardan.' }
-  }
-  if ((log.retry_count ?? 0) >= 10) {
-    return { ok: false, error: 'Límite de reintentos alcanzado (máx 10). Crea un nuevo email desde las reglas.' }
-  }
-
-  const { data: config } = await supabase
-    .from('smtp_configs')
-    .select('host, port, username, password, from_email, from_name')
-    .maybeSingle()
-
-  if (!config?.host) return { ok: false, error: 'No hay configuración SMTP guardada' }
-
-  const { createTransport } = await import('nodemailer')
-  const port = Number(config.port)
-  const transporter = createTransport({
-    host: config.host, port,
-    secure: port === 465, requireTLS: port === 587,
-    auth: { user: config.username, pass: config.password },
-    tls: { rejectUnauthorized: false },
+  const { data, error } = await supabase.functions.invoke('test-smtp', {
+    body: { tenant_id: tenantId, mode: 'resend', log_id: logId },
   })
-
-  try {
-    await transporter.sendMail({
-      from: `"${config.from_name}" <${config.from_email}>`,
-      to: log.to_email,
-      subject: log.subject,
-      html: log.body_html,
-    })
-  } catch (err: any) {
-    return { ok: false, error: `Error al enviar: ${err.message}` }
-  }
-
-  await supabase
-    .from('email_logs')
-    .update({ status: 'sent', sent_at: new Date().toISOString(), retry_count: (log.retry_count ?? 0) + 1, last_retry_at: new Date().toISOString(), error_msg: null })
-    .eq('id', logId)
-
+  if (error) return { ok: false, error: error.message }
+  if (!data?.ok) return { ok: false, error: data?.message ?? 'Error desconocido' }
   return { ok: true }
 }
 
 export async function bulkRetryFailedAction(): Promise<{ ok: boolean; sent: number; failed: number; error?: string }> {
   const session = await getSessionData()
   if (!session) return { ok: false, sent: 0, failed: 0, error: 'No autenticado' }
-  const { supabase } = session
+  const { supabase, tenantId } = session
 
-  const { data: failedLogs } = await supabase
-    .from('email_logs')
-    .select('id, to_email, subject, body_html, retry_count')
-    .eq('status', 'failed')
-    .not('body_html', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(50)
-
-  if (!failedLogs?.length) return { ok: true, sent: 0, failed: 0 }
-
-  const { data: config } = await supabase
-    .from('smtp_configs')
-    .select('host, port, username, password, from_email, from_name')
-    .maybeSingle()
-
-  if (!config?.host) return { ok: false, sent: 0, failed: failedLogs.length, error: 'Sin configuración SMTP' }
-
-  const { createTransport } = await import('nodemailer')
-  const port = Number(config.port)
-  const transporter = createTransport({
-    host: config.host, port,
-    secure: port === 465, requireTLS: port === 587,
-    auth: { user: config.username, pass: config.password },
-    tls: { rejectUnauthorized: false },
+  const { data, error } = await supabase.functions.invoke('test-smtp', {
+    body: { tenant_id: tenantId, mode: 'bulk_resend' },
   })
-
-  let sent = 0
-  let failed = 0
-  const now = new Date().toISOString()
-
-  for (const log of failedLogs) {
-    try {
-      await transporter.sendMail({
-        from: `"${config.from_name}" <${config.from_email}>`,
-        to: log.to_email,
-        subject: log.subject,
-        html: log.body_html,
-      })
-      await supabase.from('email_logs').update({
-        status: 'sent', sent_at: now, retry_count: (log.retry_count ?? 0) + 1, last_retry_at: now, error_msg: null,
-      }).eq('id', log.id)
-      sent++
-    } catch {
-      await supabase.from('email_logs').update({
-        retry_count: (log.retry_count ?? 0) + 1, last_retry_at: now,
-      }).eq('id', log.id)
-      failed++
-    }
-  }
-
-  return { ok: true, sent, failed }
+  if (error) return { ok: false, sent: 0, failed: 0, error: error.message }
+  if (!data?.ok) return { ok: false, sent: 0, failed: 0, error: data?.message ?? 'Error desconocido' }
+  return { ok: true, sent: data.sent ?? 0, failed: data.failed ?? 0 }
 }
 
 export async function testSmtpAction(toEmail: string): Promise<{ ok: boolean; message: string }> {
   const session = await getSessionData()
   if (!session) return { ok: false, message: 'No autenticado' }
+  const { supabase, tenantId } = session
 
-  // Use admin client to bypass any RLS issues reading the SMTP config
-  const adminSupabase = await createAdminClient()
-
-  const { data: config, error } = await adminSupabase
-    .from('smtp_configs')
-    .select('host, port, username, password, from_email, from_name, use_tls')
-    .eq('tenant_id', session.tenantId)
-    .maybeSingle()
-
-  if (error) return { ok: false, message: `Error al leer configuración: ${error.message}` }
-  if (!config) return { ok: false, message: 'No hay configuración SMTP guardada. Completa y guarda la configuración primero.' }
-  if (!config.host || !config.username || !config.password) {
-    return { ok: false, message: 'La configuración SMTP está incompleta (faltan host, usuario o contraseña).' }
-  }
-
-  const port = Number(config.port)
-  const transporter = createTransport({
-    host:       config.host,
-    port,
-    secure:     port === 465,
-    requireTLS: port === 587,
-    auth: { user: config.username, pass: config.password },
-    tls: { rejectUnauthorized: false },
+  const { data, error } = await supabase.functions.invoke('test-smtp', {
+    body: { tenant_id: tenantId, mode: 'test', to_email: toEmail },
   })
-
-  try {
-    await Promise.race([
-      transporter.verify(),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(Object.assign(new Error('ETIMEDOUT'), { code: 'ETIMEDOUT' })), 15000)
-      ),
-    ])
-  } catch (err: any) {
-    const msg  = err.message ?? String(err)
-    const code = err.responseCode ?? err.code ?? ''
-    if (
-      code === 535 || String(code) === '535' ||
-      msg.includes('535') || msg.includes('Invalid login') ||
-      msg.includes('Username and Password') || msg.includes('BadCredentials')
-    ) {
-      const isGmail = config.host.includes('gmail')
-      const hint = isGmail
-        ? 'Para Gmail: 1) Activa la verificación en 2 pasos en la cuenta, 2) genera una Contraseña de Aplicación en Seguridad → Contraseñas de aplicaciones, 3) pega los 16 caracteres sin espacios.'
-        : 'Verifica el usuario y contraseña. Si usas Gmail, necesitas una Contraseña de Aplicación.'
-      return { ok: false, message: `Autenticación rechazada (535). ${hint}` }
-    }
-    if (msg.includes('ECONNREFUSED') || msg.includes('ETIMEDOUT') || msg.includes('ENOTFOUND')) {
-      return { ok: false, message: `No se puede conectar a ${config.host}:${port}. Verifica host y puerto.` }
-    }
-    return { ok: false, message: `Error SMTP: [${code}] ${msg}` }
-  }
-
-  try {
-    await transporter.sendMail({
-      from:    `"${config.from_name || 'ARGYM'}" <${config.from_email}>`,
-      to:      toEmail,
-      subject: '✅ Prueba de conexión SMTP — ARGYM',
-      html: `
-        <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;border:1px solid #e5e7eb;border-radius:12px">
-          <h2 style="margin:0 0 8px;color:#6C63FF;font-size:20px">✅ Conexión SMTP exitosa</h2>
-          <p style="margin:0 0 20px;color:#374151;font-size:15px">
-            Tu servidor SMTP está correctamente configurado en <strong>ARGYM</strong>.
-            Los emails automáticos de reglas y notificaciones se enviarán desde esta cuenta.
-          </p>
-          <div style="background:#f9fafb;border-radius:8px;padding:14px 16px;font-size:13px;color:#6b7280">
-            <strong style="color:#374151">Configuración activa:</strong><br>
-            Servidor: <code>${config.host}:${config.port}</code><br>
-            Remitente: ${config.from_name} &lt;${config.from_email}&gt;<br>
-            TLS: ${config.use_tls ? 'Sí' : 'No'}
-          </div>
-          <p style="margin:20px 0 0;font-size:12px;color:#9ca3af">
-            Email generado automáticamente · ARGYM Platform
-          </p>
-        </div>
-      `,
-    })
-  } catch (err: any) {
-    return { ok: false, message: `Conexión OK pero falló el envío: ${err.message}` }
-  }
-
-  return { ok: true, message: `Email de prueba enviado a ${toEmail}` }
+  if (error) return { ok: false, message: error.message }
+  return { ok: !!data?.ok, message: data?.message ?? (data?.ok ? 'Enviado' : 'Error desconocido') }
 }
