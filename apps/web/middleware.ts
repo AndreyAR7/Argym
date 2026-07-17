@@ -18,9 +18,10 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const isPublicPath = PUBLIC_PATHS.some(p => pathname.startsWith(p))
 
-  // Slug-branded auth pages: /login/<slug>, /register/<slug>
+  // Slug-branded auth pages: /login/<slug>, /register/<slug>, /select-branch?slug=<slug>
   const tenantSlugMatch = pathname.match(/^\/(?:login|register)\/([a-z0-9-]+)\/?$/)
   const tenantSlug = tenantSlugMatch?.[1]
+    ?? (pathname === '/select-branch' ? request.nextUrl.searchParams.get('slug') ?? undefined : undefined)
 
   const baseHeaders = new Headers(request.headers)
   if (tenantSlug) baseHeaders.set('x-tenant-slug', tenantSlug)

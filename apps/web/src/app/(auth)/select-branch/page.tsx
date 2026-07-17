@@ -4,7 +4,12 @@ import { SelectBranchForm } from './_components/select-branch-form'
 
 export const metadata = { title: 'Elegí tu sede' }
 
-export default async function SelectBranchPage() {
+export default async function SelectBranchPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ slug?: string }>
+}) {
+  const { slug } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -27,11 +32,24 @@ export default async function SelectBranchPage() {
     redirect('/')
   }
 
-  const { data: branches } = await supabase
+  let tenantId: string | null = null
+  if (slug) {
+    const { data: tenant } = await supabase
+      .from('tenants')
+      .select('id')
+      .eq('slug', slug)
+      .eq('is_active', true)
+      .single()
+    tenantId = tenant?.id ?? null
+  }
+
+  let branchesQuery = supabase
     .from('branches')
     .select('id, name, address')
     .eq('is_active', true)
-    .order('name')
+  if (tenantId) branchesQuery = branchesQuery.eq('tenant_id', tenantId)
+
+  const { data: branches } = await branchesQuery.order('name')
 
   return (
     <div>

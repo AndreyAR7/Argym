@@ -1,6 +1,6 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { ShieldCheck, RotateCcw } from 'lucide-react'
 import { switchActiveTenantAction } from '@/lib/auth/actions'
@@ -22,13 +22,19 @@ export function TenantSwitcher({
   onNavigate?: () => void
 }) {
   const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
 
   function switchTo(tenantId: string) {
     if (tenantId === currentTenantId) return
+    setError(null)
     startTransition(async () => {
-      await switchActiveTenantAction(tenantId)
+      const result = await switchActiveTenantAction(tenantId)
+      if (result?.error) {
+        setError(result.error)
+      } else {
+        onNavigate?.()
+      }
     })
-    onNavigate?.()
   }
 
   return (
@@ -49,6 +55,10 @@ export function TenantSwitcher({
           <option key={t.id} value={t.id}>{t.name}</option>
         ))}
       </select>
+
+      {error && (
+        <p className="text-xs px-1" style={{ color: '#ef4444' }}>{error}</p>
+      )}
 
       {homeTenantId && currentTenantId !== homeTenantId && (
         <button

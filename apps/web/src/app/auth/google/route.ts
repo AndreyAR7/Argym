@@ -1,11 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 // Route Handler (GET) instead of Server Action so that the PKCE code-verifier
 // cookie written by signInWithOAuth is reliably included in the redirect response.
 // Server Actions that call redirect() can drop Set-Cookie headers in Next.js 15.
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const slug = request.nextUrl.searchParams.get('slug')
   const cookieStore = await cookies()
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
@@ -27,10 +28,11 @@ export async function GET() {
     },
   )
 
+  const nextPath = slug ? `/select-branch?slug=${encodeURIComponent(slug)}` : '/select-branch'
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${baseUrl}/auth/callback?next=/select-branch`,
+      redirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent(nextPath)}`,
     },
   })
 
