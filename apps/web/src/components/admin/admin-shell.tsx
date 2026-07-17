@@ -5,6 +5,11 @@ import { usePathname } from 'next/navigation'
 import { AdminSidebar } from '@/components/admin/sidebar'
 import { Topbar } from '@/components/shared/topbar'
 
+interface TenantOption {
+  id: string
+  name: string
+}
+
 interface AdminShellProps {
   children: React.ReactNode
   userName: string
@@ -12,9 +17,18 @@ interface AdminShellProps {
   avatarUrl: string | null
   userId: string
   isPlatformAdmin?: boolean
+  tenants?: TenantOption[]
+  currentTenantId?: string
+  homeTenantId?: string | null
 }
 
-export function AdminShell({ children, userName, userEmail, avatarUrl, userId, isPlatformAdmin }: AdminShellProps) {
+export function AdminShell({
+  children, userName, userEmail, avatarUrl, userId, isPlatformAdmin,
+  tenants, currentTenantId, homeTenantId,
+}: AdminShellProps) {
+  const actingAsOtherTenant =
+    isPlatformAdmin && currentTenantId && homeTenantId && currentTenantId !== homeTenantId
+  const currentTenantName = tenants?.find((t) => t.id === currentTenantId)?.name
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
@@ -27,6 +41,15 @@ export function AdminShell({ children, userName, userEmail, avatarUrl, userId, i
 
   return (
     <div className="flex flex-col h-dvh overflow-hidden bg-[var(--color-background)]">
+      {actingAsOtherTenant && (
+        <div
+          className="flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-medium flex-shrink-0"
+          style={{ background: '#f97316', color: '#fff' }}
+        >
+          Estás operando como <strong>{currentTenantName ?? 'otro gimnasio'}</strong> — no es tu gimnasio
+        </div>
+      )}
+
       {/* ── Topbar: full width ── */}
       <Topbar
         onMenuOpen={() => setOpen(true)}
@@ -70,6 +93,9 @@ export function AdminShell({ children, userName, userEmail, avatarUrl, userId, i
             avatarUrl={avatarUrl}
             onClose={() => setOpen(false)}
             isPlatformAdmin={isPlatformAdmin}
+            tenants={tenants}
+            currentTenantId={currentTenantId}
+            homeTenantId={homeTenantId}
           />
         </div>
 

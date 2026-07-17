@@ -23,10 +23,15 @@ import {
   TrendingUp,
   Trophy,
   QrCode,
-  ShieldCheck,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logoutAction } from '@/lib/auth/actions'
+import { TenantSwitcher } from './tenant-switcher'
+
+interface TenantOption {
+  id: string
+  name: string
+}
 
 interface SidebarProps {
   userName: string
@@ -34,6 +39,9 @@ interface SidebarProps {
   avatarUrl: string | null
   onClose?: () => void
   isPlatformAdmin?: boolean
+  tenants?: TenantOption[]
+  currentTenantId?: string
+  homeTenantId?: string | null
 }
 
 interface NavItem {
@@ -108,7 +116,9 @@ const NAV: NavSection[] = [
   },
 ]
 
-export function AdminSidebar({ userName, userEmail, avatarUrl, onClose, isPlatformAdmin }: SidebarProps) {
+export function AdminSidebar({
+  userName, userEmail, avatarUrl, onClose, isPlatformAdmin, tenants, currentTenantId, homeTenantId,
+}: SidebarProps) {
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
 
@@ -176,18 +186,13 @@ export function AdminSidebar({ userName, userEmail, avatarUrl, onClose, isPlatfo
       </nav>
 
       {/* ── Platform admin ── */}
-      {isPlatformAdmin && (
-        <div className="px-3 pb-1 flex-shrink-0">
-          <Link
-            href="/super-admin/tenants"
-            onClick={onClose}
-            className="flex items-center gap-2.5 px-2 py-2 md:py-1.5 rounded-md text-sm font-medium transition-all"
-            style={{ background: '#f9731620', color: '#f97316' }}
-          >
-            <ShieldCheck size={15} className="flex-shrink-0" />
-            ARGYM HQ
-          </Link>
-        </div>
+      {isPlatformAdmin && currentTenantId && (
+        <TenantSwitcher
+          tenants={tenants ?? []}
+          currentTenantId={currentTenantId}
+          homeTenantId={homeTenantId ?? null}
+          onNavigate={onClose}
+        />
       )}
 
       {/* ── User footer ── */}

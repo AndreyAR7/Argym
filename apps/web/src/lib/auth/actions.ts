@@ -1,7 +1,18 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
+import { getSessionData } from '@/lib/auth/session'
+
+function adminClient() {
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  )
+}
 
 function getAppBaseUrl(): string {
   // NEXT_PUBLIC_APP_URL is the authoritative source in production.
@@ -71,6 +82,37 @@ export async function logoutAction() {
   const supabase = await createClient()
   await supabase.auth.signOut()
   redirect('/login')
+}
+
+export async function switchActiveTenantAction(tenantId: string) {
+  const session = await getSessionData()
+  if (!session || !session.isPlatformAdmin) redirect('/')
+
+  const db = adminClient()
+
+  const { error } = await db
+    .from('profiles')
+    .update({ tenant_id: tenantId })
+    .eq('id', session.user.id)
+  if (error) return { error: error.message }
+
+  const { data: tenant } = await db
+    .from('tenants')
+    .select('is_active')
+    .eq('id', tenantId)
+    .single()
+
+  const cookieStore = await cookies()
+  const cookieOpts = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    maxAge: 60 * 60 * 8,
+  }
+  cookieStore.set('x-tid', tenantId, cookieOpts)
+  cookieStore.set('x-active', String(tenant?.is_active ?? true), cookieOpts)
+
+  redirect('/admin/dashboard')
 }
 
 export async function forgotPasswordAction(
