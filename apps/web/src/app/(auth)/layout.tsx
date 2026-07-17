@@ -1,10 +1,34 @@
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+import { headers } from 'next/headers'
+import { createClient } from '@/lib/supabase/server'
+
+async function getTenantBranding() {
+  const slug = (await headers()).get('x-tenant-slug')
+  if (!slug) return null
+
+  const supabase = await createClient()
+  const { data: tenant } = await supabase
+    .from('tenants')
+    .select('name, logo_url, primary_color')
+    .eq('slug', slug)
+    .eq('is_active', true)
+    .single()
+
+  return tenant
+}
+
+export default async function AuthLayout({ children }: { children: React.ReactNode }) {
+  const tenant = await getTenantBranding()
+  const brandName = tenant?.name ?? 'ARGYM'
+
   return (
     <div className="min-h-screen flex">
       {/* ── Brand panel ── */}
       <div
         className="hidden lg:flex lg:w-[480px] xl:w-[560px] flex-col justify-between p-12 relative overflow-hidden flex-shrink-0"
-        style={{ background: 'oklch(11% 0.01 286)' }}
+        style={{
+          background: 'oklch(11% 0.01 286)',
+          ...(tenant?.primary_color ? { '--color-admin': tenant.primary_color } : {}),
+        } as React.CSSProperties}
       >
         {/* Subtle grid pattern */}
         <div
@@ -24,13 +48,17 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
         <div className="relative z-10">
           <div className="flex items-center gap-3">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: 'var(--color-admin)' }}
-            >
-              <span className="text-white font-bold text-sm">A</span>
-            </div>
-            <span className="text-white font-semibold text-lg tracking-tight">ARGYM</span>
+            {tenant?.logo_url ? (
+              <img src={tenant.logo_url} alt={brandName} className="w-8 h-8 rounded-lg object-cover" />
+            ) : (
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ background: 'var(--color-admin)' }}
+              >
+                <span className="text-white font-bold text-sm">{brandName[0]}</span>
+              </div>
+            )}
+            <span className="text-white font-semibold text-lg tracking-tight">{brandName}</span>
           </div>
         </div>
 
@@ -60,23 +88,30 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
         <div className="relative z-10">
           <p className="text-xs" style={{ color: 'oklch(40% 0 0)' }}>
-            © {new Date().getFullYear()} ARGYM Platform
+            © {new Date().getFullYear()} {brandName} Platform
           </p>
         </div>
       </div>
 
       {/* ── Form panel ── */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-[var(--color-background)]">
+      <div
+        className="flex-1 flex items-center justify-center p-6 bg-[var(--color-background)]"
+        style={(tenant?.primary_color ? { '--color-admin': tenant.primary_color } : {}) as React.CSSProperties}
+      >
         <div className="w-full max-w-[400px]">
           {/* Logo visible solo en mobile */}
           <div className="flex items-center gap-2 mb-8 lg:hidden">
-            <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center"
-              style={{ background: 'var(--color-admin)' }}
-            >
-              <span className="text-white font-bold text-xs">A</span>
-            </div>
-            <span className="font-semibold text-base tracking-tight">ARGYM</span>
+            {tenant?.logo_url ? (
+              <img src={tenant.logo_url} alt={brandName} className="w-7 h-7 rounded-lg object-cover" />
+            ) : (
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center"
+                style={{ background: 'var(--color-admin)' }}
+              >
+                <span className="text-white font-bold text-xs">{brandName[0]}</span>
+              </div>
+            )}
+            <span className="font-semibold text-base tracking-tight">{brandName}</span>
           </div>
 
           {children}

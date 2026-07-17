@@ -18,7 +18,13 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const isPublicPath = PUBLIC_PATHS.some(p => pathname.startsWith(p))
 
-  let supabaseResponse = NextResponse.next({ request })
+  // Slug-branded auth pages: /login/<slug>, /register/<slug>
+  const tenantSlugMatch = pathname.match(/^\/(?:login|register)\/([a-z0-9-]+)\/?$/)
+  const tenantSlug = tenantSlugMatch?.[1]
+
+  const baseHeaders = new Headers(request.headers)
+  if (tenantSlug) baseHeaders.set('x-tenant-slug', tenantSlug)
+  let supabaseResponse = NextResponse.next({ request: { headers: baseHeaders } })
 
   // ── FAST PATH: already authenticated + profile cached in cookies ──
   // Parse the JWT locally (zero network calls) to confirm it's not expired.
@@ -72,6 +78,7 @@ export async function middleware(request: NextRequest) {
       const reqHeaders = new Headers(request.headers)
       reqHeaders.set('x-tenant-id', cachedTenantId)
       reqHeaders.set('x-user-role', cachedRole)
+      if (tenantSlug) reqHeaders.set('x-tenant-slug', tenantSlug)
       return NextResponse.next({ request: { headers: reqHeaders } })
     }
   }
@@ -87,7 +94,7 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookiesToSet: { name: string; value: string; options?: object }[]) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({ request })
+          supabaseResponse = NextResponse.next({ request: { headers: baseHeaders } })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options as Parameters<typeof supabaseResponse.cookies.set>[2]),
           )
@@ -184,6 +191,7 @@ export async function middleware(request: NextRequest) {
     const reqHeaders = new Headers(request.headers)
     reqHeaders.set('x-tenant-id', finalTenantId)
     reqHeaders.set('x-user-role', finalRole)
+    if (tenantSlug) reqHeaders.set('x-tenant-slug', tenantSlug)
     const freshResponse = NextResponse.next({ request: { headers: reqHeaders } })
     // Copy all Set-Cookie headers (preserves httpOnly, secure, sameSite options)
     const hdrs = supabaseResponse.headers as unknown as { getSetCookie?: () => string[] }

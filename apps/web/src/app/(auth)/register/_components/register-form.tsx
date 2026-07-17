@@ -13,10 +13,12 @@ interface Branch {
 
 interface Props {
   branches: Branch[]
+  slug?: string
 }
 
-export function RegisterForm({ branches }: Props) {
+export function RegisterForm({ branches, slug }: Props) {
   const [state, formAction, isPending] = useActionState(registerAction, null)
+  const loginHref = slug ? `/login/${slug}` : '/login'
 
   return (
     <div>
@@ -135,7 +137,7 @@ export function RegisterForm({ branches }: Props) {
 
       <p className="mt-6 text-center text-sm text-[var(--color-muted-foreground)]">
         ¿Ya tienes cuenta?{' '}
-        <Link href="/login" className="font-medium text-[var(--color-foreground)] hover:underline underline-offset-4">
+        <Link href={loginHref} className="font-medium text-[var(--color-foreground)] hover:underline underline-offset-4">
           Inicia sesión
         </Link>
       </p>
