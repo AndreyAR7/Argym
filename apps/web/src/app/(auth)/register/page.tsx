@@ -1,21 +1,27 @@
 import { createClient } from '@/lib/supabase/server'
-import { RegisterForm } from './_components/register-form'
+import { GymPicker } from '../_components/gym-picker'
 
 export default async function RegisterPage() {
   const supabase = await createClient()
 
-  const { data: branches } = await supabase
-    .from('branches')
-    .select('id, name, address, tenants(name)')
+  const { data: gyms } = await supabase
+    .from('tenants')
+    .select('slug, name, logo_url')
     .eq('is_active', true)
     .order('name')
 
   return (
-    <RegisterForm
-      branches={(branches ?? []).map((b) => ({
-        ...b,
-        tenants: Array.isArray(b.tenants) ? b.tenants[0] ?? null : (b.tenants as { name: string } | null),
-      }))}
-    />
+    <div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-foreground)]">
+          ¿A qué gimnasio vas?
+        </h1>
+        <p className="mt-1.5 text-sm text-[var(--color-muted-foreground)]">
+          Elegí el gimnasio para crear tu cuenta.
+        </p>
+      </div>
+
+      <GymPicker gyms={gyms ?? []} mode="register" />
+    </div>
   )
 }

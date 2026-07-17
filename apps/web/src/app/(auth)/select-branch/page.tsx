@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { SelectBranchForm } from './_components/select-branch-form'
+import { GymPicker } from '../_components/gym-picker'
 
 export const metadata = { title: 'Elegí tu sede' }
 
@@ -32,24 +33,43 @@ export default async function SelectBranchPage({
     redirect('/')
   }
 
-  let tenantId: string | null = null
-  if (slug) {
-    const { data: tenant } = await supabase
+  // No gym chosen yet — pick the gym first, then re-enter this page scoped to it.
+  if (!slug) {
+    const { data: gyms } = await supabase
       .from('tenants')
-      .select('id')
-      .eq('slug', slug)
+      .select('slug, name, logo_url')
       .eq('is_active', true)
-      .single()
-    tenantId = tenant?.id ?? null
+      .order('name')
+
+    return (
+      <div>
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-foreground)]">
+            ¿A qué gimnasio vas?
+          </h1>
+          <p className="mt-1.5 text-sm text-[var(--color-muted-foreground)]">
+            Elegí el gimnasio para continuar con tu solicitud de acceso.
+          </p>
+        </div>
+
+        <GymPicker gyms={gyms ?? []} mode="select-branch" />
+      </div>
+    )
   }
 
-  let branchesQuery = supabase
+  const { data: tenant } = await supabase
+    .from('tenants')
+    .select('id')
+    .eq('slug', slug)
+    .eq('is_active', true)
+    .single()
+
+  const { data: branches } = await supabase
     .from('branches')
     .select('id, name, address')
     .eq('is_active', true)
-  if (tenantId) branchesQuery = branchesQuery.eq('tenant_id', tenantId)
-
-  const { data: branches } = await branchesQuery.order('name')
+    .eq('tenant_id', tenant?.id ?? '')
+    .order('name')
 
   return (
     <div>
@@ -58,7 +78,7 @@ export default async function SelectBranchPage({
           ¿A qué sede vas?
         </h1>
         <p className="mt-1.5 text-sm text-[var(--color-muted-foreground)]">
-          Elegí tu gimnasio para completar tu solicitud de acceso.
+          Elegí tu sede para completar tu solicitud de acceso.
         </p>
       </div>
 
