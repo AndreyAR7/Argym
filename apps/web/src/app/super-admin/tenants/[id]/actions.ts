@@ -115,6 +115,22 @@ export async function toggleTenantActiveAction(tenantId: string, isActive: boole
   return { success: true }
 }
 
+export async function updateTenantBrandingAction(
+  tenantId: string,
+  data: { logoUrl: string | null; primaryColor: string | null },
+) {
+  const db = await assertSuperAdmin()
+
+  const { error } = await db
+    .from('tenants')
+    .update({ logo_url: data.logoUrl, primary_color: data.primaryColor })
+    .eq('id', tenantId)
+
+  if (error) return { error: error.message }
+  revalidatePath(`/super-admin/tenants/${tenantId}`)
+  return { success: true }
+}
+
 export async function createTenantAction(data: {
   name: string
   slug: string

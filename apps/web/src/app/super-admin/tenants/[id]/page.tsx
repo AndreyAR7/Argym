@@ -5,6 +5,7 @@ import { getSessionData } from '@/lib/auth/session'
 import { ArrowLeft, Circle, Users, UserCheck, Dumbbell, Calendar } from 'lucide-react'
 import { TenantToggleButton } from './tenant-toggle-button'
 import { PlatformSubscriptionForm } from './platform-subscription-form'
+import { BrandingForm } from './branding-form'
 
 export const metadata = { title: 'Detalle de gimnasio — ARGYM HQ' }
 
@@ -32,7 +33,7 @@ export default async function TenantDetailPage({
   const [tenantResult, profilesResult, subscriptionResult, plansResult] = await Promise.all([
     db
       .from('tenants')
-      .select('id, name, slug, is_active, created_at, timezone, locale, currency')
+      .select('id, name, slug, is_active, created_at, timezone, locale, currency, logo_url, primary_color')
       .eq('id', tenantId)
       .single(),
     db
@@ -172,6 +173,13 @@ export default async function TenantDetailPage({
           </div>
         ))}
       </div>
+
+      {/* Branding */}
+      <BrandingForm
+        tenantId={tenant.id}
+        logoUrl={tenant.logo_url}
+        primaryColor={tenant.primary_color}
+      />
 
       {/* Platform subscription management */}
       {platformPlans.length > 0 && (
