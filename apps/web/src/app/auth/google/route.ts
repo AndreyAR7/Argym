@@ -33,6 +33,11 @@ export async function GET(request: NextRequest) {
     provider: 'google',
     options: {
       redirectTo: `${baseUrl}/auth/callback?next=${encodeURIComponent(nextPath)}`,
+      // Always show Google's account chooser instead of silently reusing
+      // whichever Google session is already active in the browser — without
+      // this, testing multiple accounts in one browser can silently sign
+      // you into the wrong one with no indication it happened.
+      queryParams: { prompt: 'select_account' },
     },
   })
 
