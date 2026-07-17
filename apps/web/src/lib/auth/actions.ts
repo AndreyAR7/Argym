@@ -1,6 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { getSessionData } from '@/lib/auth/session'
@@ -106,6 +107,9 @@ export async function switchActiveTenantAction(tenantId: string) {
   cookieStore.set('x-tid', tenantId, cookieOpts)
   cookieStore.set('x-active', String(tenantIsActive ?? true), cookieOpts)
 
+  // Every layout/page reading session/tenant data must be re-rendered fresh —
+  // otherwise Next.js can serve a cached RSC payload from before the switch.
+  revalidatePath('/', 'layout')
   redirect('/admin/dashboard')
 }
 
