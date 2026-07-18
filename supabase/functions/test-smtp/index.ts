@@ -18,6 +18,17 @@ interface Payload {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+// supabase-js's functions.invoke() relies on the Content-Type header to
+// decide whether to parse the body as JSON — without it, `data` comes back
+// as a raw string (no .ok/.message), which silently reads as "Error
+// desconocido" client-side even though the function responded correctly.
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
 const supabaseAdmin = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -61,22 +72,22 @@ Deno.serve(async (req: Request) => {
 
   const authHeader = req.headers.get('Authorization')
   if (!authHeader?.startsWith('Bearer ')) {
-    return new Response(JSON.stringify({ ok: false, message: 'Unauthorized' }), { status: 401 })
+    return jsonResponse({ ok: false, message: 'Unauthorized' }, 401)
   }
 
   let payload: Payload
   try {
     payload = await req.json()
   } catch {
-    return new Response(JSON.stringify({ ok: false, message: 'Invalid JSON' }), { status: 400 })
+    return jsonResponse({ ok: false, message: 'Invalid JSON' }, 400)
   }
 
   const { tenant_id, mode } = payload
   if (!tenant_id || !UUID_RE.test(tenant_id)) {
-    return new Response(JSON.stringify({ ok: false, message: 'Invalid tenant_id' }), { status: 400 })
+    return jsonResponse({ ok: false, message: 'Invalid tenant_id' }, 400)
   }
   if (!['test', 'resend', 'bulk_resend'].includes(mode)) {
-    return new Response(JSON.stringify({ ok: false, message: 'Invalid mode' }), { status: 400 })
+    return jsonResponse({ ok: false, message: 'Invalid mode' }, 400)
   }
 
   // Caller must belong to the tenant they're operating on.
@@ -87,7 +98,7 @@ Deno.serve(async (req: Request) => {
   )
   const { data: { user: callerUser } } = await callerClient.auth.getUser()
   if (!callerUser) {
-    return new Response(JSON.stringify({ ok: false, message: 'Unauthorized' }), { status: 401 })
+    return jsonResponse({ ok: false, message: 'Unauthorized' }, 401)
   }
   const { data: callerProfile } = await callerClient
     .from('profiles')
@@ -95,7 +106,7 @@ Deno.serve(async (req: Request) => {
     .eq('id', callerUser.id)
     .single()
   if (!callerProfile || callerProfile.tenant_id !== tenant_id) {
-    return new Response(JSON.stringify({ ok: false, message: 'Forbidden' }), { status: 403 })
+    return jsonResponse({ ok: false, message: 'Forbidden' }, 403)
   }
 
   const supabase = supabaseAdmin
@@ -107,10 +118,10 @@ Deno.serve(async (req: Request) => {
     .maybeSingle()
 
   if (cfgErr) {
-    return new Response(JSON.stringify({ ok: false, message: `Error al leer configuración: ${cfgErr.message}` }), { status: 200 })
+    return jsonResponse({ ok: false, message: `Error al leer configuración: ${cfgErr.message}` })
   }
   if (!config?.host || !config.username || !config.password) {
-    return new Response(JSON.stringify({ ok: false, message: 'La configuración SMTP está incompleta o no existe.' }), { status: 200 })
+    return jsonResponse({ ok: false, message: 'La configuración SMTP está incompleta o no existe.' })
   }
 
   const port = Number(config.port)
@@ -118,7 +129,7 @@ Deno.serve(async (req: Request) => {
   // ── mode: test ──────────────────────────────────────────────────
   if (mode === 'test') {
     if (!payload.to_email) {
-      return new Response(JSON.stringify({ ok: false, message: 'Falta to_email' }), { status: 400 })
+      return jsonResponse({ ok: false, message: 'Falta to_email' }, 400)
     }
     const transporter = buildTransporter(config)
 
@@ -130,7 +141,7 @@ Deno.serve(async (req: Request) => {
         ),
       ])
     } catch (err) {
-      return new Response(JSON.stringify({ ok: false, message: classifyError(err, config.host, port) }), { status: 200 })
+      return jsonResponse({ ok: false, message: classifyError(err, config.host, port) })
     }
 
     const { data: tenant } = await supabase.from('tenants').select('name').eq('id', tenant_id).single()
@@ -160,16 +171,16 @@ Deno.serve(async (req: Request) => {
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      return new Response(JSON.stringify({ ok: false, message: `Conexión OK pero falló el envío: ${message}` }), { status: 200 })
+      return jsonResponse({ ok: false, message: `Conexión OK pero falló el envío: ${message}` })
     }
 
-    return new Response(JSON.stringify({ ok: true, message: `Email de prueba enviado a ${payload.to_email}` }), { status: 200 })
+    return jsonResponse({ ok: true, message: `Email de prueba enviado a ${payload.to_email}` })
   }
 
   // ── mode: resend (single) ──────────────────────────────────────
   if (mode === 'resend') {
     if (!payload.log_id || !UUID_RE.test(payload.log_id)) {
-      return new Response(JSON.stringify({ ok: false, message: 'Invalid log_id' }), { status: 400 })
+      return jsonResponse({ ok: false, message: 'Invalid log_id' }, 400)
     }
 
     const { data: log, error: logErr } = await supabase
@@ -179,13 +190,13 @@ Deno.serve(async (req: Request) => {
       .single()
 
     if (logErr || !log || log.tenant_id !== tenant_id) {
-      return new Response(JSON.stringify({ ok: false, message: 'Log no encontrado' }), { status: 200 })
+      return jsonResponse({ ok: false, message: 'Log no encontrado' })
     }
     if (!log.body_html) {
-      return new Response(JSON.stringify({ ok: false, message: 'Este email no tiene cuerpo almacenado. Los emails nuevos sí lo guardan.' }), { status: 200 })
+      return jsonResponse({ ok: false, message: 'Este email no tiene cuerpo almacenado. Los emails nuevos sí lo guardan.' })
     }
     if ((log.retry_count ?? 0) >= 10) {
-      return new Response(JSON.stringify({ ok: false, message: 'Límite de reintentos alcanzado (máx 10). Crea un nuevo email desde las reglas.' }), { status: 200 })
+      return jsonResponse({ ok: false, message: 'Límite de reintentos alcanzado (máx 10). Crea un nuevo email desde las reglas.' })
     }
 
     const transporter = buildTransporter(config)
@@ -197,7 +208,7 @@ Deno.serve(async (req: Request) => {
         html:    log.body_html,
       })
     } catch (err) {
-      return new Response(JSON.stringify({ ok: false, message: `Error al enviar: ${classifyError(err, config.host, port)}` }), { status: 200 })
+      return jsonResponse({ ok: false, message: `Error al enviar: ${classifyError(err, config.host, port)}` })
     }
 
     await supabase.from('email_logs').update({
@@ -205,7 +216,7 @@ Deno.serve(async (req: Request) => {
       retry_count: (log.retry_count ?? 0) + 1, last_retry_at: new Date().toISOString(), error_msg: null,
     }).eq('id', payload.log_id)
 
-    return new Response(JSON.stringify({ ok: true }), { status: 200 })
+    return jsonResponse({ ok: true })
   }
 
   // ── mode: bulk_resend ───────────────────────────────────────────
@@ -219,7 +230,7 @@ Deno.serve(async (req: Request) => {
     .limit(50)
 
   if (!failedLogs?.length) {
-    return new Response(JSON.stringify({ ok: true, sent: 0, failed: 0 }), { status: 200 })
+    return jsonResponse({ ok: true, sent: 0, failed: 0 })
   }
 
   const transporter = buildTransporter(config)
@@ -247,5 +258,5 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  return new Response(JSON.stringify({ ok: true, sent, failed }), { status: 200 })
+  return jsonResponse({ ok: true, sent, failed })
 })
