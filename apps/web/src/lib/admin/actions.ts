@@ -98,12 +98,41 @@ export async function createCoachAction(data: {
 export async function toggleProfileActiveAction(targetUserId: string, isActive: boolean) {
   const supabase = await createClient()
 
-  const { error } = await supabase
+  // Deactivating a client with an active subscription is blocked — the
+  // admin UI should have already warned about this before calling here,
+  // but this check is the actual enforcement (defense in depth).
+  if (!isActive) {
+    const { data: activeSubs } = await supabase
+      .from('user_subscriptions')
+      .select('plans(name)')
+      .eq('user_id', targetUserId)
+      .eq('status', 'active')
+
+    if (activeSubs && activeSubs.length > 0) {
+      const planNames = activeSubs
+        .map((s) => {
+          const p = s.plans as unknown
+          return Array.isArray(p) ? p[0]?.name : (p as { name: string } | null)?.name
+        })
+        .filter(Boolean)
+        .join(', ')
+      return { error: `No se puede desactivar: tiene un plan activo (${planNames}). Cancela la suscripción primero.` }
+    }
+  }
+
+  const { data: updated, error } = await supabase
     .from('profiles')
     .update({ is_active: isActive })
     .eq('id', targetUserId)
+    .select('id')
 
   if (error) return { error: error.message }
+  if (!updated || updated.length === 0) {
+    return { error: 'No se pudo actualizar — el usuario no pertenece a tu gimnasio o no tienes permiso.' }
+  }
+
+  revalidatePath('/admin/clients')
+  revalidatePath('/admin/coaches')
   return { success: true }
 }
 

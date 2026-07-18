@@ -22,6 +22,7 @@ interface ClientRowActionsProps {
   tenantId: string
   branchId: string | null
   branches: { id: string; name: string }[]
+  activePlanName?: string | null
 }
 
 export function ClientRowActions({
@@ -32,10 +33,13 @@ export function ClientRowActions({
   tenantId,
   branchId,
   branches,
+  activePlanName,
 }: ClientRowActionsProps) {
   const [open, setOpen] = useState(false)
   const [showAssign, setShowAssign] = useState(false)
   const [showBranch, setShowBranch] = useState(false)
+  const [showDeactivate, setShowDeactivate] = useState(false)
+  const [deactivateError, setDeactivateError] = useState<string | null>(null)
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
   const [isPending, startTransition] = useTransition()
   const [pos, setPos] = useState<{ top?: number; bottom?: number; right: number }>({ top: 0, right: 0 })
@@ -61,10 +65,25 @@ export function ClientRowActions({
     setOpen(v => !v)
   }
 
-  function handleToggleActive() {
+  function handleActionsMenuToggleClick() {
+    setOpen(false)
+    if (isActive) {
+      // Deactivating needs the active-plan check dialog; reactivating is safe to run directly.
+      setDeactivateError(null)
+      setShowDeactivate(true)
+    } else {
+      startTransition(async () => { await toggleProfileActiveAction(clientId, true) })
+    }
+  }
+
+  function confirmDeactivate() {
     startTransition(async () => {
-      await toggleProfileActiveAction(clientId, !isActive)
-      setOpen(false)
+      const result = await toggleProfileActiveAction(clientId, false)
+      if (result?.error) {
+        setDeactivateError(result.error)
+      } else {
+        setShowDeactivate(false)
+      }
     })
   }
 
@@ -129,7 +148,7 @@ export function ClientRowActions({
               </a>
               <div className="my-1 border-t border-[var(--color-border)]" />
               <button
-                onClick={handleToggleActive}
+                onClick={handleActionsMenuToggleClick}
                 disabled={isPending}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors disabled:opacity-50 hover:bg-[var(--color-muted)]"
                 style={{ color: isActive ? 'var(--color-destructive)' : 'var(--color-coach)' }}
@@ -232,6 +251,56 @@ export function ClientRowActions({
                 {isPending ? 'Asignando…' : 'Asignar plan'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deactivate confirmation / active-plan block */}
+      {showDeactivate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-xl">
+            {activePlanName ? (
+              <>
+                <h2 className="text-base font-semibold text-[var(--color-foreground)] mb-1">No se puede desactivar</h2>
+                <p className="text-sm text-[var(--color-muted-foreground)] mb-5">
+                  <strong>{clientName}</strong> tiene un plan activo (<strong>{activePlanName}</strong>). Cancela su suscripción antes de desactivar la cuenta.
+                </p>
+                <button
+                  onClick={() => setShowDeactivate(false)}
+                  className="w-full rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors"
+                >
+                  Entendido
+                </button>
+              </>
+            ) : (
+              <>
+                <h2 className="text-base font-semibold text-[var(--color-foreground)] mb-1">Desactivar usuario</h2>
+                <p className="text-sm text-[var(--color-muted-foreground)] mb-5">
+                  ¿Confirmás que querés desactivar a <strong>{clientName}</strong>? No tiene planes activos.
+                </p>
+                {deactivateError && (
+                  <p className="text-sm text-[var(--color-destructive)] bg-[var(--color-destructive)]/5 border border-[var(--color-destructive)]/20 rounded-lg px-3 py-2 mb-4">
+                    {deactivateError}
+                  </p>
+                )}
+                <div className="flex gap-2.5">
+                  <button
+                    onClick={() => setShowDeactivate(false)}
+                    disabled={isPending}
+                    className="flex-1 rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmDeactivate}
+                    disabled={isPending}
+                    className="flex-1 rounded-lg bg-[var(--color-destructive)] px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    {isPending ? 'Desactivando…' : 'Desactivar'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

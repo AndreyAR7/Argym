@@ -209,6 +209,7 @@ export default async function ClientsPage({
                         tenantId={tenantId}
                         branchId={(client as any).branch_id ?? null}
                         branches={branches ?? []}
+                        activePlanName={plan?.name ?? null}
                       />
                     </td>
                   </tr>
