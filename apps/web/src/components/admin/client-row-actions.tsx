@@ -38,16 +38,25 @@ export function ClientRowActions({
   const [showBranch, setShowBranch] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
   const [isPending, startTransition] = useTransition()
-  const [pos, setPos] = useState({ top: 0, right: 0 })
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; right: number }>({ top: 0, right: 0 })
   const btnRef = useRef<HTMLButtonElement>(null)
+
+  // Menu has 4 items + a divider (~170px tall). Flip it upward when there
+  // isn't enough room below the trigger — otherwise it renders past the
+  // bottom of the viewport for rows near the end of the list, with no way
+  // to scroll down to reach it.
+  const MENU_HEIGHT_ESTIMATE = 170
 
   function handleOpen() {
     if (!open && btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect()
-      setPos({
-        top: rect.bottom + 4,
-        right: window.innerWidth - rect.right,
-      })
+      const spaceBelow = window.innerHeight - rect.bottom
+      const openUpward = spaceBelow < MENU_HEIGHT_ESTIMATE && rect.top > MENU_HEIGHT_ESTIMATE
+
+      setPos(openUpward
+        ? { bottom: window.innerHeight - rect.top + 4, right: window.innerWidth - rect.right }
+        : { top: rect.bottom + 4, right: window.innerWidth - rect.right },
+      )
     }
     setOpen(v => !v)
   }
@@ -90,10 +99,11 @@ export function ClientRowActions({
         {open && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-            {/* Fixed position — never clipped by table overflow */}
+            {/* Fixed position — never clipped by table overflow; flips
+                upward near the bottom of the viewport (see handleOpen) */}
             <div
               className="fixed z-50 w-44 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] shadow-lg py-1 text-sm"
-              style={{ top: pos.top, right: pos.right }}
+              style={{ top: pos.top, bottom: pos.bottom, right: pos.right }}
             >
               <button
                 onClick={() => { setOpen(false); setShowAssign(true) }}
