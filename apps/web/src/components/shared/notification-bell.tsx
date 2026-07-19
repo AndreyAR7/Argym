@@ -47,6 +47,7 @@ export function NotificationBell({ userId }: Props) {
   const [notifications, setNotifs]    = useState<Notification[]>([])
   const [unread, setUnread]           = useState(0)
   const [loading, setLoading]         = useState(true)
+  const [markingRead, setMarkingRead] = useState(false)
   const panelRef                      = useRef<HTMLDivElement>(null)
   const supabase                      = createClient()
 
@@ -256,11 +257,15 @@ export function NotificationBell({ userId }: Props) {
             >
               <button
                 onClick={async () => {
+                  if (markingRead) return
+                  setMarkingRead(true)
                   setNotifs(prev => prev.map(n => ({ ...n, is_read: true })))
                   setUnread(0)
                   await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).eq('is_read', false)
+                  setMarkingRead(false)
                 }}
-                className="flex items-center gap-1.5 text-xs font-medium transition-colors hover:opacity-80"
+                disabled={markingRead}
+                className="flex items-center gap-1.5 text-xs font-medium transition-colors hover:opacity-80 disabled:opacity-50"
                 style={{ color: 'var(--color-muted-foreground)' }}
               >
                 <Check size={12} />
