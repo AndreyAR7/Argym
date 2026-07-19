@@ -88,20 +88,12 @@ export function Topbar({
           >
             <img src={tenantLogoUrl ?? ARGYM_LOGO_URL} alt={tenantName ?? 'ARGYM'} className="w-full h-full object-cover" />
           </div>
-          <span className="font-semibold text-sm tracking-tight" style={{ color: 'var(--color-foreground)' }}>
-            {brandLabel}
+          <span
+            className="font-semibold text-sm tracking-tight truncate max-w-[160px]"
+            style={{ color: 'var(--color-foreground)' }}
+          >
+            {tenantName ?? brandLabel}
           </span>
-          {tenantName && (
-            <>
-              <span className="hidden sm:inline text-sm" style={{ color: 'var(--color-border)' }}>/</span>
-              <span
-                className="hidden sm:inline text-sm font-medium truncate max-w-[160px]"
-                style={{ color: 'var(--color-muted-foreground)' }}
-              >
-                {tenantName}
-              </span>
-            </>
-          )}
         </div>
       </div>
 

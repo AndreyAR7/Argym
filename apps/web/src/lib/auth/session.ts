@@ -29,20 +29,22 @@ export const getSessionData = cache(async () => {
   const isPlatformAdmin = !!isPA
 
   if (tenantId) {
-    // Fetch approval_status fresh from DB — never trust the cached cookie for
-    // this field because an admin can approve/reject a user mid-session and
-    // because stale 'pending' cookies from previous sessions would block access.
+    // Fetch approval_status/full_name/avatar_url fresh from DB — never trust
+    // cached cookies for these: an admin can approve/reject mid-session, and
+    // avatar/name cookies were never invalidated on profile update, so a
+    // changed avatar kept showing the old one everywhere except the profile
+    // page itself (which always queried profiles directly).
     const { data: freshProfile } = await supabase
       .from('profiles')
-      .select('approval_status')
+      .select('approval_status, full_name, avatar_url')
       .eq('id', user.id)
       .single()
 
     const approvalStatus = freshProfile?.approval_status ?? ckStore.get('x-approval')?.value ?? 'pending'
     console.log(`[SESSION] fast path (cookies+approval): ${Date.now() - t0}ms total`)
 
-    const fullName  = ckStore.get('x-name')?.value ?? (user.user_metadata?.full_name as string) ?? null
-    const avatarUrl = ckStore.get('x-avatar')?.value ?? (user.user_metadata?.avatar_url as string) ?? null
+    const fullName  = freshProfile?.full_name ?? ckStore.get('x-name')?.value ?? (user.user_metadata?.full_name as string) ?? null
+    const avatarUrl = freshProfile?.avatar_url ?? ckStore.get('x-avatar')?.value ?? (user.user_metadata?.avatar_url as string) ?? null
 
     return {
       supabase,

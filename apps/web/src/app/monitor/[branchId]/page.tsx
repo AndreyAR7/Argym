@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/server-admin'
 import { generateQrToken, secondsUntilNextWindow } from '@/lib/qr-token'
 import { MonitorDisplay } from './monitor-display'
 
-export const metadata = { title: 'Monitor Check-in — ARGYM' }
+export const metadata = { title: 'Monitor Check-in' }
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://tu-dominio.com'
 
@@ -18,12 +18,14 @@ export default async function MonitorPage({ params }: Props) {
   const supabase = await createAdminClient()
   const { data: branch } = await supabase
     .from('branches')
-    .select('id, name')
+    .select('id, name, tenants(name, logo_url)')
     .eq('id', branchId)
     .eq('is_active', true)
     .single()
 
   if (!branch) notFound()
+
+  const tenant = Array.isArray(branch.tenants) ? branch.tenants[0] : branch.tenants
 
   const token      = generateQrToken(branchId)
   const checkinUrl = `${APP_URL}/checkin?branch=${branchId}&t=${token}`
@@ -39,6 +41,8 @@ export default async function MonitorPage({ params }: Props) {
     <MonitorDisplay
       branchId={branchId}
       branchName={branch.name}
+      tenantName={tenant?.name ?? 'ARGYM'}
+      tenantLogoUrl={tenant?.logo_url ?? null}
       initialQrUrl={qrDataUrl}
       initialCheckinUrl={checkinUrl}
       initialExpiresIn={expiresIn}

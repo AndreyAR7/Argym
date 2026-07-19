@@ -8,6 +8,8 @@ const WINDOW_SECONDS = 300
 interface Props {
   branchId:         string
   branchName:       string
+  tenantName:       string
+  tenantLogoUrl:    string | null
   initialQrUrl:     string
   initialCheckinUrl: string
   initialExpiresIn: number
@@ -16,6 +18,8 @@ interface Props {
 export function MonitorDisplay({
   branchId,
   branchName,
+  tenantName,
+  tenantLogoUrl,
   initialQrUrl,
   initialCheckinUrl,
   initialExpiresIn,
@@ -92,11 +96,15 @@ export function MonitorDisplay({
       <header className="relative z-10 flex items-center justify-between px-8 pt-7 pb-0">
         {/* Brand */}
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center">
-            <span className="text-black font-black text-sm">A</span>
+          <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center overflow-hidden">
+            {tenantLogoUrl ? (
+              <img src={tenantLogoUrl} alt={tenantName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-black font-black text-sm">{tenantName[0]}</span>
+            )}
           </div>
           <div>
-            <span className="text-white font-bold text-xl tracking-tight">ARGYM</span>
+            <span className="text-white font-bold text-xl tracking-tight">{tenantName}</span>
             {branchName && (
               <span className="ml-2 text-emerald-400/80 font-medium text-base">{branchName}</span>
             )}
