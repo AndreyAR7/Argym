@@ -19,7 +19,10 @@ import { usePlansStore } from '@/store/plans.store';
 import { useRoutinesStore } from '@/store/routines.store';
 import { useClientVideos } from '@/hooks/useVideos';
 import { useProgressStore } from '@/store/progress.store';
+import { useGamificationStore } from '@/store/gamification.store';
 import type { Appointment } from '@/types/appointments';
+
+const TODAY = new Date().toISOString().split('T')[0];
 
 function getGreeting(t: (key: string) => string) {
   const h = new Date().getHours();
@@ -41,10 +44,32 @@ export default function ClientHome() {
   const { featured: featuredVideos, assigned: assignedVideos } = useClientVideos();
   const { routineStreak, loadAll: loadProgress, isLoading: progressLoading } = useProgressStore();
   const { clientRoutines, loadClientRoutines, isLoadingClient } = useRoutinesStore();
+  const { stats: gameStats, isCheckingIn, fetchStats, performCheckin } = useGamificationStore();
 
   React.useEffect(() => {
     if (user?.tenant_id) fetchPromotions(user.tenant_id);
   }, [user?.tenant_id]);
+
+  React.useEffect(() => {
+    if (user?.id && user?.tenant_id) fetchStats(user.id, user.tenant_id);
+  }, [user?.id, user?.tenant_id]);
+
+  const checkedInAppToday = gameStats?.app_last_checkin_date === TODAY;
+  const checkedInGymToday = gameStats?.last_checkin_date === TODAY;
+
+  async function handleAppCheckin() {
+    if (!user?.id || !user?.tenant_id || checkedInAppToday) return;
+    try {
+      await performCheckin(user.id, user.tenant_id);
+    } catch (err: any) {
+      const msg: string = err?.message ?? '';
+      if (msg.includes('already_checked_in') || msg.includes('already checked')) {
+        Alert.alert(t('client.gamification.checkin.alreadyTitle'), t('client.gamification.checkin.alreadyMessage'));
+      } else {
+        Alert.alert(t('common.error'), t('client.gamification.checkin.errorMessage'));
+      }
+    }
+  }
 
   React.useEffect(() => {
     if (user?.id && user?.tenant_id) {
@@ -90,6 +115,7 @@ export default function ClientHome() {
         loadProgress(user.id, user.tenant_id),
         fetchPromotions(user.tenant_id),
         fetchMySubscription(user.id, user.tenant_id),
+        fetchStats(user.id, user.tenant_id),
       ]);
     } catch {
       Alert.alert(t('common.error'), t('client.inicio.refreshError'));
@@ -126,6 +152,30 @@ export default function ClientHome() {
           }}>
             <Text style={{ fontSize: 16, fontWeight: '800', color: T.accent }}>{initials}</Text>
           </View>
+        </View>
+
+        {/* Check-in: app + physical gym, front and center */}
+        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+          <CheckinCard
+            icon="📱"
+            title={t('client.inicio.checkin.appTitle')}
+            subtitle={t('client.inicio.checkin.appSubtitle')}
+            done={checkedInAppToday}
+            loading={isCheckingIn}
+            onPress={handleAppCheckin}
+            accent={T.accent}
+            T={T}
+          />
+          <CheckinCard
+            icon="📷"
+            title={t('client.inicio.checkin.gymTitle')}
+            subtitle={checkedInGymToday ? t('client.inicio.checkin.gymDone') : t('client.inicio.checkin.gymSubtitle')}
+            done={checkedInGymToday}
+            loading={false}
+            onPress={() => router.push('/(client)/checkin-scan' as any)}
+            accent={T.green}
+            T={T}
+          />
         </View>
 
         {/* Promo banner — real data from store, only shown if active promo exists */}
@@ -252,6 +302,30 @@ export default function ClientHome() {
         <View style={{ height: 24 }} />
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function CheckinCard({ icon, title, subtitle, done, loading, onPress, accent, T }: {
+  icon: string; title: string; subtitle: string; done: boolean; loading: boolean;
+  onPress: () => void; accent: string; T: ReturnType<typeof useTheme>;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={done || loading}
+      activeOpacity={0.85}
+      style={{
+        flex: 1, backgroundColor: done ? T.green + '18' : T.bgCard,
+        borderRadius: 14, borderWidth: 1, borderColor: done ? T.green + '55' : T.border,
+        padding: 14, alignItems: 'center', gap: 6,
+      }}
+    >
+      <Text style={{ fontSize: 22 }}>{done ? '✅' : icon}</Text>
+      <Text style={{ fontSize: 13, fontWeight: '700', color: T.text, textAlign: 'center' }}>{title}</Text>
+      <Text style={{ fontSize: 11, color: done ? T.green : T.textSecondary, textAlign: 'center' }} numberOfLines={2}>
+        {loading ? '…' : subtitle}
+      </Text>
+    </TouchableOpacity>
   );
 }
 

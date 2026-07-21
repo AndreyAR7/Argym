@@ -61,6 +61,11 @@
       "pendingDescription": "Tu cuenta fue creada exitosamente. Un administrador debe asignarte un rol antes de que puedas acceder al sistema.",
       "reasonLabel": "Motivo:",
       "pendingInfo": "Recibirás acceso una vez que el administrador apruebe tu cuenta y te asigne un rol."
+    },
+    "accountSuspended": {
+      "title": "Cuenta suspendida",
+      "description": "Tu membresía venció sin pago y tu cuenta fue suspendida temporalmente.",
+      "info": "Si pagaste en efectivo o por transferencia, avísale al administrador de tu gimnasio para que reactive tu cuenta."
     }
   },
   "dashboard": {
@@ -1357,6 +1362,13 @@
         "seeAll": "Ver todas",
         "empty": "Sin citas próximas programadas",
         "viewSchedule": "Ver agenda →"
+      },
+      "checkin": {
+        "appTitle": "Check-in en la app",
+        "appSubtitle": "Registra tu actividad de hoy",
+        "gymTitle": "Check-in en el gym",
+        "gymSubtitle": "Escanea el QR al llegar",
+        "gymDone": "Ya marcaste asistencia hoy"
       },
       "quickActions": {
         "title": "Acciones rápidas",

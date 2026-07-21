@@ -1,8 +1,9 @@
 'use client'
 
-import { Suspense, useActionState } from 'react'
+import { Suspense, useActionState, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react'
 import { loginAction } from '@/lib/auth/actions'
 
 function GoogleIcon() {
@@ -21,7 +22,8 @@ function OAuthError() {
   const searchParams = useSearchParams()
   if (searchParams.get('error') !== 'oauth_error') return null
   return (
-    <div className="rounded-lg border border-[var(--color-destructive)]/20 bg-[var(--color-destructive)]/5 px-4 py-3 mb-4">
+    <div className="flex items-start gap-2.5 rounded-lg border border-[var(--color-destructive)]/20 bg-[var(--color-destructive)]/5 px-4 py-3 mb-4">
+      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-destructive)]" />
       <p className="text-sm text-[var(--color-destructive)]">
         Error al iniciar sesión con Google. Intenta de nuevo.
       </p>
@@ -31,6 +33,7 @@ function OAuthError() {
 
 function LoginFormFields({ slug }: { slug?: string }) {
   const [state, formAction, isPending] = useActionState(loginAction, null)
+  const [showPassword, setShowPassword] = useState(false)
   const registerHref = slug ? `/register/${slug}` : '/register'
   const googleHref = slug ? `/auth/google?slug=${slug}` : '/auth/google'
 
@@ -50,7 +53,7 @@ function LoginFormFields({ slug }: { slug?: string }) {
       <a href={googleHref} className="block w-full">
         <button
           type="button"
-          className="w-full flex items-center justify-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2.5 text-sm font-medium text-[var(--color-foreground)] transition-colors hover:bg-[var(--color-muted)]"
+          className="w-full flex items-center justify-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2.5 text-sm font-medium text-[var(--color-foreground)] transition-all hover:bg-[var(--color-muted)] hover:border-[var(--color-admin)]/30 active:scale-[0.99]"
         >
           <GoogleIcon />
           Continuar con Google
@@ -63,7 +66,7 @@ function LoginFormFields({ slug }: { slug?: string }) {
           <div className="w-full border-t border-[var(--color-border)]" />
         </div>
         <div className="relative flex justify-center text-xs">
-          <span className="bg-[var(--color-background)] px-3 text-[var(--color-muted-foreground)]">
+          <span className="bg-[var(--color-card)] px-3 text-[var(--color-muted-foreground)]">
             o con correo y contraseña
           </span>
         </div>
@@ -71,7 +74,8 @@ function LoginFormFields({ slug }: { slug?: string }) {
 
       <form action={formAction} className="space-y-5">
         {state?.error && (
-          <div className="rounded-lg border border-[var(--color-destructive)]/20 bg-[var(--color-destructive)]/5 px-4 py-3">
+          <div className="flex items-start gap-2.5 rounded-lg border border-[var(--color-destructive)]/20 bg-[var(--color-destructive)]/5 px-4 py-3">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-destructive)]" />
             <p className="text-sm text-[var(--color-destructive)]">{state.error}</p>
           </div>
         )}
@@ -80,16 +84,19 @@ function LoginFormFields({ slug }: { slug?: string }) {
           <label htmlFor="email" className="block text-sm font-medium text-[var(--color-foreground)]">
             Correo electrónico
           </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            placeholder="nombre@empresa.com"
-            className="w-full rounded-lg border border-[var(--color-input)] bg-[var(--color-card)] px-3.5 py-2.5 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] outline-none transition-all focus:border-[var(--color-ring)] focus:ring-2 focus:ring-[var(--color-ring)]/20 disabled:opacity-50"
-            disabled={isPending}
-          />
+          <div className="group relative">
+            <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted-foreground)] transition-colors group-focus-within:text-[var(--color-admin)]" />
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              placeholder="nombre@empresa.com"
+              className="w-full rounded-lg border border-[var(--color-input)] bg-[var(--color-card)] py-2.5 pl-10 pr-3.5 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] outline-none transition-all focus:border-[var(--color-admin)] focus:ring-2 focus:ring-[var(--color-admin)]/20 disabled:opacity-50"
+              disabled={isPending}
+            />
+          </div>
         </div>
 
         <div className="space-y-1.5">
@@ -104,23 +111,37 @@ function LoginFormFields({ slug }: { slug?: string }) {
               ¿Olvidaste tu contraseña?
             </Link>
           </div>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            placeholder="••••••••"
-            className="w-full rounded-lg border border-[var(--color-input)] bg-[var(--color-card)] px-3.5 py-2.5 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] outline-none transition-all focus:border-[var(--color-ring)] focus:ring-2 focus:ring-[var(--color-ring)]/20 disabled:opacity-50"
-            disabled={isPending}
-          />
+          <div className="group relative">
+            <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted-foreground)] transition-colors group-focus-within:text-[var(--color-admin)]" />
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              required
+              placeholder="••••••••"
+              className="w-full rounded-lg border border-[var(--color-input)] bg-[var(--color-card)] py-2.5 pl-10 pr-10 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] outline-none transition-all focus:border-[var(--color-admin)] focus:ring-2 focus:ring-[var(--color-admin)]/20 disabled:opacity-50"
+              disabled={isPending}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              disabled={isPending}
+              aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              tabIndex={-1}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)] disabled:opacity-50"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
 
         <button
           type="submit"
           disabled={isPending}
-          className="w-full rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--color-admin)] px-4 py-2.5 text-sm font-medium text-white shadow-md shadow-[var(--color-admin)]/25 transition-all hover:shadow-lg hover:shadow-[var(--color-admin)]/35 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
         >
+          {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
           {isPending ? 'Iniciando sesión…' : 'Iniciar sesión'}
         </button>
       </form>

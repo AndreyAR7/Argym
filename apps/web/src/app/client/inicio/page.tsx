@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { Dumbbell, Video, CalendarDays, Flame, TrendingUp, Play, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
+import { CheckinRow } from './checkin-row'
 
 export const metadata = { title: 'Inicio' }
 
@@ -43,6 +44,9 @@ export default async function ClientHomePage() {
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
 
+  const todayStart = new Date(today)
+  todayStart.setHours(0, 0, 0, 0)
+
   // Streak: last 35 days
   const since35 = new Date(today)
   since35.setDate(today.getDate() - 34)
@@ -58,8 +62,10 @@ export default async function ClientHomePage() {
     { data: recentVideos },
     { data: activePromo },
     { data: gameStats },
+    { count: appCheckinCount },
+    { count: gymCheckinCount },
   ] = await Promise.all([
-    supabase.from('profiles').select('full_name').eq('id', user.id).single(),
+    supabase.from('profiles').select('full_name, tenant_id').eq('id', user.id).single(),
     supabase.from('routine_assignments').select('id', { count: 'exact', head: true }).eq('client_id', user.id),
     supabase.from('video_assignments').select('id', { count: 'exact', head: true }).eq('client_id', user.id),
     supabase.from('appointments').select('id', { count: 'exact', head: true }).eq('client_id', user.id).eq('status', 'scheduled'),
@@ -74,6 +80,9 @@ export default async function ClientHomePage() {
     supabase.from('promotions').select('id, title, description, end_date, discount_pct, discount_flat').eq('is_active', true).lte('start_date', todayStr).gte('end_date', todayStr).limit(1).single(),
     // gamification stats
     supabase.from('user_game_stats').select('current_streak, total_checkins, xp_total, level').eq('user_id', user.id).single(),
+    // today's check-ins, split by method
+    supabase.from('gym_checkins').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('method', 'app').gte('checked_in_at', todayStart.toISOString()),
+    supabase.from('gym_checkins').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('method', 'qr').gte('checked_in_at', todayStart.toISOString()),
   ])
 
   const planName = (activeSub as any)?.plans?.name
@@ -124,6 +133,14 @@ export default async function ClientHomePage() {
           {planName ? `Plan activo: ${planName}` : 'Sin plan activo'}
         </p>
       </div>
+
+      {/* Check-in: app + physical gym, front and center */}
+      <CheckinRow
+        userId={user.id}
+        tenantId={(profile as any)?.tenant_id}
+        appAlreadyCheckedIn={(appCheckinCount ?? 0) > 0}
+        gymAlreadyCheckedIn={(gymCheckinCount ?? 0) > 0}
+      />
 
       {/* Active promotion banner */}
       {(activePromo as any)?.id && (

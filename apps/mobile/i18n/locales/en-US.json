@@ -61,6 +61,11 @@
       "pendingDescription": "Your account was created successfully. An administrator must assign you a role before you can access the system.",
       "reasonLabel": "Reason:",
       "pendingInfo": "You'll get access once the administrator approves your account and assigns you a role."
+    },
+    "accountSuspended": {
+      "title": "Account suspended",
+      "description": "Your membership expired without payment and your account was temporarily suspended.",
+      "info": "If you paid in cash or by transfer, let your gym's administrator know so they can reactivate your account."
     }
   },
   "dashboard": {
@@ -1357,6 +1362,13 @@
         "seeAll": "See all",
         "empty": "No upcoming appointments scheduled",
         "viewSchedule": "View schedule →"
+      },
+      "checkin": {
+        "appTitle": "Check-in in the app",
+        "appSubtitle": "Log today's activity",
+        "gymTitle": "Check-in at the gym",
+        "gymSubtitle": "Scan the QR when you arrive",
+        "gymDone": "Already checked in today"
       },
       "quickActions": {
         "title": "Quick actions",

@@ -1,12 +1,8 @@
 import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { ARGYM_LOGO_URL } from '@/lib/branding'
-
-const FEATURES = [
-  { icon: '⚡', text: 'Multi-tenant con roles granulares' },
-  { icon: '📊', text: 'Dashboards de revenue en tiempo real' },
-  { icon: '🏋️', text: 'Biblioteca de rutinas y videos' },
-]
+import { ParticleNetwork } from '@/components/auth/particle-network'
+import { FitnessHud } from '@/components/auth/fitness-hud'
 
 async function getTenantBranding() {
   const slug = (await headers()).get('x-tenant-slug')
@@ -38,16 +34,6 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
           ...(tenant?.primary_color ? { '--color-admin': tenant.primary_color } : {}),
         } as React.CSSProperties}
       >
-        {/* Subtle grid pattern */}
-        <div
-          className="absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage:
-              'linear-gradient(oklch(99% 0 0) 1px, transparent 1px), linear-gradient(90deg, oklch(99% 0 0) 1px, transparent 1px)',
-            backgroundSize: '48px 48px',
-          }}
-        />
-
         {/* Drifting glow orbs */}
         <div
           className="argym-orb-1 absolute top-[-140px] left-[-100px] w-[420px] h-[420px] rounded-full opacity-[0.16] blur-3xl"
@@ -57,6 +43,9 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
           className="argym-orb-2 absolute bottom-[-160px] right-[-120px] w-[380px] h-[380px] rounded-full opacity-[0.12] blur-3xl"
           style={{ background: tenant?.primary_color ? 'oklch(65% 0.2 45)' : '#f97316' }}
         />
+
+        {/* Interactive particle network */}
+        <ParticleNetwork color={tenant?.primary_color ?? '#818cf8'} />
 
         <div className="relative z-10">
           <div className="flex items-center gap-3">
@@ -74,7 +63,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
             <img
               src={logoUrl}
               alt={brandName}
-              className="argym-logo-float relative w-28 h-28 rounded-2xl object-cover shadow-2xl"
+              className="argym-logo-float relative w-40 h-40 rounded-2xl object-cover shadow-2xl"
             />
           </div>
 
@@ -84,23 +73,6 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
           <p className="mt-3 text-sm leading-relaxed max-w-[320px]" style={{ color: 'oklch(60% 0 0)' }}>
             Administra clientes, coaches, rutinas y pagos desde una sola plataforma.
           </p>
-
-          <div className="mt-8 w-full space-y-2.5">
-            {FEATURES.map(({ icon, text }, i) => (
-              <div
-                key={text}
-                className="argym-fade-in flex items-center gap-3 rounded-xl px-4 py-2.5"
-                style={{
-                  background: 'oklch(20% 0.01 286 / 0.5)',
-                  border: '1px solid oklch(30% 0.01 286 / 0.5)',
-                  animationDelay: `${0.15 + i * 0.12}s`,
-                }}
-              >
-                <span className="text-base">{icon}</span>
-                <span className="text-sm text-left" style={{ color: 'oklch(75% 0.005 286)' }}>{text}</span>
-              </div>
-            ))}
-          </div>
         </div>
 
         <div className="relative z-10 text-center">
@@ -112,10 +84,31 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
 
       {/* ── Form panel ── */}
       <div
-        className="flex-1 flex items-center justify-center p-6 bg-[var(--color-background)]"
+        className="flex-1 relative flex items-center justify-center overflow-hidden p-6 bg-[var(--color-background)]"
         style={(tenant?.primary_color ? { '--color-admin': tenant.primary_color } : {}) as React.CSSProperties}
       >
-        <div className="w-full max-w-[400px]">
+        {/* Faint grid + drifting glow, echoing the brand panel so the whole screen feels alive */}
+        <div
+          className="absolute inset-0 opacity-[0.025] pointer-events-none"
+          style={{
+            backgroundImage:
+              'linear-gradient(var(--color-foreground) 1px, transparent 1px), linear-gradient(90deg, var(--color-foreground) 1px, transparent 1px)',
+            backgroundSize: '48px 48px',
+          }}
+        />
+        <div
+          className="argym-orb-1 absolute top-[-160px] right-[-140px] w-[440px] h-[440px] rounded-full opacity-[0.06] blur-3xl pointer-events-none"
+          style={{ background: 'var(--color-admin)' }}
+        />
+        <div
+          className="argym-orb-2 absolute bottom-[-180px] left-[-120px] w-[380px] h-[380px] rounded-full opacity-[0.05] blur-3xl pointer-events-none"
+          style={{ background: 'var(--color-admin)' }}
+        />
+
+        {/* Gym + tech: scrolling heart-rate line and spinning activity rings */}
+        <FitnessHud />
+
+        <div className="argym-fade-in relative z-10 w-full max-w-[400px] rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)]/90 backdrop-blur-sm p-8 shadow-xl shadow-black/[0.04]">
           {/* Logo visible solo en mobile */}
           <div className="flex items-center gap-2 mb-8 lg:hidden">
             <img src={logoUrl} alt={brandName} className="w-7 h-7 rounded-lg object-cover" />

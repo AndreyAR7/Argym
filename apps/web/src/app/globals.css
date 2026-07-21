@@ -119,6 +119,14 @@ body {
   from { opacity: 0; transform: translateY(14px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+@keyframes argym-ekg-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes argym-ring-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
 
 .argym-orb-1  { animation: argym-drift-1 14s ease-in-out infinite; }
 .argym-orb-2  { animation: argym-drift-2 18s ease-in-out infinite; }
@@ -128,8 +136,11 @@ body {
   opacity: 0;
   animation: argym-fade-in-up 0.6s ease-out forwards;
 }
+.argym-ekg-scroll { animation: argym-ekg-scroll 5s linear infinite; }
+.argym-ring-spin  { animation: argym-ring-spin 24s linear infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .argym-orb-1, .argym-orb-2, .argym-logo-float, .argym-glow { animation: none; }
+  .argym-orb-1, .argym-orb-2, .argym-logo-float, .argym-glow,
+  .argym-ekg-scroll, .argym-ring-spin { animation: none; }
   .argym-fade-in { opacity: 1; animation: none; }
 }
