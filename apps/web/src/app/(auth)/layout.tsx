@@ -1,8 +1,8 @@
 import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { ARGYM_LOGO_URL } from '@/lib/branding'
-import { ParticleNetwork } from '@/components/auth/particle-network'
-import { FitnessHud } from '@/components/auth/fitness-hud'
+import { ParticleNetwork } from '@/components/effects/particle-network'
+import { FitnessHud } from '@/components/effects/fitness-hud'
 
 async function getTenantBranding() {
   const slug = (await headers()).get('x-tenant-slug')

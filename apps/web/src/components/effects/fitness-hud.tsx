@@ -18,7 +18,7 @@ function EkgTile() {
 
 // Decorative gym+tech background: a scrolling heart-rate monitor line and a
 // spinning activity-ring HUD, evoking fitness tracking rendered as a tech dashboard.
-export function FitnessHud() {
+export function FitnessHud({ ringSize = 200 }: { ringSize?: number }) {
   return (
     <>
       <div className="absolute inset-x-0 top-[16%] h-[90px] overflow-hidden pointer-events-none opacity-[0.35]">
@@ -28,7 +28,10 @@ export function FitnessHud() {
         </div>
       </div>
 
-      <div className="argym-ring-spin absolute -top-10 -right-10 w-[200px] h-[200px] opacity-[0.5] pointer-events-none">
+      <div
+        className="argym-ring-spin absolute -top-10 -right-10 opacity-[0.5] pointer-events-none"
+        style={{ width: ringSize, height: ringSize }}
+      >
         <svg viewBox="0 0 100 100" className="w-full h-full">
           <circle cx="50" cy="50" r="42" fill="none" stroke="var(--color-admin)" strokeWidth="5" strokeLinecap="round" strokeDasharray="180 264" opacity="0.55" />
           <circle cx="50" cy="50" r="32" fill="none" stroke="#22d3ee" strokeWidth="5" strokeLinecap="round" strokeDasharray="140 201" opacity="0.45" />

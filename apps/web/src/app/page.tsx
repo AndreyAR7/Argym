@@ -1,6 +1,15 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import {
+  Dumbbell, TrendingUp, Trophy, CalendarDays, Video, CreditCard,
+  Users, Heart, UserCog, ArrowRight,
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { ARGYM_LOGO_URL } from '@/lib/branding'
+import { ContactForm } from './_components/contact-form'
+import { ParticleNetwork } from '@/components/effects/particle-network'
+import { FitnessHud } from '@/components/effects/fitness-hud'
+import { AnimatedCounter } from '@/components/effects/animated-counter'
 
 export const metadata = {
   title: 'ARGYM — Plataforma de gestión para gimnasios',
@@ -24,7 +33,7 @@ export default async function RootPage() {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('approval_status')
+      .select('approval_status, is_active')
       .eq('id', user.id)
       .single()
 
@@ -34,6 +43,10 @@ export default async function RootPage() {
 
     if (profile.approval_status === 'rejected') {
       redirect('/pending-approval')
+    }
+
+    if (profile.is_active === false) {
+      redirect('/account-suspended')
     }
 
     const { data: userRole } = await supabase
@@ -57,37 +70,43 @@ export default async function RootPage() {
 
   const features = [
     {
-      icon: '🏋️',
+      icon: Dumbbell,
+      color: '#818cf8',
       title: 'Gestión de rutinas',
       description:
         'Crea y asigna rutinas personalizadas con seguimiento de ejercicios',
     },
     {
-      icon: '📊',
+      icon: TrendingUp,
+      color: '#22d3ee',
       title: 'Analíticas en tiempo real',
       description:
         'KPIs ejecutivos, ingresos, suscripciones y métricas de negocio',
     },
     {
-      icon: '🏆',
+      icon: Trophy,
+      color: '#fb923c',
       title: 'Gamificación',
       description:
         'Rankings, retos, insignias y sistema de XP para motivar a tus clientes',
     },
     {
-      icon: '📅',
+      icon: CalendarDays,
+      color: '#34d399',
       title: 'Agenda inteligente',
       description:
         'Gestión de citas con calendarios, notificaciones y seguimiento de estados',
     },
     {
-      icon: '🎬',
+      icon: Video,
+      color: '#a78bfa',
       title: 'Biblioteca de videos',
       description:
         'Videos de entrenamiento organizados por nivel y asignados a cada cliente',
     },
     {
-      icon: '💳',
+      icon: CreditCard,
+      color: '#60a5fa',
       title: 'Facturación integrada',
       description:
         'Planes, suscripciones y facturación con integración Stripe',
@@ -95,9 +114,9 @@ export default async function RootPage() {
   ]
 
   const stats = [
-    { value: '100+', label: 'Clientes activos' },
-    { value: '98%', label: 'Satisfacción' },
-    { value: '50+', label: 'Coaches' },
+    { value: '100+', label: 'Clientes activos', icon: Users },
+    { value: '98%', label: 'Satisfacción', icon: Heart },
+    { value: '50+', label: 'Coaches', icon: UserCog },
   ]
 
   return (
@@ -105,10 +124,19 @@ export default async function RootPage() {
 
       {/* ── Nav ─────────────────────────────────────────────────────── */}
       <nav className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-5 md:px-16">
-        <span className="text-2xl font-extrabold tracking-tight text-white">
-          ARGYM
-        </span>
+        <div className="flex items-center gap-2.5">
+          <img src={ARGYM_LOGO_URL} alt="ARGYM" className="h-8 w-8 rounded-lg object-cover" />
+          <span className="text-2xl font-extrabold tracking-tight text-white">
+            ARGYM
+          </span>
+        </div>
         <div className="flex items-center gap-3">
+          <a
+            href="#contacto"
+            className="hidden rounded-lg px-4 py-2 text-sm font-medium text-white/80 transition hover:text-white sm:inline-block"
+          >
+            Contáctenos
+          </a>
           <Link
             href="/login"
             className="rounded-lg px-4 py-2 text-sm font-medium text-white/80 transition hover:text-white"
@@ -126,7 +154,7 @@ export default async function RootPage() {
 
       {/* ── Hero ────────────────────────────────────────────────────── */}
       <section
-        className="relative flex min-h-screen flex-col items-center justify-center px-6 text-center"
+        className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 text-center"
         style={{
           background:
             'linear-gradient(135deg, #0a0a0f 0%, #0f0f1a 50%, #12111e 100%)',
@@ -153,12 +181,23 @@ export default async function RootPage() {
           />
         </div>
 
+        {/* Interactive tech backdrop — same particle network + fitness HUD used on login */}
+        <ParticleNetwork color="#818cf8" />
+        <FitnessHud ringSize={260} />
+
         <div className="relative max-w-3xl">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-1.5 text-sm font-medium text-indigo-300">
-            <span>Plataforma todo-en-uno para gimnasios</span>
+          <div className="argym-fade-in mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-1.5 text-sm font-medium text-indigo-300">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-400" />
+            </span>
+            Tecnología de gestión para gimnasios modernos
           </div>
 
-          <h1 className="mt-4 text-5xl font-extrabold leading-tight tracking-tight text-white md:text-6xl lg:text-7xl">
+          <h1
+            className="argym-fade-in mt-4 text-5xl font-extrabold leading-tight tracking-tight text-white md:text-6xl lg:text-7xl"
+            style={{ animationDelay: '0.12s' }}
+          >
             Gestiona tu gimnasio con{' '}
             <span
               style={{
@@ -173,22 +212,28 @@ export default async function RootPage() {
             </span>
           </h1>
 
-          <p className="mt-6 text-lg leading-relaxed text-gray-400 md:text-xl">
+          <p
+            className="argym-fade-in mt-6 text-lg leading-relaxed text-gray-400 md:text-xl"
+            style={{ animationDelay: '0.24s' }}
+          >
             Plataforma completa para coaches, clientes y administradores.
             Seguimiento de progreso, citas, nutrición y gamificación.
           </p>
 
-          <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+          <div
+            className="argym-fade-in mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center"
+            style={{ animationDelay: '0.36s' }}
+          >
             <Link
               href="/register"
-              className="group inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-7 py-3.5 text-base font-semibold text-white shadow-lg transition hover:bg-indigo-500 hover:shadow-indigo-500/30"
+              className="group inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-7 py-3.5 text-base font-semibold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-indigo-500 hover:shadow-indigo-500/30"
             >
               Comenzar ahora
-              <span className="transition-transform group-hover:translate-x-0.5">→</span>
+              <ArrowRight size={18} className="transition-transform group-hover:translate-x-0.5" />
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-7 py-3.5 text-base font-semibold text-white backdrop-blur-sm transition hover:bg-white/10"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-7 py-3.5 text-base font-semibold text-white backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:bg-white/10"
             >
               Iniciar sesión
             </Link>
@@ -206,10 +251,17 @@ export default async function RootPage() {
       {/* ── Stats bar ────────────────────────────────────────────────── */}
       <section className="border-y border-gray-100 bg-gray-50 py-10">
         <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 px-6 sm:flex-row sm:justify-around">
-          {stats.map(({ value, label }) => (
-            <div key={label} className="text-center">
-              <p className="text-4xl font-extrabold text-indigo-600">{value}</p>
-              <p className="mt-1 text-sm font-medium text-gray-500">{label}</p>
+          {stats.map(({ value, label, icon: Icon }) => (
+            <div key={label} className="flex items-center gap-3 text-center sm:flex-col sm:text-center">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 sm:mb-1">
+                <Icon size={18} />
+              </div>
+              <div>
+                <p className="text-4xl font-extrabold text-indigo-600">
+                  <AnimatedCounter value={value} />
+                </p>
+                <p className="mt-1 text-sm font-medium text-gray-500">{label}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -227,13 +279,16 @@ export default async function RootPage() {
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
-          {features.map(({ icon, title, description }) => (
+          {features.map(({ icon: Icon, color, title, description }) => (
             <div
               key={title}
-              className="group rounded-xl border border-gray-100 bg-white p-6 shadow-sm transition hover:border-indigo-200 hover:shadow-md"
+              className="group rounded-xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-indigo-200 hover:shadow-md"
             >
-              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-50 text-2xl">
-                {icon}
+              <div
+                className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg transition-transform duration-300 group-hover:scale-110"
+                style={{ backgroundColor: color + '18', color }}
+              >
+                <Icon size={22} />
               </div>
               <h3 className="mb-2 text-base font-semibold text-gray-900">
                 {title}
@@ -248,13 +303,15 @@ export default async function RootPage() {
 
       {/* ── Final CTA ────────────────────────────────────────────────── */}
       <section
-        className="py-24 text-center"
+        className="relative overflow-hidden py-24 text-center"
         style={{
           background:
             'linear-gradient(135deg, #0a0a0f 0%, #0f0f1a 60%, #12111e 100%)',
         }}
       >
-        <div className="mx-auto max-w-2xl px-6">
+        <ParticleNetwork color="#818cf8" />
+
+        <div className="relative mx-auto max-w-2xl px-6">
           <h2 className="text-3xl font-extrabold text-white md:text-4xl">
             ¿Listo para transformar tu gimnasio?
           </h2>
@@ -263,10 +320,40 @@ export default async function RootPage() {
           </p>
           <Link
             href="/register"
-            className="mt-8 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-8 py-4 text-base font-semibold text-white shadow-lg transition hover:bg-indigo-500 hover:shadow-indigo-500/30"
+            className="group mt-8 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-8 py-4 text-base font-semibold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-indigo-500 hover:shadow-indigo-500/30"
           >
             Empezar gratis
+            <ArrowRight size={18} className="transition-transform group-hover:translate-x-0.5" />
           </Link>
+        </div>
+      </section>
+
+      {/* ── Contact ──────────────────────────────────────────────────── */}
+      <section
+        id="contacto"
+        className="relative overflow-hidden py-24"
+        style={{
+          background:
+            'linear-gradient(135deg, #0a0a0f 0%, #0f0f1a 50%, #12111e 100%)',
+        }}
+      >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-40 right-[-120px] h-[420px] w-[420px] rounded-full opacity-[0.14] blur-3xl"
+          style={{ background: '#818cf8' }}
+        />
+
+        <div className="relative mx-auto max-w-xl px-6 text-center">
+          <h2 className="text-3xl font-extrabold text-white md:text-4xl">
+            Contáctenos
+          </h2>
+          <p className="mt-4 text-gray-400">
+            Cuéntanos sobre tu gimnasio y te ayudamos a ponerlo en marcha en ARGYM.
+          </p>
+
+          <div className="mt-10">
+            <ContactForm />
+          </div>
         </div>
       </section>
 
