@@ -786,7 +786,7 @@ function TemplateModal({ tenantId, onClose, onSaved }: { tenantId: string; onClo
   const [error, setError] = useState('')
   const supabase = createClient()
 
-  const VARS = ['client_name', 'coach_name', 'appointment_date', 'appointment_time', 'plan_name', 'gym_name', 'login_url']
+  const VARS = ['client_name', 'coach_name', 'appointment_date', 'appointment_time', 'plan_name', 'gym_name', 'login_url', 'brand_color']
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -951,7 +951,7 @@ function TemplateEditModal({ template, onClose, onSaved }: {
   const [variables, setVariables]    = useState<string[]>(template.variables)
   const [error, setError]            = useState('')
 
-  const VARS = ['client_name', 'coach_name', 'appointment_date', 'appointment_time', 'plan_name', 'gym_name', 'login_url']
+  const VARS = ['client_name', 'coach_name', 'appointment_date', 'appointment_time', 'plan_name', 'gym_name', 'login_url', 'brand_color']
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()

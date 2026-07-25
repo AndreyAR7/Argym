@@ -306,12 +306,13 @@ Deno.serve(async (req: Request) => {
   // ── 3. Tenant ───────────────────────────────────────────────────
   const { data: tenant } = await supabase
     .from('tenants')
-    .select('name')
+    .select('name, primary_color')
     .eq('id', tenant_id)
     .single()
 
-  const gymName  = tenant?.name ?? 'ARGYM'
-  const loginUrl = Deno.env.get('SITE_URL') ?? 'https://argym.app'
+  const gymName    = tenant?.name ?? 'ARGYM'
+  const brandColor = tenant?.primary_color || '#6366f1'
+  const loginUrl   = Deno.env.get('SITE_URL') ?? 'https://argym.app'
 
   const getEmail = async (userId: string): Promise<string> => {
     const { data } = await supabase.auth.admin.getUserById(userId)
@@ -319,7 +320,11 @@ Deno.serve(async (req: Request) => {
   }
 
   // ── 4. Context data + template vars ────────────────────────────
-  let templateVars: Record<string, string> = { gym_name: gymName, login_url: loginUrl }
+  // brand_color resolves per-tenant from that gym's own primary_color, never
+  // a hardcoded value — this is what keeps one gym's brand out of another's
+  // emails when templates are shared from the canonical seed (see migration
+  // 20240101000134).
+  let templateVars: Record<string, string> = { gym_name: gymName, login_url: loginUrl, brand_color: brandColor }
   let clientEmail = ''
   let coachEmail  = ''
   let adminEmails: string[] = []

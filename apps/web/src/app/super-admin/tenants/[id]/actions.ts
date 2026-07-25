@@ -154,10 +154,15 @@ export async function createTenantAction(data: {
 
   if (error) return { error: error.message }
 
-  // Auto-seed default branch, email templates, and communication rules
+  // Auto-seed default branch, email templates, communication rules, and
+  // membership plans from the canonical ARGYM template. A failed seed used
+  // to leave a half-created tenant behind (no branch, no templates) with no
+  // visible error — the tenant row is rolled back here instead so admins
+  // either get a fully-provisioned gym or a clear error, never a silent gap.
   const seedResult = await db.rpc('seed_tenant_defaults', { p_tenant_id: tenant.id })
   if (seedResult.error) {
-    console.error('[createTenant] seed_tenant_defaults failed:', seedResult.error.message)
+    await db.from('tenants').delete().eq('id', tenant.id)
+    return { error: `No se pudo inicializar el gimnasio: ${seedResult.error.message}` }
   }
 
   revalidatePath('/super-admin/tenants')
