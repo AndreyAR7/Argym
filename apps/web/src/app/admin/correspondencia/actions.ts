@@ -1,12 +1,13 @@
 'use server'
 
 import { getSessionData } from '@/lib/auth/session'
+import { createAdminClient } from '@/lib/supabase/server-admin'
 
 // ── Shared HTML helpers ────────────────────────────────────────
 
 function emailWrap(body: string) {
   return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;max-width:580px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
-  <div style="background:#6C63FF;padding:24px 32px">
+  <div style="background:{{brand_color}};padding:24px 32px">
     <h1 style="margin:0;color:#ffffff;font-size:18px;font-weight:700;letter-spacing:-0.3px">{{gym_name}}</h1>
   </div>
   <div style="padding:32px">
@@ -27,7 +28,7 @@ function infoCard(rows: [string, string][]) {
 }
 
 function ctaButton(label: string, href = '{{login_url}}') {
-  return `<a href="${href}" style="display:inline-block;background:#6C63FF;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600">${label}</a>`
+  return `<a href="${href}" style="display:inline-block;background:{{brand_color}};color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600">${label}</a>`
 }
 
 // ── Default template definitions ────────────────────────────────
@@ -36,7 +37,7 @@ const DEFAULT_TEMPLATES: { name: string; subject: string; variables: string[]; b
   {
     name:      'Cita creada — pendiente de confirmación',
     subject:   '{{gym_name}}: Nueva cita programada — confirma tu asistencia',
-    variables: ['client_name', 'coach_name', 'appointment_date', 'appointment_time', 'gym_name', 'login_url'],
+    variables: ['client_name', 'coach_name', 'appointment_date', 'appointment_time', 'gym_name', 'login_url', 'brand_color'],
     body_html: emailWrap(`    <p style="margin:0 0 8px;font-size:15px;color:#374151">Hola <strong>{{client_name}}</strong>,</p>
     <p style="margin:0 0 4px;font-size:15px;color:#374151">Se ha programado una nueva cita para ti. Por favor <strong>confírmala</strong> desde la aplicación para que quede activa.</p>
     ${infoCard([['📅 Fecha', '{{appointment_date}}'], ['⏰ Hora', '{{appointment_time}}'], ['🏋️ Coach', '{{coach_name}}']])}
@@ -46,7 +47,7 @@ const DEFAULT_TEMPLATES: { name: string; subject: string; variables: string[]; b
   {
     name:      'Cita confirmada',
     subject:   '{{gym_name}}: ¡Tu cita está confirmada!',
-    variables: ['client_name', 'coach_name', 'appointment_date', 'appointment_time', 'gym_name'],
+    variables: ['client_name', 'coach_name', 'appointment_date', 'appointment_time', 'gym_name', 'brand_color'],
     body_html: emailWrap(`    <p style="margin:0 0 8px;font-size:15px;color:#374151">Hola <strong>{{client_name}}</strong>,</p>
     <p style="margin:0 0 4px;font-size:15px;color:#374151">¡Tu cita ha sido confirmada! Te esperamos puntualmente.</p>
     ${infoCard([['📅 Fecha', '{{appointment_date}}'], ['⏰ Hora', '{{appointment_time}}'], ['🏋️ Coach', '{{coach_name}}']])}
@@ -55,7 +56,7 @@ const DEFAULT_TEMPLATES: { name: string; subject: string; variables: string[]; b
   {
     name:      'Cita cancelada',
     subject:   '{{gym_name}}: Tu cita ha sido cancelada',
-    variables: ['client_name', 'coach_name', 'appointment_date', 'appointment_time', 'gym_name', 'login_url'],
+    variables: ['client_name', 'coach_name', 'appointment_date', 'appointment_time', 'gym_name', 'login_url', 'brand_color'],
     body_html: emailWrap(`    <p style="margin:0 0 8px;font-size:15px;color:#374151">Hola <strong>{{client_name}}</strong>,</p>
     <p style="margin:0 0 4px;font-size:15px;color:#374151">Tu cita ha sido cancelada. Si deseas programar una nueva sesión, puedes hacerlo desde la aplicación.</p>
     ${infoCard([['📅 Fecha', '{{appointment_date}}'], ['⏰ Hora', '{{appointment_time}}'], ['🏋️ Coach', '{{coach_name}}']])}
@@ -65,7 +66,7 @@ const DEFAULT_TEMPLATES: { name: string; subject: string; variables: string[]; b
   {
     name:      'Recordatorio de cita',
     subject:   '{{gym_name}}: Recordatorio — tienes una cita próximamente',
-    variables: ['client_name', 'coach_name', 'appointment_date', 'appointment_time', 'gym_name'],
+    variables: ['client_name', 'coach_name', 'appointment_date', 'appointment_time', 'gym_name', 'brand_color'],
     body_html: emailWrap(`    <p style="margin:0 0 8px;font-size:15px;color:#374151">Hola <strong>{{client_name}}</strong>,</p>
     <p style="margin:0 0 4px;font-size:15px;color:#374151">Este es un recordatorio de tu próxima cita. ¡Te esperamos!</p>
     ${infoCard([['📅 Fecha', '{{appointment_date}}'], ['⏰ Hora', '{{appointment_time}}'], ['🏋️ Coach', '{{coach_name}}']])}
@@ -74,13 +75,13 @@ const DEFAULT_TEMPLATES: { name: string; subject: string; variables: string[]; b
   {
     name:      'Plan adquirido',
     subject:   '{{gym_name}}: Comprobante de pago — {{plan_name}}',
-    variables: ['client_name', 'plan_name', 'billing_cycle', 'price', 'payment_date', 'end_date', 'invoice_number', 'payment_reference', 'gym_name', 'login_url'],
+    variables: ['client_name', 'plan_name', 'billing_cycle', 'price', 'payment_date', 'end_date', 'invoice_number', 'payment_reference', 'gym_name', 'login_url', 'brand_color'],
     body_html: emailWrap(`    <p style="margin:0 0 6px;font-size:15px;color:#374151">Hola <strong>{{client_name}}</strong>,</p>
     <p style="margin:0 0 20px;font-size:15px;color:#374151">Tu pago ha sido procesado exitosamente. A continuación encontrarás el comprobante de tu suscripción en <strong>{{gym_name}}</strong>.</p>
 
     <div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin:0 0 24px">
 
-      <div style="background:#6C63FF;padding:14px 20px">
+      <div style="background:{{brand_color}};padding:14px 20px">
         <p style="margin:0;font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:0.8px">Comprobante de pago</p>
         <p style="margin:4px 0 0;font-size:16px;font-weight:700;color:#ffffff">{{invoice_number}}</p>
       </div>
@@ -138,7 +139,7 @@ const DEFAULT_TEMPLATES: { name: string; subject: string; variables: string[]; b
   {
     name:      'Plan por vencer',
     subject:   '{{gym_name}}: Tu plan {{plan_name}} vence en 7 días',
-    variables: ['client_name', 'plan_name', 'billing_cycle', 'end_date', 'gym_name', 'login_url'],
+    variables: ['client_name', 'plan_name', 'billing_cycle', 'end_date', 'gym_name', 'login_url', 'brand_color'],
     body_html: emailWrap(`    <p style="margin:0 0 8px;font-size:15px;color:#374151">Hola <strong>{{client_name}}</strong>,</p>
     <p style="margin:0 0 20px;font-size:15px;color:#374151">Tu plan en <strong>{{gym_name}}</strong> está próximo a vencer. Renuévalo para no interrumpir tu progreso.</p>
     <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;overflow:hidden;margin:0 0 24px">
@@ -159,7 +160,7 @@ const DEFAULT_TEMPLATES: { name: string; subject: string; variables: string[]; b
   {
     name:      'Plan vencido',
     subject:   '{{gym_name}}: Tu plan {{plan_name}} ha vencido',
-    variables: ['client_name', 'plan_name', 'billing_cycle', 'end_date', 'gym_name', 'login_url'],
+    variables: ['client_name', 'plan_name', 'billing_cycle', 'end_date', 'gym_name', 'login_url', 'brand_color'],
     body_html: emailWrap(`    <p style="margin:0 0 8px;font-size:15px;color:#374151">Hola <strong>{{client_name}}</strong>,</p>
     <p style="margin:0 0 20px;font-size:15px;color:#374151">Tu plan en <strong>{{gym_name}}</strong> ha vencido. Renuévalo para seguir entrenando sin interrupciones.</p>
     <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;overflow:hidden;margin:0 0 24px">
@@ -180,7 +181,7 @@ const DEFAULT_TEMPLATES: { name: string; subject: string; variables: string[]; b
   {
     name:      'Promoción aplicada',
     subject:   '{{gym_name}}: Promoción aplicada exitosamente',
-    variables: ['client_name', 'gym_name', 'login_url'],
+    variables: ['client_name', 'gym_name', 'login_url', 'brand_color'],
     body_html: emailWrap(`    <p style="margin:0 0 8px;font-size:15px;color:#374151">Hola <strong>{{client_name}}</strong>,</p>
     <p style="margin:0 0 4px;font-size:15px;color:#374151">¡Tu promoción ha sido aplicada exitosamente! Disfruta de los beneficios especiales en <strong>{{gym_name}}</strong>.</p>
     <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:18px 20px;margin:20px 0">
@@ -193,7 +194,7 @@ const DEFAULT_TEMPLATES: { name: string; subject: string; variables: string[]; b
   {
     name:      'Cuenta aprobada',
     subject:   '{{gym_name}}: ¡Tu acceso ha sido aprobado!',
-    variables: ['client_name', 'gym_name', 'login_url'],
+    variables: ['client_name', 'gym_name', 'login_url', 'brand_color'],
     body_html: emailWrap(`    <p style="margin:0 0 8px;font-size:15px;color:#374151">Hola <strong>{{client_name}}</strong>,</p>
     <p style="margin:0 0 20px;font-size:15px;color:#374151">¡Excelentes noticias! Tu solicitud de acceso a <strong>{{gym_name}}</strong> ha sido revisada y aprobada. Ya puedes ingresar a la plataforma.</p>
     <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;overflow:hidden;margin:0 0 24px">
@@ -211,7 +212,7 @@ const DEFAULT_TEMPLATES: { name: string; subject: string; variables: string[]; b
   {
     name:      'Bienvenida al cliente',
     subject:   '¡Bienvenido(a) a {{gym_name}}! 🎉',
-    variables: ['client_name', 'gym_name', 'login_url'],
+    variables: ['client_name', 'gym_name', 'login_url', 'brand_color'],
     body_html: emailWrap(`    <p style="margin:0 0 8px;font-size:15px;color:#374151">Hola <strong>{{client_name}}</strong>,</p>
     <p style="margin:0 0 4px;font-size:15px;color:#374151">¡Bienvenido(a) a <strong>{{gym_name}}</strong>! Estamos muy contentos de que formes parte de nuestra comunidad. Aquí empieza tu transformación.</p>
     <div style="background:#f9fafb;border-radius:10px;padding:20px;margin:20px 0">
@@ -330,6 +331,27 @@ export async function saveSmtpAction(payload: {
   const session = await getSessionData()
   if (!session) return { ok: false, error: 'No autenticado' }
   const { supabase, tenantId } = session
+
+  // Warn if another tenant is already sending from this exact same account —
+  // RLS scopes the regular client to our own tenant, so this cross-tenant
+  // check needs the admin client. Two gyms sharing one SMTP identity means
+  // their clients receive emails from the same sender, indistinguishable by
+  // brand — exactly the mix-up that must never happen between gyms.
+  const adminClient = await createAdminClient()
+  const { data: usedElsewhere } = await adminClient
+    .from('smtp_configs')
+    .select('tenant_id, tenants(name)')
+    .eq('username', payload.username)
+    .neq('tenant_id', tenantId)
+    .maybeSingle()
+
+  if (usedElsewhere) {
+    const otherName = (usedElsewhere as any).tenants?.name ?? 'otro gimnasio'
+    return {
+      ok: false,
+      error: `La cuenta ${payload.username} ya está en uso por ${otherName}. Cada gimnasio necesita su propia cuenta de correo para que los clientes no reciban emails con el remitente de otro gimnasio.`,
+    }
+  }
 
   // Check if a config already exists for this tenant
   const { data: existing } = await supabase
