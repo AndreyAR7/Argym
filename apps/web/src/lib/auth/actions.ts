@@ -116,12 +116,25 @@ export async function changePasswordAction(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user?.email) return { error: 'No autenticado' }
 
+  // Repeated wrong guesses here are otherwise unlimited — the attacker is
+  // already authenticated (stolen session, shared device), so this isn't
+  // gated by login rate limits at all.
+  const { data: lockedUntil } = await supabase.rpc('check_password_change_lock')
+  if (lockedUntil) {
+    const minutes = Math.max(1, Math.ceil((new Date(lockedUntil as string).getTime() - Date.now()) / 60000))
+    return { error: `Demasiados intentos fallidos. Intenta de nuevo en ${minutes} minuto(s).` }
+  }
+
   // Verify current password
   const { error: verifyError } = await supabase.auth.signInWithPassword({
     email: user.email,
     password: currentPassword,
   })
-  if (verifyError) return { error: 'La contraseña actual es incorrecta' }
+  if (verifyError) {
+    await supabase.rpc('record_password_change_failure')
+    return { error: 'La contraseña actual es incorrecta' }
+  }
+  await supabase.rpc('clear_password_change_lock')
 
   const { error } = await supabase.auth.updateUser({ password: newPassword })
   if (error) return { error: error.message }

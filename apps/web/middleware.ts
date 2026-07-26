@@ -207,7 +207,7 @@ export async function middleware(request: NextRequest) {
     return freshResponse
   }
 
-  console.log(`[MW] TOTAL (slow path): ${Date.now() - t0}ms | ${pathname}`)
+  if (process.env.NODE_ENV !== 'production') console.log(`[MW] TOTAL (slow path): ${Date.now() - t0}ms | ${pathname}`)
   return supabaseResponse
 }
 

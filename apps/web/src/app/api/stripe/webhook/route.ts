@@ -61,6 +61,26 @@ export async function POST(req: NextRequest) {
 
   const supabase = await createAdminClient()
 
+  // Stripe delivers webhooks at-least-once and can redeliver the same
+  // event.id (retries, manual redelivery from the dashboard). Most cases
+  // below are idempotent via their own RPCs, but invoice.payment_failed
+  // just re-sends the customer-facing email every time — record the
+  // event once and skip everything else on a repeat delivery.
+  const { error: dedupeError } = await supabase
+    .from('stripe_webhook_events')
+    .insert({ event_id: event.id, event_type: event.type })
+
+  if (dedupeError) {
+    if (dedupeError.code === '23505') {
+      // Already processed this exact event — ack without reprocessing.
+      return NextResponse.json({ received: true, duplicate: true })
+    }
+    console.error('[webhook] event-dedupe insert failed:', dedupeError)
+    // Fail closed on an unexpected DB error so Stripe retries rather than
+    // silently dropping an event we never actually processed.
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+
   try {
     switch (event.type) {
 

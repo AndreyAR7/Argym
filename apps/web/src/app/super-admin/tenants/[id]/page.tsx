@@ -2,10 +2,38 @@ import { createClient } from '@supabase/supabase-js'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getSessionData } from '@/lib/auth/session'
-import { ArrowLeft, Circle, Users, UserCheck, Dumbbell, Calendar } from 'lucide-react'
+import { getStripe } from '@/lib/stripe'
+import { ArrowLeft, Circle, Users, UserCheck, Dumbbell, Calendar, Receipt, Download } from 'lucide-react'
 import { TenantToggleButton } from './tenant-toggle-button'
 import { PlatformSubscriptionForm } from './platform-subscription-form'
 import { BrandingForm } from './branding-form'
+
+interface PlatformInvoice {
+  id: string
+  amount_paid: number
+  currency: string
+  status: string | null
+  created: number
+  invoice_pdf: string | null
+}
+
+async function getPlatformInvoices(stripeCustomerId: string | null): Promise<PlatformInvoice[]> {
+  if (!stripeCustomerId) return []
+  try {
+    const { data } = await getStripe().invoices.list({ customer: stripeCustomerId, limit: 24 })
+    return data.map((inv) => ({
+      id: inv.id ?? '',
+      amount_paid: inv.amount_paid,
+      currency: inv.currency,
+      status: inv.status ?? null,
+      created: inv.created,
+      invoice_pdf: inv.invoice_pdf ?? null,
+    }))
+  } catch (err) {
+    console.error('[super-admin/tenants/:id] getPlatformInvoices failed:', err)
+    return []
+  }
+}
 
 export const metadata = { title: 'Detalle de gimnasio — ARGYM HQ' }
 
@@ -43,7 +71,7 @@ export default async function TenantDetailPage({
       .order('created_at', { ascending: false }),
     db
       .from('tenant_subscriptions')
-      .select('plan_id, status, billing_cycle, current_period_start, current_period_end')
+      .select('plan_id, status, billing_cycle, current_period_start, current_period_end, stripe_customer_id')
       .eq('tenant_id', tenantId)
       .maybeSingle(),
     db
@@ -61,6 +89,7 @@ export default async function TenantDetailPage({
   const platformSub  = subscriptionResult.data ?? null
   const platformPlans = plansResult.data ?? []
   const activeSub    = platformSub
+  const platformInvoices = await getPlatformInvoices(platformSub?.stripe_customer_id ?? null)
 
   // Count roles (profiles table has is_active flag but role is in user_roles)
   const totalMembers = profiles.length
@@ -189,6 +218,70 @@ export default async function TenantDetailPage({
             plans={platformPlans as any}
             subscription={platformSub as any}
           />
+        </div>
+      )}
+
+      {/* Platform billing history */}
+      {platformSub?.stripe_customer_id && (
+        <div
+          className="rounded-lg border overflow-hidden mb-6"
+          style={{ background: '#0d0d0d', borderColor: '#1f1f1f' }}
+        >
+          <div className="px-5 py-4 border-b flex items-center gap-2" style={{ borderColor: '#1f1f1f', background: '#111111' }}>
+            <Receipt size={14} style={{ color: '#737373' }} />
+            <h2 className="text-sm font-semibold" style={{ color: '#a3a3a3' }}>
+              Historial de facturación de plataforma
+            </h2>
+          </div>
+          {platformInvoices.length === 0 ? (
+            <p className="px-5 py-6 text-sm text-center" style={{ color: '#525252' }}>
+              Sin facturas registradas todavía.
+            </p>
+          ) : (
+            <ul className="divide-y" style={{ borderColor: '#1a1a1a' }}>
+              {platformInvoices.map((inv) => {
+                const isPaid = inv.status === 'paid'
+                const amount = (inv.amount_paid / 100).toLocaleString('es-CR', {
+                  style: 'currency', currency: inv.currency.toUpperCase(), minimumFractionDigits: 2,
+                })
+                return (
+                  <li key={inv.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm" style={{ color: '#e5e5e5' }}>
+                        {new Date(inv.created * 1000).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </p>
+                      <span
+                        className="inline-block mt-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded"
+                        style={{
+                          background: isPaid ? '#14532d33' : '#3a2a1533',
+                          color: isPaid ? '#22c55e' : '#f0b429',
+                        }}
+                      >
+                        {isPaid ? 'Pagada' : inv.status ?? '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold tabular-nums" style={{ color: '#e5e5e5' }}>
+                        {amount}
+                      </span>
+                      {inv.invoice_pdf && (
+                        <a
+                          href={inv.invoice_pdf}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Descargar PDF"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-md transition-colors hover:opacity-80"
+                          style={{ color: '#737373' }}
+                        >
+                          <Download size={13} />
+                        </a>
+                      )}
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </div>
       )}
 

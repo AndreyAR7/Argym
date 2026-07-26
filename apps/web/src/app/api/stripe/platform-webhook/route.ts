@@ -5,6 +5,56 @@ import Stripe from 'stripe'
 
 export const runtime = 'nodejs'
 
+// Resolves the tenant's admin emails and asks the notify-platform-billing
+// Edge Function to send the "trial ending" notice — this route itself can't
+// send SMTP directly (Render's free web-service tier blocks outbound SMTP
+// ports, same reason contact-us/test-smtp are Edge Functions).
+async function notifyTenantAdminsTrialEnding(
+  supabase: Awaited<ReturnType<typeof createAdminClient>>,
+  tenantId: string,
+  trialEnd: number | null,
+) {
+  try {
+    const [{ data: tenant }, { data: adminRole }] = await Promise.all([
+      supabase.from('tenants').select('name').eq('id', tenantId).single(),
+      supabase.from('roles').select('id').eq('name', 'admin').single(),
+    ])
+    if (!tenant || !adminRole) return
+
+    const { data: adminUserRoles } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('tenant_id', tenantId)
+      .eq('role_id', adminRole.id)
+
+    const adminIds = (adminUserRoles ?? []).map((r) => r.user_id as string)
+    if (adminIds.length === 0) return
+
+    const emails: string[] = []
+    for (const id of adminIds) {
+      const { data } = await supabase.auth.admin.getUserById(id)
+      if (data.user?.email) emails.push(data.user.email)
+    }
+    if (emails.length === 0) return
+
+    const { data: secret } = await supabase.rpc('get_webhook_secret')
+    if (!secret) return
+
+    await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/notify-platform-billing`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-webhook-secret': secret as string },
+      body: JSON.stringify({
+        event_type: 'trial_will_end',
+        tenant_name: tenant.name,
+        to_emails: emails,
+        trial_end_date: trialEnd ? new Date(trialEnd * 1000).toISOString() : null,
+      }),
+    })
+  } catch (err) {
+    console.error('[platform-webhook] notifyTenantAdminsTrialEnding failed:', err)
+  }
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.text()
   const sig  = req.headers.get('stripe-signature') ?? ''
@@ -142,7 +192,18 @@ export async function POST(req: NextRequest) {
       case 'customer.subscription.trial_will_end': {
         const stripeSub = event.data.object as Stripe.Subscription
         console.log('[platform-webhook] Trial ending soon for Stripe sub', stripeSub.id)
-        // TODO: send warning email to gym owner via send-communication
+
+        const { data: sub } = await supabase
+          .from('tenant_subscriptions')
+          .select('tenant_id')
+          .eq('stripe_sub_id', stripeSub.id)
+          .maybeSingle()
+
+        if (sub) {
+          await notifyTenantAdminsTrialEnding(supabase, sub.tenant_id, stripeSub.trial_end)
+        } else {
+          console.warn('[platform-webhook] No tenant_subscriptions row for trialing sub', stripeSub.id)
+        }
         break
       }
 

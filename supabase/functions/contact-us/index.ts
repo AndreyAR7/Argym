@@ -1,4 +1,5 @@
 import { createTransport } from 'npm:nodemailer'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 // Public landing-page "contact us" form. Unlike smtp_configs (per-tenant,
 // used to email a gym's own clients), this sends to the platform inbox
@@ -6,6 +7,16 @@ import { createTransport } from 'npm:nodemailer'
 // there is no tenant context here, the visitor hasn't signed up yet.
 // Runs as an edge function (not a Next.js route) for the same reason
 // test-smtp does: Render's free web-service tier blocks outbound SMTP ports.
+//
+// Rate-limited (per-IP + a global circuit breaker) since this is a public,
+// unauthenticated endpoint sending through one shared Gmail account — a
+// flood would get that account throttled or suspended by Google, taking
+// the contact form down for everyone, not just the abuser.
+
+const PER_IP_LIMIT = 3  // submissions per IP per hour
+const GLOBAL_LIMIT = 50 // submissions across all IPs per hour — catches a
+                         // flood distributed across many IPs, which a
+                         // per-IP cap alone would miss
 
 interface Payload {
   name: string
@@ -54,6 +65,37 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ ok: false, message: 'Uno de los campos excede el largo permitido.' }, 400)
   }
 
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+  )
+
+  const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim()
+    || req.headers.get('cf-connecting-ip')
+    || req.headers.get('x-real-ip')
+    || 'unknown'
+
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+
+  const [{ count: ipCount }, { count: globalCount }] = await Promise.all([
+    supabase
+      .from('contact_form_submissions')
+      .select('id', { count: 'exact', head: true })
+      .eq('ip', ip)
+      .gte('created_at', oneHourAgo),
+    supabase
+      .from('contact_form_submissions')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', oneHourAgo),
+  ])
+
+  if ((ipCount ?? 0) >= PER_IP_LIMIT) {
+    return jsonResponse({ ok: false, message: 'Demasiadas solicitudes desde tu conexión. Intenta de nuevo más tarde.' }, 429)
+  }
+  if ((globalCount ?? 0) >= GLOBAL_LIMIT) {
+    return jsonResponse({ ok: false, message: 'El formulario de contacto está temporalmente saturado. Intenta de nuevo más tarde.' }, 429)
+  }
+
   const gmailUser = Deno.env.get('CONTACT_GMAIL_USER')
   const gmailPass = Deno.env.get('CONTACT_GMAIL_APP_PASSWORD')
   if (!gmailUser || !gmailPass) {
@@ -88,6 +130,8 @@ Deno.serve(async (req: Request) => {
     const msg = err instanceof Error ? err.message : String(err)
     return jsonResponse({ ok: false, message: `Error al enviar: ${msg}` })
   }
+
+  await supabase.from('contact_form_submissions').insert({ ip, email })
 
   return jsonResponse({ ok: true })
 })
