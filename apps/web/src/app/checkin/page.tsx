@@ -6,6 +6,27 @@ import { CheckinResult } from './checkin-result'
 
 export const metadata = { title: 'Check-in' }
 
+// Fire-and-forget notice to the branch's /monitor screen (Realtime Broadcast,
+// not a DB table — the monitor has no user session, so this avoids needing
+// any RLS change to let an anonymous kiosk read gym_checkins directly).
+async function broadcastCheckin(branchId: string, payload: { name: string; avatar_url: string | null }) {
+  try {
+    await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/realtime/v1/api/broadcast`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        messages: [{ topic: `checkin-feed:branch:${branchId}`, event: 'checkin', payload, private: false }],
+      }),
+    })
+  } catch {
+    // Best-effort — never block the check-in confirmation on the monitor feed
+  }
+}
+
 interface Props {
   searchParams: Promise<{ branch?: string; t?: string }>
 }
@@ -122,6 +143,22 @@ export default async function CheckinPage({ searchParams }: Props) {
   }
 
   const result = Array.isArray(data) ? data[0] : data
+
+  // Only announce genuinely new check-ins — not repeat scans of an
+  // already-checked-in-today client — so the monitor doesn't show the same
+  // person twice for one visit.
+  if (result?.success) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, avatar_url')
+      .eq('id', user.id)
+      .single()
+
+    await broadcastCheckin(branch, {
+      name: profile?.full_name ?? 'Un cliente',
+      avatar_url: profile?.avatar_url ?? null,
+    })
+  }
 
   return <CheckinResult result={result} />
 }

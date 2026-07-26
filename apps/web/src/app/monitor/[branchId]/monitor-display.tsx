@@ -2,8 +2,21 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Maximize2, Minimize2, RefreshCw } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 const WINDOW_SECONDS = 300
+const FEED_DURATION_MS = 6000
+
+interface CheckinFeedItem {
+  id: number
+  name: string
+  avatar_url: string | null
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?'
+}
 
 interface Props {
   branchId:         string
@@ -29,7 +42,27 @@ export function MonitorDisplay({
   const [secondsLeft, setSecondsLeft] = useState(initialExpiresIn)
   const [refreshing,  setRefreshing]  = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [feed, setFeed] = useState<CheckinFeedItem[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const feedIdRef = useRef(0)
+
+  // Live "just checked in" toasts — Realtime Broadcast, sent by the checkin
+  // page right after a successful scan. This screen has no user session, so
+  // it only ever receives (never reads gym_checkins directly).
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`checkin-feed:branch:${branchId}`)
+      .on('broadcast', { event: 'checkin' }, ({ payload }) => {
+        const id = ++feedIdRef.current
+        const item = payload as { name: string; avatar_url: string | null }
+        setFeed(prev => [...prev, { id, name: item.name, avatar_url: item.avatar_url }])
+        setTimeout(() => setFeed(prev => prev.filter(f => f.id !== id)), FEED_DURATION_MS)
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [branchId])
 
   const refresh = useCallback(async () => {
     setRefreshing(true)
@@ -196,6 +229,32 @@ export function MonitorDisplay({
           {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
         </button>
       </footer>
+
+      {/* Live check-in feed */}
+      <div className="fixed bottom-8 right-8 z-20 flex flex-col-reverse gap-3 items-end pointer-events-none">
+        {feed.map((f) => (
+          <div
+            key={f.id}
+            className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex items-center gap-3 bg-white/10 backdrop-blur-md border border-emerald-400/30 rounded-2xl px-5 py-3 shadow-[0_0_40px_rgba(16,185,129,0.2)]"
+          >
+            {f.avatar_url ? (
+              <img
+                src={f.avatar_url}
+                alt={f.name}
+                className="w-12 h-12 rounded-full object-cover border-2 border-emerald-400/50 flex-shrink-0"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-emerald-500/20 border-2 border-emerald-400/50 flex items-center justify-center text-emerald-300 font-bold text-lg flex-shrink-0">
+                {initials(f.name)}
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-white font-bold text-lg leading-tight truncate max-w-[280px]">{f.name}</p>
+              <p className="text-emerald-400 text-sm font-medium">¡Bienvenido! &#10003;</p>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
