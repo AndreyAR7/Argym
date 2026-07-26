@@ -50,6 +50,12 @@ export async function registerPushToken(userId: string): Promise<void> {
       projectId ? { projectId } : undefined,
     );
 
+    // Conflict target is the token alone (globally unique — see migration
+    // 20240101000138): this device's token belongs to exactly one owner at
+    // a time, so registering it here always reassigns it to the current
+    // user, overwriting whichever account last registered it on this same
+    // device. Without this, a stale row under a previous user_id would
+    // keep receiving this device's pushes alongside the new user.
     await supabase
       .from('device_tokens')
       .upsert(
@@ -59,7 +65,7 @@ export async function registerPushToken(userId: string): Promise<void> {
           platform: Platform.OS as 'ios' | 'android',
           is_active: true,
         },
-        { onConflict: 'user_id,token' }
+        { onConflict: 'token' }
       );
   } catch {
     // Push not available in Expo Go (SDK 53+) — requires development build

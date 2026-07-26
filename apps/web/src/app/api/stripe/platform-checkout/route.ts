@@ -7,8 +7,15 @@ export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
   try {
+    // Platform billing (a tenant paying ARGYM) must be gated by the platform
+    // super-admin flag, not a gym's own admin role — `session.role` is a
+    // per-tenant role that any gym admin has, and this endpoint accepts an
+    // arbitrary tenantId in the request body, so checking role==='admin'
+    // let any gym admin manage billing for a tenant that isn't theirs.
+    // isPlatformAdmin is revalidated fresh via RPC on every request (see
+    // getSessionData), unlike role/tenantId which are cookie-cached.
     const session = await getSessionData()
-    if (!session || session.role !== 'admin') {
+    if (!session || !session.isPlatformAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

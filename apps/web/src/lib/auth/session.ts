@@ -29,34 +29,40 @@ export const getSessionData = cache(async () => {
   const isPlatformAdmin = !!isPA
 
   if (tenantId) {
-    // Fetch approval_status/full_name/avatar_url fresh from DB — never trust
-    // cached cookies for these: an admin can approve/reject mid-session, and
-    // avatar/name cookies were never invalidated on profile update, so a
-    // changed avatar kept showing the old one everywhere except the profile
-    // page itself (which always queried profiles directly).
+    // Fetch approval_status/full_name/avatar_url/tenant_id fresh from DB —
+    // never trust cached cookies for these. Same DB round-trip as before;
+    // tenant_id just rides along on it now. Without this, `x-tid` was only
+    // ever trusted from the cookie: it's httpOnly (unreadable from browser
+    // JS) but nothing stops a raw HTTP request from sending a
+    // hand-crafted `x-tid` cookie alongside a legitimate access token, and
+    // any server code authorizing off `session.tenantId` instead of RLS
+    // would silently act on the wrong tenant.
     const { data: freshProfile } = await supabase
       .from('profiles')
-      .select('approval_status, full_name, avatar_url')
+      .select('tenant_id, approval_status, full_name, avatar_url, is_active')
       .eq('id', user.id)
       .single()
 
+    const trustedTenantId = freshProfile?.tenant_id ?? tenantId
     const approvalStatus = freshProfile?.approval_status ?? ckStore.get('x-approval')?.value ?? 'pending'
     console.log(`[SESSION] fast path (cookies+approval): ${Date.now() - t0}ms total`)
 
     const fullName  = freshProfile?.full_name ?? ckStore.get('x-name')?.value ?? (user.user_metadata?.full_name as string) ?? null
     const avatarUrl = freshProfile?.avatar_url ?? ckStore.get('x-avatar')?.value ?? (user.user_metadata?.avatar_url as string) ?? null
+    const isActive  = freshProfile?.is_active ?? true
 
     return {
       supabase,
       user,
       profile: {
         id: user.id,
-        tenant_id: tenantId,
+        tenant_id: trustedTenantId,
         full_name: fullName,
         avatar_url: avatarUrl,
         approval_status: approvalStatus,
+        is_active: isActive,
       },
-      tenantId,
+      tenantId: trustedTenantId,
       role,
       isPlatformAdmin,
     }
@@ -67,7 +73,7 @@ export const getSessionData = cache(async () => {
   const [profileResult, roleResult] = await Promise.all([
     supabase
       .from('profiles')
-      .select('id, tenant_id, full_name, avatar_url, approval_status')
+      .select('id, tenant_id, full_name, avatar_url, approval_status, is_active')
       .eq('id', user.id)
       .single(),
     supabase
