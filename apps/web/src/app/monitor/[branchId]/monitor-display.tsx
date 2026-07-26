@@ -59,7 +59,12 @@ export function MonitorDisplay({
         setFeed(prev => [...prev, { id, name: item.name, avatar_url: item.avatar_url }])
         setTimeout(() => setFeed(prev => prev.filter(f => f.id !== id)), FEED_DURATION_MS)
       })
-      .subscribe()
+      .subscribe((status, err) => {
+        // TEMP diagnostic — confirms the kiosk's realtime connection is
+        // actually staying up rather than silently dropping. Remove once
+        // the feed is confirmed reliable in production.
+        console.log('[checkin-feed] status:', status, err ?? '')
+      })
 
     return () => { supabase.removeChannel(channel) }
   }, [branchId])
