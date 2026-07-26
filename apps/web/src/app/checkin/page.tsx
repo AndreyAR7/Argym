@@ -16,11 +16,6 @@ async function broadcastCheckin(branchId: string, payload: { name: string; avata
   const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/+$/, '')
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-  // TEMP diagnostic: mirrors the outcome to a fixed debug channel so delivery
-  // can be verified externally without needing server log access. Remove
-  // once the monitor feed is confirmed reliable in production.
-  const debugInfo: Record<string, unknown> = { base, branchId }
-
   try {
     const res = await fetch(`${base}/realtime/v1/api/broadcast`, {
       method: 'POST',
@@ -33,22 +28,13 @@ async function broadcastCheckin(branchId: string, payload: { name: string; avata
         messages: [{ topic: `checkin-feed:branch:${branchId}`, event: 'checkin', payload, private: false }],
       }),
     })
-    debugInfo.status = res.status
-    if (!res.ok) debugInfo.body = await res.text().catch(() => '')
+    if (!res.ok) {
+      console.error('[broadcastCheckin] non-OK response', res.status, await res.text().catch(() => ''))
+    }
   } catch (err) {
-    debugInfo.threw = err instanceof Error ? err.message : String(err)
-  }
-
-  try {
-    await fetch(`${base}/realtime/v1/api/broadcast`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: anonKey, Authorization: `Bearer ${anonKey}` },
-      body: JSON.stringify({
-        messages: [{ topic: 'debug:checkin-broadcast', event: 'debug', payload: debugInfo, private: false }],
-      }),
-    })
-  } catch {
-    // truly give up
+    // Best-effort — never block the check-in confirmation on the monitor feed,
+    // but log so a delivery failure is at least visible in server logs.
+    console.error('[broadcastCheckin] failed', err instanceof Error ? err.message : String(err))
   }
 }
 
