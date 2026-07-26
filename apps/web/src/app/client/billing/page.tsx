@@ -126,7 +126,7 @@ interface SubscriptionCardProps {
   planName: string
   price: number | null
   currency: string | null
-  billingInterval: string | null
+  billingCycle: string | null
   status: string
   periodEnd: string | null
   stripeConnected: boolean
@@ -136,7 +136,7 @@ function SubscriptionCard({
   planName,
   price,
   currency,
-  billingInterval,
+  billingCycle,
   status,
   periodEnd,
   stripeConnected,
@@ -164,9 +164,9 @@ function SubscriptionCard({
               <span className="text-xl font-bold text-[var(--color-foreground)]">
                 {Number(price).toLocaleString('es-CR')}
               </span>
-              {billingInterval && billingInterval !== 'one_time' && (
+              {billingCycle && billingCycle !== 'one_time' && (
                 <span className="text-xs text-[var(--color-muted-foreground)]">
-                  /{CYCLE_LABELS[billingInterval] ?? billingInterval}
+                  /{CYCLE_LABELS[billingCycle] ?? billingCycle}
                 </span>
               )}
             </div>
@@ -299,24 +299,24 @@ export default async function ClientBillingPage() {
 
   // Fetch active subscription + plan details
   const { data: subRow } = await supabase
-    .from('plan_subscriptions')
+    .from('user_subscriptions')
     .select(`
       id,
       status,
-      current_period_start,
-      current_period_end,
+      start_date,
+      end_date,
       stripe_subscription_id,
       plans!plan_id (
         id,
         name,
         price,
-        billing_interval,
+        billing_cycle,
         currency
       )
     `)
     .eq('user_id', user.id)
     .in('status', ['active', 'trial', 'past_due'])
-    .order('current_period_end', { ascending: false })
+    .order('end_date', { ascending: false })
     .limit(1)
     .maybeSingle()
 
@@ -347,9 +347,9 @@ export default async function ClientBillingPage() {
               planName={plan.name ?? 'Plan'}
               price={plan.price ?? null}
               currency={plan.currency ?? null}
-              billingInterval={plan.billing_interval ?? null}
+              billingCycle={plan.billing_cycle ?? null}
               status={subRow.status ?? 'expired'}
-              periodEnd={subRow.current_period_end ?? null}
+              periodEnd={subRow.end_date ?? null}
               stripeConnected={hasStripeLink}
             />
           ) : (

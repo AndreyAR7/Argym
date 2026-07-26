@@ -53,9 +53,9 @@ async function resolveStripeCustomerId(
     return { customerId: profile.stripe_customer_id }
   }
 
-  // 2. Check plan_subscriptions for a stripe_subscription_id
+  // 2. Check user_subscriptions for a stripe_subscription_id
   const { data: sub } = await supabase
-    .from('plan_subscriptions')
+    .from('user_subscriptions')
     .select('stripe_subscription_id')
     .eq('user_id', userId)
     .not('stripe_subscription_id', 'is', null)

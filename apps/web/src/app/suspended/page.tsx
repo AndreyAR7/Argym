@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { logoutAction } from '@/lib/auth/actions'
 
 export const metadata = { title: 'Cuenta suspendida — ARGYM' }
 
@@ -55,7 +56,7 @@ export default async function SuspendedPage() {
           >
             Contactar soporte de ARGYM
           </a>
-          <form action="/auth/signout" method="POST">
+          <form action={logoutAction}>
             <button
               type="submit"
               className="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"

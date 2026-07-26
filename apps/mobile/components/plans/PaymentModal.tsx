@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Modal, View, Text, TouchableOpacity, TextInput,
-  StyleSheet, Animated, KeyboardAvoidingView, Platform,
-  ScrollView, ActivityIndicator,
+  Modal, View, Text, TouchableOpacity,
+  StyleSheet, Animated, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
 import type { Plan, Promotion } from '@/store/plans.store';
@@ -15,7 +14,7 @@ interface Props {
   onConfirm: (plan: Plan, promoId?: string) => Promise<void>;
 }
 
-type Step = 'summary' | 'card' | 'processing' | 'success';
+type Step = 'summary' | 'processing';
 
 function discountedPrice(plan: Plan, promo?: Promotion | null): number | null {
   if (!promo || promo.type !== 'discount') return null;
@@ -25,33 +24,18 @@ function discountedPrice(plan: Plan, promo?: Promotion | null): number | null {
   return null;
 }
 
-function formatCardNumber(raw: string): string {
-  return raw.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
-}
-
-function formatExpiry(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 4);
-  if (digits.length > 2) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return digits;
-}
-
 export function PaymentModal({ plan, promotion, visible, onClose, onConfirm }: Props) {
   const T = useTheme();
   const [step, setStep] = useState<Step>('summary');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardName, setCardName] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [cvv, setCvv] = useState('');
   const [error, setError] = useState('');
 
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
-  const checkAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
       setStep('summary');
-      setCardNumber(''); setCardName(''); setExpiry(''); setCvv(''); setError('');
+      setError('');
       Animated.parallel([
         Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }),
         Animated.timing(opacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
@@ -59,7 +43,6 @@ export function PaymentModal({ plan, promotion, visible, onClose, onConfirm }: P
     } else {
       scaleAnim.setValue(0.85);
       opacityAnim.setValue(0);
-      checkAnim.setValue(0);
     }
   }, [visible]);
 
@@ -68,28 +51,22 @@ export function PaymentModal({ plan, promotion, visible, onClose, onConfirm }: P
   const finalPrice = discountedPrice(plan, promotion) ?? plan.price;
   const hasDiscount = finalPrice < plan.price;
 
-  const handlePayPress = () => {
+  const handleConfirmPress = async () => {
     setError('');
-    const digits = cardNumber.replace(/\s/g, '');
-    if (digits.length < 16) { setError('Número de tarjeta inválido.'); return; }
-    if (!cardName.trim()) { setError('Ingresa el nombre del titular.'); return; }
-    const expiryParts = expiry.split('/');
-    if (expiryParts.length !== 2 || expiryParts[0].length !== 2 || expiryParts[1].length !== 2) {
-      setError('Fecha de vencimiento inválida (MM/AA).'); return;
-    }
-    if (cvv.length < 3) { setError('CVV inválido.'); return; }
-
     setStep('processing');
-    setTimeout(async () => {
-      try {
-        await onConfirm(plan, promotion?.id);
-        setStep('success');
-        Animated.spring(checkAnim, { toValue: 1, useNativeDriver: true, bounciness: 14 }).start();
-      } catch (e: any) {
-        setError(e.message ?? 'Error al procesar el pago.');
-        setStep('card');
-      }
-    }, 2000);
+    try {
+      // Opens the real Stripe Checkout in an external browser and awaits its
+      // close — the subscription itself is created by the Stripe webhook,
+      // not by this modal, so there's nothing genuine to confirm here once
+      // the browser closes. Just dismiss and let the plans screen's
+      // subscription refetch (already triggered inside onConfirm) reflect
+      // whatever state Stripe/the webhook actually reached.
+      await onConfirm(plan, promotion?.id);
+      onClose();
+    } catch (e: any) {
+      setError(e.message ?? 'Error al procesar el pago.');
+      setStep('summary');
+    }
   };
 
   return (
@@ -132,134 +109,33 @@ export function PaymentModal({ plan, promotion, visible, onClose, onConfirm }: P
                 </View>
               </View>
 
-              <View style={[styles.simNote, { backgroundColor: T.orange + '18', borderColor: T.orange + '44' }]}>
-                <Text style={{ fontSize: 12, color: T.orange, textAlign: 'center' }}>
-                  Pago simulado — no se realizará ningún cargo real.
+              <View style={[styles.simNote, { backgroundColor: T.accent + '18', borderColor: T.accent + '44' }]}>
+                <Text style={{ fontSize: 12, color: T.accent, textAlign: 'center' }}>
+                  Serás redirigido a Stripe para completar el pago de forma segura.
                 </Text>
               </View>
+
+              {error ? (
+                <Text style={{ color: T.red, fontSize: 13, marginBottom: 12, textAlign: 'center' }}>{error}</Text>
+              ) : null}
 
               <View style={styles.actions}>
                 <TouchableOpacity onPress={onClose} style={[styles.btn, { borderColor: T.border, borderWidth: 1 }]}>
                   <Text style={{ color: T.text, fontWeight: '600' }}>Cancelar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setStep('card')} style={[styles.btn, { backgroundColor: T.accent }]}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>Continuar</Text>
+                <TouchableOpacity onPress={handleConfirmPress} style={[styles.btn, { backgroundColor: T.accent }]}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>Continuar a pago</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
-          )}
-
-          {/* ── STEP: card ── */}
-          {step === 'card' && (
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                <Text style={[styles.stepLabel, { color: T.textMuted }]}>DATOS DE PAGO</Text>
-                <Text style={[styles.planName, { color: T.text }]}>
-                  {plan.currency} {finalPrice.toLocaleString('es-CR', { minimumFractionDigits: 0 })}
-                </Text>
-
-                <View style={[styles.cardVisual, { backgroundColor: T.accent }]}>
-                  <Text style={styles.cardChip}>▪▪ ▪▪</Text>
-                  <Text style={styles.cardNumberDisplay}>
-                    {cardNumber || '•••• •••• •••• ••••'}
-                  </Text>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={styles.cardLabel}>{cardName || 'TITULAR'}</Text>
-                    <Text style={styles.cardLabel}>{expiry || 'MM/AA'}</Text>
-                  </View>
-                </View>
-
-                <Text style={[styles.fieldLabel, { color: T.textSecondary }]}>Número de tarjeta</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                  value={cardNumber}
-                  onChangeText={(t) => setCardNumber(formatCardNumber(t))}
-                  placeholder="1234 5678 9012 3456"
-                  placeholderTextColor={T.textMuted}
-                  keyboardType="numeric"
-                  maxLength={19}
-                />
-                <Text style={[styles.fieldLabel, { color: T.textSecondary }]}>Nombre en la tarjeta</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                  value={cardName}
-                  onChangeText={(t) => setCardName(t.toUpperCase())}
-                  placeholder="NOMBRE APELLIDO"
-                  placeholderTextColor={T.textMuted}
-                  autoCapitalize="characters"
-                />
-                <View style={{ flexDirection: 'row', gap: 12 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.fieldLabel, { color: T.textSecondary }]}>Vencimiento</Text>
-                    <TextInput
-                      style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                      value={expiry}
-                      onChangeText={(t) => setExpiry(formatExpiry(t))}
-                      placeholder="MM/AA"
-                      placeholderTextColor={T.textMuted}
-                      keyboardType="numeric"
-                      maxLength={5}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.fieldLabel, { color: T.textSecondary }]}>CVV</Text>
-                    <TextInput
-                      style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
-                      value={cvv}
-                      onChangeText={(t) => setCvv(t.replace(/\D/g, '').slice(0, 4))}
-                      placeholder="•••"
-                      placeholderTextColor={T.textMuted}
-                      keyboardType="numeric"
-                      secureTextEntry
-                      maxLength={4}
-                    />
-                  </View>
-                </View>
-
-                {error ? (
-                  <Text style={{ color: T.red, fontSize: 13, marginBottom: 12, textAlign: 'center' }}>{error}</Text>
-                ) : null}
-
-                <View style={styles.actions}>
-                  <TouchableOpacity onPress={() => { setStep('summary'); setError(''); }}
-                    style={[styles.btn, { borderColor: T.border, borderWidth: 1 }]}>
-                    <Text style={{ color: T.text, fontWeight: '600' }}>Atrás</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={handlePayPress} style={[styles.btn, { backgroundColor: T.accent }]}>
-                    <Text style={{ color: '#fff', fontWeight: '700' }}>Pagar ahora</Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={{ height: 16 }} />
-              </ScrollView>
-            </KeyboardAvoidingView>
           )}
 
           {/* ── STEP: processing ── */}
           {step === 'processing' && (
             <View style={styles.centeredStep}>
               <ActivityIndicator size="large" color={T.accent} style={{ marginBottom: 20 }} />
-              <Text style={[styles.processingText, { color: T.text }]}>Procesando pago...</Text>
+              <Text style={[styles.processingText, { color: T.text }]}>Abriendo pago seguro...</Text>
               <Text style={[styles.processingSubtext, { color: T.textMuted }]}>Por favor espera</Text>
-            </View>
-          )}
-
-          {/* ── STEP: success ── */}
-          {step === 'success' && (
-            <View style={styles.centeredStep}>
-              <Animated.View style={[styles.successCircle, {
-                backgroundColor: T.green + '22',
-                transform: [{ scale: checkAnim }],
-              }]}>
-                <Text style={{ fontSize: 48 }}>✓</Text>
-              </Animated.View>
-              <Text style={[styles.successTitle, { color: T.text }]}>¡Pago exitoso!</Text>
-              <Text style={[styles.successSub, { color: T.textSecondary }]}>
-                Te suscribiste al plan{'\n'}
-                <Text style={{ fontWeight: '800', color: T.accent }}>{plan.name}</Text>
-              </Text>
-              <TouchableOpacity onPress={onClose} style={[styles.btn, { backgroundColor: T.accent, marginTop: 28, alignSelf: 'stretch' }]}>
-                <Text style={{ color: '#fff', fontWeight: '700', textAlign: 'center' }}>Listo</Text>
-              </TouchableOpacity>
             </View>
           )}
         </Animated.View>
@@ -299,27 +175,7 @@ const styles = StyleSheet.create({
   simNote: { borderRadius: 10, borderWidth: 1, padding: 10, marginBottom: 20 },
   actions: { flexDirection: 'row', gap: 12 },
   btn: { flex: 1, borderRadius: 13, paddingVertical: 14, alignItems: 'center' },
-  cardVisual: {
-    borderRadius: 16, padding: 20, marginBottom: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2, shadowRadius: 8, elevation: 6,
-  },
-  cardChip: { color: 'rgba(255,255,255,0.7)', fontSize: 18, marginBottom: 16 },
-  cardNumberDisplay: { color: '#fff', fontSize: 18, fontWeight: '700', letterSpacing: 2, marginBottom: 16 },
-  cardLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600', letterSpacing: 1 },
-  fieldLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
-  input: {
-    borderWidth: 1, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 13,
-    fontSize: 15, marginBottom: 16,
-  },
   centeredStep: { alignItems: 'center', paddingVertical: 32 },
   processingText: { fontSize: 18, fontWeight: '700', marginBottom: 6 },
   processingSubtext: { fontSize: 14 },
-  successCircle: {
-    width: 100, height: 100, borderRadius: 50,
-    justifyContent: 'center', alignItems: 'center', marginBottom: 20,
-  },
-  successTitle: { fontSize: 24, fontWeight: '900', marginBottom: 10 },
-  successSub: { fontSize: 15, textAlign: 'center', lineHeight: 22 },
 });
