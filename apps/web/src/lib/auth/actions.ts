@@ -78,7 +78,7 @@ export async function logoutAction() {
   // previous user's cached tenant/role until the fast path happened to
   // refresh them, which only happens when these cookies are absent.
   const cookieStore = await cookies()
-  for (const name of ['x-tid', 'x-role', 'x-approval', 'x-active', 'x-name', 'x-avatar']) {
+  for (const name of ['x-tid', 'x-role', 'x-approval', 'x-tenant-active', 'x-name', 'x-avatar']) {
     cookieStore.delete(name)
   }
 

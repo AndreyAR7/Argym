@@ -340,16 +340,19 @@ export async function saveSmtpAction(payload: {
   const adminClient = await createAdminClient()
   const { data: usedElsewhere } = await adminClient
     .from('smtp_configs')
-    .select('tenant_id, tenants(name)')
+    .select('tenant_id')
     .eq('username', payload.username)
     .neq('tenant_id', tenantId)
     .maybeSingle()
 
   if (usedElsewhere) {
-    const otherName = (usedElsewhere as any).tenants?.name ?? 'otro gimnasio'
+    // Never name the other tenant here — this action only requires being
+    // logged in as *some* gym's admin, not a platform admin, so revealing
+    // which other gym owns the account would leak that gym's existence
+    // (and that it uses this platform) to an unrelated admin.
     return {
       ok: false,
-      error: `La cuenta ${payload.username} ya está en uso por ${otherName}. Cada gimnasio necesita su propia cuenta de correo para que los clientes no reciban emails con el remitente de otro gimnasio.`,
+      error: `La cuenta ${payload.username} ya está en uso por otro gimnasio en la plataforma. Cada gimnasio necesita su propia cuenta de correo para que los clientes no reciban emails con el remitente de otro gimnasio.`,
     }
   }
 

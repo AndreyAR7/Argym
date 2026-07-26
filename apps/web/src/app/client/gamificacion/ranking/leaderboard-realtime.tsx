@@ -211,37 +211,27 @@ export function LeaderboardRealtime({ initialRows, tenantId, periodo }: Props) {
   }, [initialRows])
 
   // ── Realtime subscription ──────────────────────────────────────
+  // Broadcast, not postgres_changes: user_game_stats_own_select only lets a
+  // client see their own row via RLS, and Realtime evaluates postgres_changes
+  // per-subscriber against that same RLS — so a plain postgres_changes
+  // subscription here never actually delivers another member's XP change,
+  // no matter how it's filtered. A DB trigger (migration 000141) broadcasts a
+  // non-RLS-gated "someone changed" ping on this same topic whenever any
+  // user_game_stats row in the tenant changes; we just refetch on it.
   useEffect(() => {
     const channel = supabase
       .channel(`leaderboard:tenant:${tenantId}`)
       .on(
-        'postgres_changes',
-        {
-          event:  'UPDATE',
-          schema: 'public',
-          table:  'user_game_stats',
-          // Note: tenant_id filter on user_game_stats — fires for any member's XP change
-        },
-        (payload) => {
-          const changedUserId = payload.new.user_id as string
+        'broadcast',
+        { event: 'update' },
+        (msg) => {
+          const changedUserId = msg.payload?.user_id as string | undefined
 
           // Debounce: if multiple users gain XP at once (batch checkin etc.) wait 600ms
           if (debounceRef.current) clearTimeout(debounceRef.current)
           debounceRef.current = setTimeout(() => {
             refresh(changedUserId)
           }, 600)
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event:  'INSERT',
-          schema: 'public',
-          table:  'user_game_stats',
-        },
-        () => {
-          if (debounceRef.current) clearTimeout(debounceRef.current)
-          debounceRef.current = setTimeout(() => refresh(), 600)
         },
       )
       .subscribe((status) => {

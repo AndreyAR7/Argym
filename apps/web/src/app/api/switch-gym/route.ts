@@ -48,7 +48,14 @@ export async function GET(request: NextRequest) {
     path: '/',
   }
   redirectResponse.cookies.set('x-tid', tenantId, cookieOpts)
-  redirectResponse.cookies.set('x-active', String(tenantIsActive ?? true), cookieOpts)
+  redirectResponse.cookies.set('x-tenant-active', String(tenantIsActive ?? true), cookieOpts)
+  // This RPC only ever succeeds for a platform admin (checked inside
+  // switch_platform_admin_tenant) and always lands on /admin/dashboard — the
+  // role in the target tenant is always 'admin' by definition of this flow,
+  // never whatever role was cached from the tenant they switched away from.
+  // Without this, x-role kept its stale pre-switch value indefinitely, since
+  // nothing else in the fast path ever re-derives it once cached.
+  redirectResponse.cookies.set('x-role', 'admin', cookieOpts)
 
   return redirectResponse
 }

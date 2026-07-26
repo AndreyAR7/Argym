@@ -17,7 +17,7 @@ export const planSchema = z.object({
   currency: z.string().length(3, 'Código de moneda inválido (ej: CRC, USD)').default('CRC'),
   is_active: z.boolean().default(true),
   features: z.array(z.string().min(1)).default([]),
-  plan_tier: z.enum(['basic', 'medium', 'premium']).optional(),
+  plan_tier: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
   branch_id: z.string().uuid().optional().or(z.literal('')),
 });
 

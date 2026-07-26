@@ -226,6 +226,7 @@ Deno.serve(async (req: Request) => {
     .eq('tenant_id', tenant_id)
     .eq('status', 'failed')
     .not('body_html', 'is', null)
+    .lt('retry_count', 10) // same cap the single-resend path already enforces
     .order('created_at', { ascending: false })
     .limit(50)
 

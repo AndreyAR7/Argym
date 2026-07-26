@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/reset-password', '/pending-approval', '/auth/', '/suspended', '/terms', '/privacy']
+const PUBLIC_PATHS = ['/login', '/register', '/forgot-password', '/reset-password', '/pending-approval', '/auth/', '/suspended', '/account-suspended', '/terms', '/privacy']
 
 // Parse the JWT expiry without a network call
 function getJwtExpiry(token: string): number {
@@ -33,7 +33,10 @@ export async function middleware(request: NextRequest) {
   const cachedTenantId = request.cookies.get('x-tid')?.value
   const cachedRole     = request.cookies.get('x-role')?.value
 
-  const cachedActive = request.cookies.get('x-active')?.value
+  // Named distinctly from profile.is_active (session.ts) — this cookie only
+  // ever means tenants.is_active (whole-gym suspension). The two used to
+  // share the name "x-active", which read as if they were the same flag.
+  const cachedActive = request.cookies.get('x-tenant-active')?.value
 
   if (cachedTenantId && cachedRole) {
     // Find the access token cookie (named 'sb-*-auth-token' or similar)
@@ -167,7 +170,7 @@ export async function middleware(request: NextRequest) {
       if (fullName) supabaseResponse.cookies.set('x-name', fullName, { ...cookieOpts, httpOnly: false })
       if (avatarUrl) supabaseResponse.cookies.set('x-avatar', avatarUrl, { ...cookieOpts, httpOnly: false })
       supabaseResponse.cookies.set('x-approval', approvalStatus, cookieOpts)
-      supabaseResponse.cookies.set('x-active', String(tenantIsActive), cookieOpts)
+      supabaseResponse.cookies.set('x-tenant-active', String(tenantIsActive), cookieOpts)
 
       // Redirect to suspended if tenant inactive (slow path)
       if (!tenantIsActive && !isPublicPath && pathname !== '/suspended') {

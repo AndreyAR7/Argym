@@ -91,16 +91,29 @@ export async function getTenantMembersAction(): Promise<
 
   const { supabase, tenantId, user } = session
 
+  // profiles has no user_id/role columns (that was querying columns that
+  // don't exist, so this list was silently always empty) — role lives on
+  // user_roles/roles, and the profile's own PK is `id`, not `user_id`.
+  const { data: roleRows } = await supabase
+    .from('user_roles')
+    .select('user_id, roles(name)')
+    .eq('tenant_id', tenantId)
+
+  const clientIds = (roleRows ?? [])
+    .filter((r) => (r.roles as unknown as { name: string } | null)?.name === 'client')
+    .map((r) => r.user_id as string)
+    .filter((id) => id !== user.id)
+
+  if (clientIds.length === 0) return []
+
   const { data } = await supabase
     .from('profiles')
-    .select('user_id, full_name')
-    .eq('tenant_id', tenantId)
-    .eq('role', 'client')
-    .neq('user_id', user.id)
+    .select('id, full_name')
+    .in('id', clientIds)
     .order('full_name')
 
   return (data ?? []).map((p) => ({
-    id: p.user_id as string,
+    id: p.id as string,
     full_name: (p.full_name as string) ?? 'Sin nombre',
   }))
 }
@@ -121,6 +134,22 @@ export async function createChallengeAction(params: {
   }
 
   const { supabase, tenantId, user } = session
+
+  // challenge_participants only references profiles globally — nothing
+  // stops opponentId from belonging to a different tenant unless checked
+  // here explicitly before inviting them.
+  if (params.challengeType === '1v1' && params.opponentId) {
+    const { data: opponentProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', params.opponentId)
+      .eq('tenant_id', tenantId)
+      .maybeSingle()
+
+    if (!opponentProfile) {
+      return { success: false, error: 'El oponente seleccionado no pertenece a tu gimnasio.' }
+    }
+  }
 
   let expiresAt: string | null = null
   if (params.expiresIn) {
