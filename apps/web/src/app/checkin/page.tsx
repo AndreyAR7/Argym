@@ -10,20 +10,45 @@ export const metadata = { title: 'Check-in' }
 // not a DB table — the monitor has no user session, so this avoids needing
 // any RLS change to let an anonymous kiosk read gym_checkins directly).
 async function broadcastCheckin(branchId: string, payload: { name: string; avatar_url: string | null }) {
+  // Strip any trailing slash — a raw template-string URL doesn't get the
+  // normalization supabase-js's client constructor does internally, so a
+  // trailing slash here would silently 404 against a double slash.
+  const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/+$/, '')
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+  // TEMP diagnostic: mirrors the outcome to a fixed debug channel so delivery
+  // can be verified externally without needing server log access. Remove
+  // once the monitor feed is confirmed reliable in production.
+  const debugInfo: Record<string, unknown> = { base, branchId }
+
   try {
-    await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/realtime/v1/api/broadcast`, {
+    const res = await fetch(`${base}/realtime/v1/api/broadcast`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
       },
       body: JSON.stringify({
         messages: [{ topic: `checkin-feed:branch:${branchId}`, event: 'checkin', payload, private: false }],
       }),
     })
+    debugInfo.status = res.status
+    if (!res.ok) debugInfo.body = await res.text().catch(() => '')
+  } catch (err) {
+    debugInfo.threw = err instanceof Error ? err.message : String(err)
+  }
+
+  try {
+    await fetch(`${base}/realtime/v1/api/broadcast`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+      body: JSON.stringify({
+        messages: [{ topic: 'debug:checkin-broadcast', event: 'debug', payload: debugInfo, private: false }],
+      }),
+    })
   } catch {
-    // Best-effort — never block the check-in confirmation on the monitor feed
+    // truly give up
   }
 }
 
