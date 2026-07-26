@@ -49,19 +49,43 @@ export function MonitorDisplay({
   // Live "just checked in" toasts — Realtime Broadcast, sent by the checkin
   // page right after a successful scan. This screen has no user session, so
   // it only ever receives (never reads gym_checkins directly).
+  //
+  // This runs on an unattended kiosk display left open for hours/days, so a
+  // dropped websocket (flaky network, browser backgrounding the tab, etc.)
+  // must self-heal — a closed/errored channel can't be resubscribed in
+  // place, it needs a fresh channel instance, so on CLOSED/TIMED_OUT/
+  // CHANNEL_ERROR we tear down and resubscribe after a short delay.
   useEffect(() => {
     const supabase = createClient()
-    const channel = supabase
-      .channel(`checkin-feed:branch:${branchId}`)
-      .on('broadcast', { event: 'checkin' }, ({ payload }) => {
-        const id = ++feedIdRef.current
-        const item = payload as { name: string; avatar_url: string | null }
-        setFeed(prev => [...prev, { id, name: item.name, avatar_url: item.avatar_url }])
-        setTimeout(() => setFeed(prev => prev.filter(f => f.id !== id)), FEED_DURATION_MS)
-      })
-      .subscribe()
+    let cancelled = false
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
 
-    return () => { supabase.removeChannel(channel) }
+    function connect() {
+      channel = supabase
+        .channel(`checkin-feed:branch:${branchId}`)
+        .on('broadcast', { event: 'checkin' }, ({ payload }) => {
+          const id = ++feedIdRef.current
+          const item = payload as { name: string; avatar_url: string | null }
+          setFeed(prev => [...prev, { id, name: item.name, avatar_url: item.avatar_url }])
+          setTimeout(() => setFeed(prev => prev.filter(f => f.id !== id)), FEED_DURATION_MS)
+        })
+        .subscribe((status) => {
+          if (cancelled) return
+          if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            if (channel) supabase.removeChannel(channel)
+            retryTimer = setTimeout(connect, 3000)
+          }
+        })
+    }
+
+    connect()
+
+    return () => {
+      cancelled = true
+      if (retryTimer) clearTimeout(retryTimer)
+      if (channel) supabase.removeChannel(channel)
+    }
   }, [branchId])
 
   const refresh = useCallback(async () => {
