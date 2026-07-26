@@ -13,13 +13,21 @@ import { supabase } from '@/lib/supabase';
 
 type Status = 'scanning' | 'loading' | 'success' | 'already' | 'error';
 
+interface CheckinBadge {
+  id: string;
+  slug: string;
+  name: string;
+  icon: string;
+  rarity: string;
+}
+
 interface CheckinData {
   success: boolean;
   error?: string;
   already_checked_in: boolean;
   xp_earned: number;
   new_streak: number;
-  new_badges: string[];
+  new_badges: CheckinBadge[];
 }
 
 export default function CheckinScanScreen() {
@@ -195,7 +203,7 @@ export default function CheckinScanScreen() {
             ) : null}
             {checkinData?.new_badges?.length ? (
               <Text style={{ color: T.textSecondary, fontSize: 13, marginBottom: 4 }}>
-                🏅 {checkinData.new_badges.join(', ')}
+                🏅 {checkinData.new_badges.map((b) => b.name).join(', ')}
               </Text>
             ) : null}
             <TouchableOpacity onPress={() => router.back()} style={[styles.btn, { backgroundColor: T.accent, marginTop: 20 }]}>

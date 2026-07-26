@@ -3,12 +3,20 @@
 import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 
+interface CheckinBadge {
+  id: string
+  slug: string
+  name: string
+  icon: string
+  rarity: string
+}
+
 interface CheckinResultData {
   success: boolean
   already_checked_in: boolean
   xp_earned: number
   new_streak: number
-  new_badges: string[]
+  new_badges: CheckinBadge[]
   new_level: number
   error?: string
 }
@@ -242,10 +250,10 @@ export function CheckinResult({ result }: Props) {
                   <div className="flex flex-wrap gap-1.5">
                     {result.new_badges.map((badge) => (
                       <span
-                        key={badge}
+                        key={badge.id}
                         className="rounded-full bg-amber-500/15 border border-amber-500/25 px-3 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300"
                       >
-                        {badge}
+                        {badge.icon} {badge.name}
                       </span>
                     ))}
                   </div>
