@@ -1,16 +1,20 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Maximize2, Minimize2, RefreshCw } from 'lucide-react'
+import { Maximize2, Minimize2, RefreshCw, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const WINDOW_SECONDS = 300
-const FEED_DURATION_MS = 6000
+// Visible time + exit-animation time ≈ 2s total, per spec: ok to cover the
+// QR briefly, but the interruption to a scanning client must stay short.
+const FEED_VISIBLE_MS = 1700
+const FEED_EXIT_MS = 350
 
 interface CheckinFeedItem {
   id: number
   name: string
   avatar_url: string | null
+  leaving?: boolean
 }
 
 function initials(name: string): string {
@@ -68,7 +72,10 @@ export function MonitorDisplay({
           const id = ++feedIdRef.current
           const item = payload as { name: string; avatar_url: string | null }
           setFeed(prev => [...prev, { id, name: item.name, avatar_url: item.avatar_url }])
-          setTimeout(() => setFeed(prev => prev.filter(f => f.id !== id)), FEED_DURATION_MS)
+          setTimeout(() => {
+            setFeed(prev => prev.map(f => (f.id === id ? { ...f, leaving: true } : f)))
+            setTimeout(() => setFeed(prev => prev.filter(f => f.id !== id)), FEED_EXIT_MS)
+          }, FEED_VISIBLE_MS)
         })
         .subscribe((status) => {
           if (cancelled) return
@@ -254,31 +261,55 @@ export function MonitorDisplay({
         </button>
       </footer>
 
-      {/* Live check-in feed */}
-      <div className="fixed bottom-8 right-8 z-20 flex flex-col-reverse gap-3 items-end pointer-events-none">
-        {feed.map((f) => (
+      {/* Live check-in feed — one big centered success modal at a time.
+           Briefly covering the QR is intentional (spec: ok up to ~2s) so the
+           moment reads as a clear, celebratory confirmation, not a corner toast. */}
+      {feed.length > 0 && (() => {
+        const f = feed[0]
+        return (
           <div
             key={f.id}
-            className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex items-center gap-3 bg-white/10 backdrop-blur-md border border-emerald-400/30 rounded-2xl px-5 py-3 shadow-[0_0_40px_rgba(16,185,129,0.2)]"
+            className={`fixed inset-0 z-30 flex items-center justify-center bg-black/75 backdrop-blur-md transition-opacity duration-300 ${
+              f.leaving ? 'opacity-0' : 'opacity-100 animate-in fade-in duration-200'
+            }`}
           >
-            {f.avatar_url ? (
-              <img
-                src={f.avatar_url}
-                alt={f.name}
-                className="w-12 h-12 rounded-full object-cover border-2 border-emerald-400/50 flex-shrink-0"
-              />
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-emerald-500/20 border-2 border-emerald-400/50 flex items-center justify-center text-emerald-300 font-bold text-lg flex-shrink-0">
-                {initials(f.name)}
+            <div
+              className={`flex flex-col items-center gap-6 transition-all duration-300 ${
+                f.leaving ? 'scale-90 opacity-0' : 'animate-in zoom-in-50 duration-500 [animation-timing-function:cubic-bezier(0.34,1.56,0.64,1)]'
+              }`}
+            >
+              <div className="relative">
+                <div className="absolute -inset-6 rounded-full bg-emerald-500/25 blur-2xl" />
+                {f.avatar_url ? (
+                  <img
+                    src={f.avatar_url}
+                    alt={f.name}
+                    className="relative w-40 h-40 rounded-full object-cover border-4 border-emerald-400/70 shadow-[0_0_60px_rgba(16,185,129,0.5)]"
+                  />
+                ) : (
+                  <div className="relative w-40 h-40 rounded-full bg-emerald-500/20 border-4 border-emerald-400/70 shadow-[0_0_60px_rgba(16,185,129,0.5)] flex items-center justify-center text-emerald-300 font-black text-5xl">
+                    {initials(f.name)}
+                  </div>
+                )}
+                <div
+                  className={`absolute -bottom-2 -right-2 w-16 h-16 rounded-full bg-emerald-500 border-[5px] border-[#080810] flex items-center justify-center ${
+                    f.leaving ? '' : 'animate-in zoom-in-0 duration-500 delay-200 fill-mode-both'
+                  }`}
+                >
+                  <Check size={32} strokeWidth={3.5} className="text-white" />
+                </div>
               </div>
-            )}
-            <div className="min-w-0">
-              <p className="text-white font-bold text-lg leading-tight truncate max-w-[280px]">{f.name}</p>
-              <p className="text-emerald-400 text-sm font-medium">¡Bienvenido! &#10003;</p>
+
+              <div className="text-center">
+                <p className="text-white font-black text-5xl md:text-6xl tracking-tight leading-none">{f.name}</p>
+                <p className="mt-3 text-emerald-400 font-semibold text-2xl md:text-3xl tracking-wide">
+                  ¡Bienvenido! Check-in exitoso
+                </p>
+              </div>
             </div>
           </div>
-        ))}
-      </div>
+        )
+      })()}
     </div>
   )
 }
