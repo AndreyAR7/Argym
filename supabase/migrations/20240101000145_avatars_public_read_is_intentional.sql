@@ -20,5 +20,10 @@
 -- was ever public, and that's staying public deliberately.
 -- ============================================================
 
-COMMENT ON POLICY "avatars_public_read" ON storage.objects IS
-  'Intentionally public (unlike videos/thumbnails): low-sensitivity profile photos, and the unauthenticated check-in monitor kiosk renders them directly. See migration 000145.';
+-- No SQL to run: storage.objects is owned by Supabase's internal storage
+-- role, so even COMMENT ON POLICY is rejected for the migration role on a
+-- hosted project (SQLSTATE 42501, "must be owner of relation objects").
+-- This file exists purely so the decision above is recorded in git history
+-- next to the 000105/000110 migrations it references, not as a live schema
+-- change.
+SELECT 1;
