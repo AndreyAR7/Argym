@@ -9,6 +9,10 @@ const WINDOW_SECONDS = 300
 // QR briefly, but the interruption to a scanning client must stay short.
 const FEED_VISIBLE_MS = 1700
 const FEED_EXIT_MS = 350
+// Kiosk screens get left open for days without anyone reloading them, so a
+// UI deploy silently never reaches the physical display until someone
+// manually refreshes it — this self-heals by reloading periodically.
+const AUTO_RELOAD_MS = 30 * 60 * 1000
 
 interface CheckinFeedItem {
   id: number
@@ -124,6 +128,13 @@ export function MonitorDisplay({
     const handler = () => setIsFullscreen(!!document.fullscreenElement)
     document.addEventListener('fullscreenchange', handler)
     return () => document.removeEventListener('fullscreenchange', handler)
+  }, [])
+
+  // Periodic full reload so a kiosk left open for days picks up new
+  // deploys on its own instead of running stale JS indefinitely.
+  useEffect(() => {
+    const reloadTimer = setTimeout(() => window.location.reload(), AUTO_RELOAD_MS)
+    return () => clearTimeout(reloadTimer)
   }, [])
 
   const toggleFullscreen = () => {
