@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server-admin'
 import { getStripe } from '@/lib/stripe'
 
 export const metadata = { title: 'Pago exitoso' }
@@ -31,7 +31,12 @@ async function activateSubscription(sessionId: string): Promise<ActivationResult
       return { ok: false, reason }
     }
 
-    const supabase = await createClient()
+    // create_client_subscription only accepts service_role now (migration
+    // 000152) — this page is the one legitimate authenticated-side caller,
+    // and only reaches this point after independently verifying the real
+    // Stripe session above, so using the admin client here is the
+    // intended, now-gated path, not a bypass of it.
+    const supabase = await createAdminClient()
 
     // Check if subscription already exists (webhook may have already created it)
     const { data: existing, error: lookupErr } = await supabase
