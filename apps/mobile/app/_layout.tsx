@@ -82,8 +82,16 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       console.log('[AuthGuard] replacing to', path, '| segments:', segments);
       // Use setTimeout to ensure sub-navigators are mounted before navigating
       setTimeout(() => {
-        router.replace(path as any);
-        setTimeout(() => { redirecting.current = false; }, 600);
+        try {
+          router.replace(path as any);
+        } catch (err) {
+          // An unmatched route (e.g. a brand-new route file Metro hasn't
+          // picked up yet) must not leave redirecting stuck true forever —
+          // that would silently block every future redirect app-wide.
+          console.warn('[AuthGuard] router.replace failed for', path, err);
+        } finally {
+          setTimeout(() => { redirecting.current = false; }, 600);
+        }
       }, 50);
     };
 

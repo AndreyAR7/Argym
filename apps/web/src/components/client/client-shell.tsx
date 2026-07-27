@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { ClientSidebar } from '@/components/client/sidebar'
 import { Topbar } from '@/components/shared/topbar'
+import { OnboardingTour } from '@/components/onboarding/OnboardingTour'
 
 interface ClientShellProps {
   children: React.ReactNode
@@ -74,6 +75,14 @@ export function ClientShell({ children, userName, userEmail, avatarUrl, userId, 
           {children}
         </main>
       </div>
+
+      <OnboardingTour
+        role="client"
+        userId={userId}
+        userName={userName}
+        accentColor="var(--color-client)"
+        accentLight="var(--color-client-light)"
+      />
     </div>
   )
 }

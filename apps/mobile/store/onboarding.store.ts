@@ -23,10 +23,13 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
     let seen = false;
     try {
       seen = (await AsyncStorage.getItem(STORAGE_PREFIX + userId)) === '1';
-    } catch {
-      // If storage is unreadable, default to "seen" — a missed tour is far
-      // less disruptive than one that can never be dismissed.
-      seen = true;
+    } catch (err) {
+      // Defaulting to "seen" here would make a storage read failure
+      // silently and permanently hide the tour with no visible error —
+      // exactly the failure mode that isn't worth risking. Showing the
+      // tour again to someone who already saw it is a far smaller cost.
+      console.warn('[onboarding] failed to read seen-flag, showing tour:', err);
+      seen = false;
     }
     set((s) => ({
       seenByUser: { ...s.seenByUser, [userId]: seen },

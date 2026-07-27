@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { CoachSidebar } from '@/components/coach/sidebar'
 import { Topbar } from '@/components/shared/topbar'
+import { OnboardingTour } from '@/components/onboarding/OnboardingTour'
 
 interface CoachShellProps {
   children: React.ReactNode
@@ -68,6 +69,14 @@ export function CoachShell({ children, userName, userEmail, avatarUrl, userId, c
           {children}
         </main>
       </div>
+
+      <OnboardingTour
+        role="coach"
+        userId={userId}
+        userName={userName}
+        accentColor="var(--color-coach)"
+        accentLight="var(--color-coach-light)"
+      />
     </div>
   )
 }

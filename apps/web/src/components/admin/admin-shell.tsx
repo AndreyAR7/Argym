@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { AdminSidebar } from '@/components/admin/sidebar'
 import { Topbar } from '@/components/shared/topbar'
+import { OnboardingTour } from '@/components/onboarding/OnboardingTour'
 
 interface TenantOption {
   id: string
@@ -96,6 +97,14 @@ export function AdminShell({
           {children}
         </main>
       </div>
+
+      <OnboardingTour
+        role="admin"
+        userId={userId}
+        userName={userName}
+        accentColor="var(--color-admin)"
+        accentLight="var(--color-admin-light)"
+      />
     </div>
   )
 }
