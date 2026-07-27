@@ -8,6 +8,7 @@ import { i18n } from '@/i18n';
 import { useAuthStore } from '@/store/auth.store';
 import { useProfileStore, getThemeConfig } from '@/store/profile.store';
 import { useTenantStore } from '@/store/tenant.store';
+import { useOnboardingStore } from '@/store/onboarding.store';
 import { AppThemeContext } from '@/context/ThemeContext';
 import { OfflineBanner } from '@/components/shared/OfflineBanner';
 import { ToastContainer } from '@/components/shared/Toast';
@@ -23,6 +24,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const { session, user, isLoading, initialize, approvalStatus } = useAuthStore();
   const { theme } = useProfileStore();
   const { loadTenant } = useTenantStore();
+  const { seenByUser, checkedByUser, checkSeen } = useOnboardingStore();
   const systemScheme = useColorScheme();
 
   const effectiveTheme = theme === 'system'
@@ -44,6 +46,15 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     if (user?.tenant_id) loadTenant(user.tenant_id);
   }, [user?.tenant_id]);
 
+  // Load the "has this user seen the onboarding tour" flag once we know who they are
+  useEffect(() => {
+    if (user?.id) checkSeen(user.id);
+  }, [user?.id]);
+
+  const onboardingSeen = user?.id
+    ? (checkedByUser[user.id] ? seenByUser[user.id] : null)
+    : null;
+
   useEffect(() => {
     // Wait until the root navigator is fully mounted before any redirect
     if (!navigationState?.key) return;
@@ -61,7 +72,9 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     const inAdmin  = seg0 === '(admin)';
     const inCoach  = seg0 === '(coach)';
     const inClient = seg0 === '(client)';
+    const inOnboarding = seg0 === 'onboarding';
     const inPending = inAuth && seg1 === 'pending-approval';
+    const inAccountSuspended = inAuth && seg1 === 'account-suspended';
 
     const redirect = (path: string) => {
       if (redirecting.current) return;
@@ -86,8 +99,23 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // ── Account suspended (e.g. lapsed unpaid gym membership) ─
+    if (user?.is_active === false) {
+      if (!inAccountSuspended) redirect('/(auth)/account-suspended');
+      return;
+    }
+
     // ── Approved but role not loaded yet ────────────────────
     if (approvalStatus === 'approved' && !user?.primaryRole) return;
+
+    // ── Approved with role, but we don't know yet if they've seen the tour ──
+    if (approvalStatus === 'approved' && user?.primaryRole && onboardingSeen === null) return;
+
+    // ── First run: send them through the onboarding tour first ─────────
+    if (approvalStatus === 'approved' && user?.primaryRole && onboardingSeen === false) {
+      if (!inOnboarding) redirect('/onboarding');
+      return;
+    }
 
     // ── Approved with role ──────────────────────────────────
     if (approvalStatus === 'approved' && user?.primaryRole) {
@@ -106,7 +134,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       if (role === 'coach')  { redirect('/(coach)/coach-appointments');  return; }
       if (role === 'client') { redirect('/(client)/inicio');             return; }
     }
-  }, [isLoading, session, user?.primaryRole, approvalStatus, segments, navigationState?.key]);
+  }, [isLoading, session, user?.primaryRole, user?.is_active, approvalStatus, segments, navigationState?.key, onboardingSeen]);
 
   if (isLoading) {
     return (

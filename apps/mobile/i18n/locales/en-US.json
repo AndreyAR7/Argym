@@ -1645,5 +1645,45 @@
       "defaultClientName": "Client",
       "today": "Today"
     }
+  },
+  "onboarding": {
+    "skip": "Skip",
+    "next": "Next",
+    "start": "Let's go!",
+    "stepOf": "{{current}} of {{total}}",
+    "client": {
+      "welcome": { "title": "Welcome to ARGYM{{name}}!", "desc": "Your gym, always with you. Here's a quick look at everything you can do." },
+      "inicio": { "title": "Your home", "desc": "A daily snapshot of your streak, your progress, and what's next in your plan." },
+      "checkinScan": { "title": "QR check-in", "desc": "Scan the code at the gym entrance and log your visit in seconds." },
+      "clientAppointments": { "title": "Your appointments", "desc": "Book, confirm, or reschedule sessions with your coach right here." },
+      "progress": { "title": "Your progress", "desc": "Measurements, photos, and charts that show your real evolution." },
+      "routine": { "title": "Your routine", "desc": "The exercises your coach designed for you, ready to follow." },
+      "nutrition": { "title": "Nutrition", "desc": "Meal plans built around your goals." },
+      "videos": { "title": "Videos", "desc": "A library of exercises explained step by step." },
+      "plans": { "title": "Plans & memberships", "desc": "Check your current plan or upgrade your membership." },
+      "promotions": { "title": "Promotions", "desc": "Exclusive offers and discounts from your gym." },
+      "gamification": { "title": "Gamification", "desc": "Earn XP, level up, and unlock badges by training." },
+      "profile": { "title": "Your profile", "desc": "Update your info, photo, and preferences anytime." }
+    },
+    "coach": {
+      "welcome": { "title": "Welcome{{name}}!", "desc": "Here's everything you need to support your clients." },
+      "dashboard": { "title": "Your dashboard", "desc": "A summary of your day: upcoming appointments and active clients." },
+      "coachAppointments": { "title": "Appointments", "desc": "Manage, confirm, and follow up on scheduled sessions." },
+      "clients": { "title": "Your clients", "desc": "Check the progress and info of everyone you train." },
+      "routines": { "title": "Routines", "desc": "Create and assign custom routines to your clients." },
+      "notifications": { "title": "Notifications", "desc": "Get notified instantly when something needs your attention." }
+    },
+    "admin": {
+      "welcome": { "title": "Welcome{{name}}!", "desc": "This is your gym's control panel. Here's where everything lives." },
+      "dashboard": { "title": "Dashboard", "desc": "Your gym's key metrics at a glance." },
+      "clients": { "title": "Clients", "desc": "Manage members, approvals, and their information." },
+      "coaches": { "title": "Coaches", "desc": "Manage your team of trainers." },
+      "adminAppointments": { "title": "Appointments", "desc": "Oversee your gym's full appointment schedule." },
+      "content": { "title": "Content", "desc": "Videos, routines, and material your clients will use." },
+      "monetization": { "title": "Monetization", "desc": "Your gym's plans, pricing, and promotions." },
+      "userApproval": { "title": "Approvals", "desc": "Review and approve new user requests." },
+      "notifications": { "title": "Notifications", "desc": "Everything important, without having to look for it." },
+      "settings": { "title": "Settings", "desc": "Customize branding, branches, and general settings." }
+    }
   }
 }

@@ -7,6 +7,7 @@ import { useTenantStore } from '@/store/tenant.store';
 import { useClientSelectionStore } from '@/store/clientSelection.store';
 import { useSidebarStore } from '@/store/sidebar.store';
 import { useClientSidebarStore } from '@/store/clientSidebar.store';
+import { useOnboardingStore } from '@/store/onboarding.store';
 import { queryClient } from '@/lib/queryClient';
 
 export function resetAllStores(): void {
@@ -19,5 +20,6 @@ export function resetAllStores(): void {
   useClientSelectionStore.getState().reset();
   useSidebarStore.getState().reset();
   useClientSidebarStore.getState().reset();
+  useOnboardingStore.getState().reset();
   queryClient.clear();
 }

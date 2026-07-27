@@ -1645,5 +1645,45 @@
       "defaultClientName": "Cliente",
       "today": "Hoy"
     }
+  },
+  "onboarding": {
+    "skip": "Omitir",
+    "next": "Siguiente",
+    "start": "¡Empezar!",
+    "stepOf": "{{current}} de {{total}}",
+    "client": {
+      "welcome": { "title": "¡Bienvenido a ARGYM{{name}}!", "desc": "Tu gimnasio, siempre contigo. Te damos un vistazo rápido de todo lo que puedes hacer." },
+      "inicio": { "title": "Tu inicio", "desc": "Un vistazo diario a tu racha, tu progreso y lo próximo en tu plan." },
+      "checkinScan": { "title": "Check-in con QR", "desc": "Escanea el código en la entrada del gimnasio y registra tu visita en segundos." },
+      "clientAppointments": { "title": "Tus citas", "desc": "Agenda, confirma o reprograma sesiones con tu coach desde aquí." },
+      "progress": { "title": "Tu progreso", "desc": "Mediciones, fotos y gráficas que muestran tu evolución real." },
+      "routine": { "title": "Tu rutina", "desc": "Los ejercicios que tu coach diseñó para ti, listos para seguir." },
+      "nutrition": { "title": "Nutrición", "desc": "Planes alimenticios pensados para tus objetivos." },
+      "videos": { "title": "Videos", "desc": "Biblioteca de ejercicios explicados paso a paso." },
+      "plans": { "title": "Planes y membresías", "desc": "Consulta tu plan actual o mejora tu membresía." },
+      "promotions": { "title": "Promociones", "desc": "Ofertas y descuentos exclusivos de tu gimnasio." },
+      "gamification": { "title": "Gamificación", "desc": "Gana XP, sube de nivel y desbloquea insignias por entrenar." },
+      "profile": { "title": "Tu perfil", "desc": "Actualiza tus datos, foto y preferencias cuando quieras." }
+    },
+    "coach": {
+      "welcome": { "title": "¡Bienvenido{{name}}!", "desc": "Aquí tienes todo lo que necesitas para acompañar a tus clientes." },
+      "dashboard": { "title": "Tu dashboard", "desc": "Resumen de tu día: próximas citas y clientes activos." },
+      "coachAppointments": { "title": "Citas", "desc": "Gestiona, confirma y da seguimiento a las sesiones agendadas." },
+      "clients": { "title": "Tus clientes", "desc": "Consulta el progreso y los datos de cada persona que entrenas." },
+      "routines": { "title": "Rutinas", "desc": "Crea y asigna rutinas personalizadas a tus clientes." },
+      "notifications": { "title": "Notificaciones", "desc": "Entérate al instante cuando algo requiera tu atención." }
+    },
+    "admin": {
+      "welcome": { "title": "¡Bienvenido{{name}}!", "desc": "Este es el panel de control de tu gimnasio. Te mostramos dónde está cada cosa." },
+      "dashboard": { "title": "Dashboard", "desc": "Métricas clave de tu gimnasio de un vistazo." },
+      "clients": { "title": "Clientes", "desc": "Administra miembros, aprobaciones y su información." },
+      "coaches": { "title": "Coaches", "desc": "Gestiona tu equipo de entrenadores." },
+      "adminAppointments": { "title": "Citas", "desc": "Supervisa la agenda completa de tu gimnasio." },
+      "content": { "title": "Contenido", "desc": "Videos, rutinas y material que tus clientes usarán." },
+      "monetization": { "title": "Monetización", "desc": "Planes, precios y promociones de tu gimnasio." },
+      "userApproval": { "title": "Aprobaciones", "desc": "Revisa y aprueba las solicitudes de nuevos usuarios." },
+      "notifications": { "title": "Notificaciones", "desc": "Todo lo importante, sin tener que buscarlo." },
+      "settings": { "title": "Configuración", "desc": "Personaliza marca, sucursales y ajustes generales." }
+    }
   }
 }
