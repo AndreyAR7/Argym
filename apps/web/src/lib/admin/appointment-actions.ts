@@ -27,6 +27,8 @@ export async function updateAppointmentStatusAction(
     .eq('tenant_id', tenantId!)
 
   if (error) return { error: error.message }
+  revalidatePath('/admin/appointments')
+  revalidatePath('/coach/appointments')
   return { success: true }
 }
 
@@ -106,18 +108,3 @@ export async function updateAppointmentAction(
   return { success: true }
 }
 
-export async function deleteAppointmentAction(id: string) {
-  const supabase = await createClient()
-  const { error: authErr, tenantId } = await getCallerTenantId(supabase)
-  if (authErr) return { error: authErr }
-
-  const { error } = await supabase
-    .from('appointments')
-    .delete()
-    .eq('id', id)
-    .eq('tenant_id', tenantId!)
-
-  if (error) return { error: error.message }
-  revalidatePath('/admin/appointments')
-  return { success: true }
-}

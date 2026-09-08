@@ -2,8 +2,8 @@
 
 import { useState, useTransition, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { MapPin, Video, Phone, AlertCircle, Search, X, Trash2, Users, ChevronDown, CalendarClock } from 'lucide-react'
-import { updateAppointmentAction, deleteAppointmentAction } from '@/lib/admin/appointment-actions'
+import { MapPin, Video, Phone, AlertCircle, Search, X, Ban, Users, ChevronDown, CalendarClock } from 'lucide-react'
+import { updateAppointmentAction, updateAppointmentStatusAction } from '@/lib/admin/appointment-actions'
 
 export interface AppointmentForEdit {
   id: string
@@ -166,7 +166,7 @@ export default function AppointmentEditModal({ appointment, coaches, clients, on
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError]           = useState<string | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmCancel, setConfirmCancel] = useState(false)
 
   const [type, setType]       = useState(appointment.appointment_type)
   const [status, setStatus]   = useState(appointment.status)
@@ -244,12 +244,12 @@ export default function AppointmentEditModal({ appointment, coaches, clients, on
     })
   }
 
-  function handleDelete() {
+  function handleCancelAppointment() {
     startTransition(async () => {
       try {
-        const result = await deleteAppointmentAction(appointment.id)
+        const result = await updateAppointmentStatusAction(appointment.id, 'cancelled')
         if (result?.error) { setError(result.error) }
-        else { router.refresh(); onClose() }
+        else { setConfirmCancel(false); router.refresh(); onClose() }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Error inesperado.')
       }
@@ -432,45 +432,22 @@ export default function AppointmentEditModal({ appointment, coaches, clients, on
               </div>
             )}
 
-            {/* Delete confirmation */}
-            {confirmDelete && (
-              <div className="rounded-lg px-4 py-3 flex flex-col gap-3"
-                style={{ backgroundColor: 'color-mix(in srgb, var(--color-destructive) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-destructive) 25%, transparent)' }}>
-                <p className="text-sm font-medium" style={{ color: 'var(--color-destructive)' }}>
-                  ¿Eliminar esta cita permanentemente?
-                </p>
-                <div className="flex gap-2">
-                  <button type="button" onClick={handleDelete} disabled={isPending}
-                    className="flex-1 rounded-lg py-2 text-sm font-semibold transition-colors disabled:opacity-50"
-                    style={{ backgroundColor: 'var(--color-destructive)', color: 'white' }}>
-                    {isPending ? 'Eliminando…' : 'Sí, eliminar'}
-                  </button>
-                  <button type="button" onClick={() => setConfirmDelete(false)} disabled={isPending}
-                    className="flex-1 rounded-lg py-2 text-sm font-medium transition-colors"
-                    style={{ backgroundColor: 'var(--color-muted)', color: 'var(--color-foreground)' }}>
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Footer */}
           <div className="px-6 py-4 border-t flex items-center justify-between flex-shrink-0"
             style={{ borderColor: 'var(--color-border)' }}>
-            {!confirmDelete ? (
-              <button type="button" onClick={() => setConfirmDelete(true)} disabled={isPending}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50"
-                style={{ color: 'var(--color-destructive)' }}>
-                <Trash2 size={14} />
-                Eliminar
-              </button>
-            ) : <div />}
+            <button type="button" onClick={() => setConfirmCancel(true)} disabled={isPending || appointment.status === 'cancelled'}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+              style={{ color: 'var(--color-destructive)' }}>
+              <Ban size={14} />
+              Cancelar cita
+            </button>
             <div className="flex gap-3">
               <button type="button" onClick={onClose} disabled={isPending}
                 className="rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
                 style={{ backgroundColor: 'var(--color-muted)', color: 'var(--color-foreground)' }}>
-                Cancelar
+                Cerrar
               </button>
               <button type="submit" disabled={isPending}
                 className="rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
@@ -481,6 +458,50 @@ export default function AppointmentEditModal({ appointment, coaches, clients, on
           </div>
         </form>
       </div>
+
+      {/* Cancel confirmation — its own dialog, stacked above the edit modal,
+          so it's always visible regardless of scroll position inside the form */}
+      {confirmCancel && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          onClick={e => { if (e.target === e.currentTarget && !isPending) setConfirmCancel(false) }}>
+          <div className="w-full max-w-sm rounded-2xl shadow-xl p-6 flex flex-col gap-4"
+            style={{ backgroundColor: 'var(--color-card)', border: '1px solid var(--color-border)' }}>
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: 'color-mix(in srgb, var(--color-destructive) 12%, transparent)' }}>
+                <Ban size={20} style={{ color: 'var(--color-destructive)' }} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--color-foreground)' }}>
+                  ¿Cancelar esta cita?
+                </p>
+                <p className="text-xs mt-1" style={{ color: 'var(--color-muted-foreground)' }}>
+                  Se notificará por correo al cliente y al coach. Esta acción no se puede deshacer.
+                </p>
+              </div>
+            </div>
+            {error && (
+              <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-xs"
+                style={{ backgroundColor: 'color-mix(in srgb, var(--color-destructive) 8%, transparent)', color: 'var(--color-destructive)' }}>
+                <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
+                {error}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setConfirmCancel(false)} disabled={isPending}
+                className="flex-1 rounded-lg py-2 text-sm font-medium transition-colors disabled:opacity-50"
+                style={{ backgroundColor: 'var(--color-muted)', color: 'var(--color-foreground)' }}>
+                Volver
+              </button>
+              <button type="button" onClick={handleCancelAppointment} disabled={isPending}
+                className="flex-1 rounded-lg py-2 text-sm font-semibold transition-colors disabled:opacity-50"
+                style={{ backgroundColor: 'var(--color-destructive)', color: 'white' }}>
+                {isPending ? 'Cancelando…' : 'Sí, cancelar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
