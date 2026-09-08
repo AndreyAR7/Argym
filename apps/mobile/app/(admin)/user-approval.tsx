@@ -32,7 +32,7 @@ export default function UserApprovalScreen() {
   const { user } = useAuthStore();
   const [users, setUsers] = useState<PendingUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected' | 'blocked'>('pending');
 
   // Per-user role selection (defaults to 'client')
   const [roleSelections, setRoleSelections] = useState<Record<string, Role>>({});
@@ -182,7 +182,7 @@ export default function UserApprovalScreen() {
 
       {/* Filter tabs */}
       <View style={[styles.tabRow, { backgroundColor: T.bgCard, borderColor: T.border }]}>
-        {(['pending', 'approved', 'rejected'] as const).map((f) => (
+        {(['pending', 'approved', 'rejected', 'blocked'] as const).map((f) => (
           <TouchableOpacity
             key={f}
             onPress={() => setFilter(f)}

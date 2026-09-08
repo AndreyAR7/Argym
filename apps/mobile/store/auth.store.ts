@@ -11,7 +11,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 let authSubscription: { unsubscribe: () => void } | null = null;
 
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'blocked';
 
 interface Session {
   access_token: string;
@@ -26,6 +26,7 @@ interface AuthState {
   permissions: string[];
   approvalStatus: ApprovalStatus | null;
   rejectionReason: string | null;
+  rejectionCount: number | null;
   isLoading: boolean;
   error: string | null;
 }
@@ -38,6 +39,7 @@ interface AuthActions {
   refreshIfNeeded: () => Promise<void>;
   hasPermission: (code: string) => boolean;
   clearError: () => void;
+  resubmitRegistration: () => Promise<{ error?: string }>;
 }
 
 interface RawProfile {
@@ -50,6 +52,7 @@ interface RawProfile {
   is_active: boolean;
   approval_status: ApprovalStatus;
   rejection_reason: string | null;
+  rejection_count: number;
   date_of_birth: string | null;
   gender: string | null;
   client_level: string | null;
@@ -121,6 +124,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
   permissions: [],
   approvalStatus: null,
   rejectionReason: null,
+  rejectionCount: null,
   isLoading: true,
   error: null,
 
@@ -144,6 +148,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
       const profile = await fetchProfile(activeSession.user.id);
       const approvalStatus = profile.approval_status ?? 'pending';
       const rejectionReason = profile.rejection_reason ?? null;
+      const rejectionCount = profile.rejection_count ?? 0;
       const permissions = approvalStatus === 'approved'
         ? await fetchPermissions(activeSession.user.id, profile.tenant_id)
         : [];
@@ -159,6 +164,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
         permissions,
         approvalStatus,
         rejectionReason,
+        rejectionCount,
         isLoading: false,
       });
 
@@ -257,6 +263,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
 
       const approvalStatus = profile.approval_status ?? 'pending';
       const rejectionReason = profile.rejection_reason ?? null;
+      const rejectionCount = profile.rejection_count ?? 0;
       const permissions = approvalStatus === 'approved'
         ? await fetchPermissions(data.user.id, profile.tenant_id)
         : [];
@@ -267,6 +274,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
         permissions,
         approvalStatus,
         rejectionReason,
+        rejectionCount,
         isLoading: false,
         error: null,
       });
@@ -362,6 +370,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
         permissions,
         approvalStatus,
         rejectionReason: profile.rejection_reason ?? null,
+        rejectionCount: profile.rejection_count ?? 0,
         isLoading: false,
         error: null,
       });
@@ -374,4 +383,15 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
 
   hasPermission: (code) => get().permissions.includes(code),
   clearError: () => set({ error: null }),
+
+  resubmitRegistration: async () => {
+    const userId = get().session?.user.id;
+    if (!userId) return { error: 'No autenticado' };
+
+    const { error } = await supabase.rpc('resubmit_registration', { p_user_id: userId });
+    if (error) return { error: error.message };
+
+    set({ approvalStatus: 'pending', rejectionReason: null });
+    return {};
+  },
 }));

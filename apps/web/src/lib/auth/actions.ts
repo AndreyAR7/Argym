@@ -219,3 +219,13 @@ export async function registerAction(_prevState: { error: string } | null, formD
 
   redirect('/pending-approval')
 }
+
+export async function resubmitRegistrationAction(): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { error } = await supabase.rpc('resubmit_registration', { p_user_id: user.id })
+  if (error) return { error: error.message }
+  return { success: true }
+}

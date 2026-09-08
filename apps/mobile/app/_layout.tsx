@@ -101,8 +101,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // ── Pending / rejected ──────────────────────────────────
-    if (approvalStatus === 'pending' || approvalStatus === 'rejected') {
+    // ── Pending / rejected / blocked (3rd rejection) ─────────
+    if (approvalStatus === 'pending' || approvalStatus === 'rejected' || approvalStatus === 'blocked') {
       if (!inPending) redirect('/(auth)/pending-approval');
       return;
     }

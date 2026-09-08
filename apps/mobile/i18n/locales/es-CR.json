@@ -57,10 +57,18 @@
     "pendingApproval": {
       "deniedTitle": "Acceso denegado",
       "pendingTitle": "Cuenta pendiente de aprobación",
+      "blockedTitle": "Cuenta bloqueada",
       "rejectedDescription": "Tu solicitud de acceso fue rechazada por el administrador.",
+      "blockedDescription": "Tu solicitud fue rechazada varias veces y ya no puedes volver a intentarlo desde aquí. Contacta directamente al gimnasio.",
       "pendingDescription": "Tu cuenta fue creada exitosamente. Un administrador debe asignarte un rol antes de que puedas acceder al sistema.",
       "reasonLabel": "Motivo:",
-      "pendingInfo": "Recibirás acceso una vez que el administrador apruebe tu cuenta y te asigne un rol."
+      "pendingInfo": "Recibirás acceso una vez que el administrador apruebe tu cuenta y te asigne un rol.",
+      "attemptsRemaining_one": "Puedes solicitar una nueva revisión ({{count}} intento restante).",
+      "attemptsRemaining_other": "Puedes solicitar una nueva revisión ({{count}} intentos restantes).",
+      "resubmitButton": "Solicitar revisión de nuevo",
+      "resubmitSending": "Enviando…",
+      "resubmitSuccess": "Solicitud enviada de nuevo. El administrador la revisará.",
+      "resubmitError": "No se pudo enviar la solicitud. Intenta de nuevo."
     },
     "accountSuspended": {
       "title": "Cuenta suspendida",
@@ -732,12 +740,14 @@
       "tabs": {
         "pending": "Pendientes",
         "approved": "Aprobados",
-        "rejected": "Rechazados"
+        "rejected": "Rechazados",
+        "blocked": "Bloqueados"
       },
       "subtitleStatus": {
         "pending": "pendientes",
         "approved": "aprobados",
-        "rejected": "rechazados"
+        "rejected": "rechazados",
+        "blocked": "bloqueados"
       },
       "roles": {
         "client": "Cliente",

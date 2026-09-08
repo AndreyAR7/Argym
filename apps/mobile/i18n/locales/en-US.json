@@ -57,10 +57,18 @@
     "pendingApproval": {
       "deniedTitle": "Access denied",
       "pendingTitle": "Account pending approval",
+      "blockedTitle": "Account blocked",
       "rejectedDescription": "Your access request was rejected by the administrator.",
+      "blockedDescription": "Your request was rejected multiple times and can no longer be retried here. Please contact the gym directly.",
       "pendingDescription": "Your account was created successfully. An administrator must assign you a role before you can access the system.",
       "reasonLabel": "Reason:",
-      "pendingInfo": "You'll get access once the administrator approves your account and assigns you a role."
+      "pendingInfo": "You'll get access once the administrator approves your account and assigns you a role.",
+      "attemptsRemaining_one": "You can request another review ({{count}} attempt left).",
+      "attemptsRemaining_other": "You can request another review ({{count}} attempts left).",
+      "resubmitButton": "Request review again",
+      "resubmitSending": "Sending…",
+      "resubmitSuccess": "Request sent again. The administrator will review it.",
+      "resubmitError": "Couldn't send the request. Try again."
     },
     "accountSuspended": {
       "title": "Account suspended",
@@ -732,12 +740,14 @@
       "tabs": {
         "pending": "Pending",
         "approved": "Approved",
-        "rejected": "Rejected"
+        "rejected": "Rejected",
+        "blocked": "Blocked"
       },
       "subtitleStatus": {
         "pending": "pending",
         "approved": "approved",
-        "rejected": "rejected"
+        "rejected": "rejected",
+        "blocked": "blocked"
       },
       "roles": {
         "client": "Client",

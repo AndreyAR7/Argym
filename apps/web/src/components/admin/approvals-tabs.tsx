@@ -6,13 +6,14 @@ import { cn } from '@/lib/utils'
 
 interface ApprovalsTabsProps {
   current: string
-  counts: { pending: number; approved: number; rejected: number }
+  counts: { pending: number; approved: number; rejected: number; blocked: number }
 }
 
 const TABS = [
   { value: 'pending',  label: 'Pendientes' },
   { value: 'approved', label: 'Aprobados' },
   { value: 'rejected', label: 'Rechazados' },
+  { value: 'blocked',  label: 'Bloqueados' },
 ]
 
 export function ApprovalsTabs({ current, counts }: ApprovalsTabsProps) {

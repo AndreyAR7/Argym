@@ -37,11 +37,7 @@ export default async function RootPage() {
       .eq('id', user.id)
       .single()
 
-    if (!profile || profile.approval_status === 'pending') {
-      redirect('/pending-approval')
-    }
-
-    if (profile.approval_status === 'rejected') {
+    if (!profile || profile.approval_status !== 'approved') {
       redirect('/pending-approval')
     }
 

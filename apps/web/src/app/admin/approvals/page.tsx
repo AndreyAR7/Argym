@@ -13,7 +13,7 @@ export default async function ApprovalsPage({
   searchParams: Promise<{ status?: string; q?: string }>
 }) {
   const params = await searchParams
-  const statusFilter = (params.status ?? 'pending') as 'pending' | 'approved' | 'rejected'
+  const statusFilter = (params.status ?? 'pending') as 'pending' | 'approved' | 'rejected' | 'blocked'
   const q = params.q ?? ''
 
   const session = await getSessionData()
@@ -26,9 +26,9 @@ export default async function ApprovalsPage({
     supabase.rpc('get_approval_status_counts'),
   ])
 
-  const counts = { pending: 0, approved: 0, rejected: 0 }
+  const counts = { pending: 0, approved: 0, rejected: 0, blocked: 0 }
   for (const row of countRows ?? []) {
-    const s = row.status as 'pending' | 'approved' | 'rejected'
+    const s = row.status as 'pending' | 'approved' | 'rejected' | 'blocked'
     if (s in counts) counts[s] = Number(row.cnt)
   }
 
@@ -82,6 +82,8 @@ export default async function ApprovalsPage({
                   ? 'No hay solicitudes pendientes'
                   : statusFilter === 'approved'
                   ? 'No hay usuarios aprobados'
+                  : statusFilter === 'blocked'
+                  ? 'No hay usuarios bloqueados'
                   : 'No hay usuarios rechazados'}
               </p>
               <p className="text-sm text-[var(--color-muted-foreground)] mt-1">

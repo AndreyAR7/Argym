@@ -78,7 +78,7 @@ export function ApprovalRow({
     )
   }
 
-  if (approvalStatus === 'approved' || approvalStatus === 'rejected') {
+  if (approvalStatus === 'approved' || approvalStatus === 'rejected' || approvalStatus === 'blocked') {
     return (
       <div className="flex items-center gap-4 px-5 py-4 bg-[var(--color-card)]">
         <Avatar name={fullName} src={avatarUrl} size="sm" />
@@ -87,6 +87,11 @@ export function ApprovalRow({
           {rejectionReason && (
             <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5 truncate">
               Motivo: {rejectionReason}
+            </p>
+          )}
+          {approvalStatus === 'blocked' && (
+            <p className="text-xs text-red-600 mt-0.5">
+              Bloqueado permanentemente tras 3 rechazos
             </p>
           )}
         </div>
