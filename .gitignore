@@ -8,3 +8,5 @@ apps/**/.env.local
 *.log
 .expo/
 package-lock.json
+supabase/.temp/
+*.tsbuildinfo
