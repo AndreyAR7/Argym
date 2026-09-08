@@ -41,9 +41,20 @@ export default async function ClientsPage({
     .eq('is_active', true)
     .order('name')
 
-  // ── Get client IDs via SECURITY DEFINER RPC (bypasses user_roles RLS) ──
-  const { data: clientProfiles } = await supabase.rpc('get_profiles_by_role', { role_name: 'client' })
-  const clientIds = (clientProfiles ?? []).map((p: any) => p.id as string)
+  // ── Get client IDs ──
+  // get_profiles_by_role INNER JOINs user_roles, which is only populated once
+  // an admin approves someone — a self-registered user sitting in
+  // pending/rejected has no user_roles row yet and would otherwise never
+  // show up here, in any status tab. Union in profiles.requested_role
+  // ('client', set at signup by handle_new_user) to also catch those.
+  const [{ data: clientProfiles }, { data: selfRegisteredClients }] = await Promise.all([
+    supabase.rpc('get_profiles_by_role', { role_name: 'client' }),
+    supabase.from('profiles').select('id').eq('tenant_id', tenantId).eq('requested_role', 'client'),
+  ])
+  const clientIds = Array.from(new Set([
+    ...(clientProfiles ?? []).map((p: any) => p.id as string),
+    ...(selfRegisteredClients ?? []).map((p: any) => p.id as string),
+  ]))
 
   // ── Build client query ──
   let clientQuery = supabase
