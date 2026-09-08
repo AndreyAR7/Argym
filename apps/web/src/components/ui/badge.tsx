@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils'
 
 type Variant =
   | 'approved' | 'pending' | 'rejected'
-  | 'active' | 'inactive' | 'cancelled' | 'expired'
+  | 'active' | 'inactive' | 'suspended' | 'cancelled' | 'expired'
   | 'paid' | 'overdue'
   | 'beginner' | 'intermediate' | 'advanced'
   | 'scheduled' | 'confirmed' | 'completed' | 'no_show'
@@ -17,6 +17,7 @@ const styles: Record<Variant, string> = {
   // Subscription / invoices
   active:       'bg-emerald-50  text-emerald-700  border-emerald-200',
   inactive:     'bg-zinc-100    text-zinc-500     border-zinc-200',
+  suspended:    'bg-red-50      text-red-700      border-red-200',
   cancelled:    'bg-red-50      text-red-600      border-red-200',
   expired:      'bg-zinc-100    text-zinc-500     border-zinc-200',
   paid:         'bg-emerald-50  text-emerald-700  border-emerald-200',
@@ -44,6 +45,7 @@ const labels: Partial<Record<string, string>> = {
   rejected:     'Rechazado',
   active:       'Activo',
   inactive:     'Inactivo',
+  suspended:    'Suspendido',
   cancelled:    'Cancelado',
   expired:      'Vencido',
   beginner:     'Principiante',

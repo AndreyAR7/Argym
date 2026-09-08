@@ -50,10 +50,10 @@ export default async function ClientsPage({
     .from('profiles')
     .select(`
       id, full_name, avatar_url, phone, client_level,
-      is_active, approval_status, created_at, branch_id,
+      is_active, approval_status, suspension_reason, created_at, branch_id,
       user_subscriptions(
         id, status, final_price,
-        plans(id, name, price, currency, plan_tier)
+        plans(id, name, price, currency, plan_tier, grants_physical_access)
       )
     `, { count: 'exact' })
     .eq('tenant_id', tenantId)
@@ -64,7 +64,11 @@ export default async function ClientsPage({
     if (level === 'none') clientQuery = clientQuery.is('client_level', null)
     else clientQuery = clientQuery.eq('client_level', level)
   }
-  if (status !== 'all') clientQuery = clientQuery.eq('approval_status', status)
+  if (status === 'suspended') {
+    clientQuery = clientQuery.eq('is_active', false).eq('suspension_reason', 'non_payment')
+  } else if (status !== 'all') {
+    clientQuery = clientQuery.eq('approval_status', status)
+  }
   if (branch !== 'all') clientQuery = clientQuery.eq('branch_id', branch)
   clientQuery = clientQuery.order('created_at', { ascending: false }).range(offset, offset + PAGE_SIZE - 1)
 
@@ -138,6 +142,9 @@ export default async function ClientsPage({
                   (s) => s.status === 'active',
                 )
                 const plan = activeSub?.plans
+                const lapsedGymSub = (client.user_subscriptions as any[])?.find(
+                  (s) => s.status === 'expired' && s.plans?.grants_physical_access,
+                )
 
                 return (
                   <tr key={client.id} className="hover:bg-[var(--color-muted)] transition-colors">
@@ -185,7 +192,11 @@ export default async function ClientsPage({
 
                     {/* Status */}
                     <td className="px-4 py-3">
-                      <Badge value={client.is_active === false ? 'inactive' : client.approval_status ?? 'pending'} />
+                      <Badge value={
+                        client.is_active === false
+                          ? (client.suspension_reason === 'non_payment' ? 'suspended' : 'inactive')
+                          : (client.approval_status ?? 'pending')
+                      } />
                     </td>
 
                     {/* Branch */}
@@ -210,6 +221,8 @@ export default async function ClientsPage({
                         branchId={(client as any).branch_id ?? null}
                         branches={branches ?? []}
                         activePlanName={plan?.name ?? null}
+                        suspensionReason={client.suspension_reason ?? null}
+                        lapsedSubscriptionId={lapsedGymSub?.id ?? null}
                       />
                     </td>
                   </tr>

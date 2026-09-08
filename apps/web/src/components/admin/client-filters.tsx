@@ -22,10 +22,11 @@ const LEVELS = [
 ]
 
 const STATUSES = [
-  { value: 'all',      label: 'Todos' },
-  { value: 'approved', label: 'Aprobados' },
-  { value: 'pending',  label: 'Pendientes' },
-  { value: 'rejected', label: 'Rechazados' },
+  { value: 'all',       label: 'Todos' },
+  { value: 'approved',  label: 'Aprobados' },
+  { value: 'pending',   label: 'Pendientes' },
+  { value: 'rejected',  label: 'Rechazados' },
+  { value: 'suspended', label: 'Suspendidos' },
 ]
 
 export function ClientFilters({

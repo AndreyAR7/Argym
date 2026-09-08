@@ -22,6 +22,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!isPlatformAdmin) {
     if (!profile || profile.approval_status !== 'approved') redirect('/pending-approval')
     if (role !== 'admin') redirect('/pending-approval')
+    if (profile.is_active === false) redirect('/account-suspended')
   }
 
   let tenants: { id: string; name: string }[] | undefined

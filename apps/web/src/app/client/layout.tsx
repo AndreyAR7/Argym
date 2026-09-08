@@ -10,11 +10,12 @@ export default async function ClientLayout({ children }: { children: React.React
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, avatar_url, approval_status, tenant_id')
+    .select('full_name, avatar_url, approval_status, tenant_id, is_active')
     .eq('id', user.id)
     .single()
 
   if (!profile || profile.approval_status !== 'approved') redirect('/pending-approval')
+  if (profile.is_active === false) redirect('/account-suspended')
 
   const { data: userRole } = await supabase
     .from('user_roles')

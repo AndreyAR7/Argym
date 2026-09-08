@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef } from 'react'
 import { MoreHorizontal, UserX, UserCheck, Tag, Pencil, Building2 } from 'lucide-react'
-import { toggleProfileActiveAction, assignPlanAction, assignUserToBranchAction } from '@/lib/admin/actions'
+import { toggleProfileActiveAction, assignPlanAction, assignUserToBranchAction, reactivateSuspendedClientAction } from '@/lib/admin/actions'
 
 interface Plan {
   id: string
@@ -23,6 +23,8 @@ interface ClientRowActionsProps {
   branchId: string | null
   branches: { id: string; name: string }[]
   activePlanName?: string | null
+  suspensionReason?: string | null
+  lapsedSubscriptionId?: string | null
 }
 
 export function ClientRowActions({
@@ -34,12 +36,18 @@ export function ClientRowActions({
   branchId,
   branches,
   activePlanName,
+  suspensionReason,
+  lapsedSubscriptionId,
 }: ClientRowActionsProps) {
   const [open, setOpen] = useState(false)
   const [showAssign, setShowAssign] = useState(false)
   const [showBranch, setShowBranch] = useState(false)
   const [showDeactivate, setShowDeactivate] = useState(false)
   const [deactivateError, setDeactivateError] = useState<string | null>(null)
+  const [showReactivate, setShowReactivate] = useState(false)
+  const [reactivateError, setReactivateError] = useState<string | null>(null)
+  const [reactivateMonths, setReactivateMonths] = useState(1)
+  const isSuspendedForNonPayment = !isActive && suspensionReason === 'non_payment'
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
   const [isPending, startTransition] = useTransition()
   const [pos, setPos] = useState<{ top?: number; bottom?: number; right: number }>({ top: 0, right: 0 })
@@ -68,9 +76,13 @@ export function ClientRowActions({
   function handleActionsMenuToggleClick() {
     setOpen(false)
     if (isActive) {
-      // Deactivating needs the active-plan check dialog; reactivating is safe to run directly.
+      // Deactivating needs the active-plan check dialog; reactivating a
+      // plain manual deactivation is safe to run directly.
       setDeactivateError(null)
       setShowDeactivate(true)
+    } else if (isSuspendedForNonPayment) {
+      setReactivateError(null)
+      setShowReactivate(true)
     } else {
       startTransition(async () => { await toggleProfileActiveAction(clientId, true) })
     }
@@ -83,6 +95,18 @@ export function ClientRowActions({
         setDeactivateError(result.error)
       } else {
         setShowDeactivate(false)
+      }
+    })
+  }
+
+  function confirmReactivate() {
+    if (!lapsedSubscriptionId) return
+    startTransition(async () => {
+      const result = await reactivateSuspendedClientAction(clientId, lapsedSubscriptionId, reactivateMonths)
+      if (result?.error) {
+        setReactivateError(result.error)
+      } else {
+        setShowReactivate(false)
       }
     })
   }
@@ -154,7 +178,13 @@ export function ClientRowActions({
                 style={{ color: isActive ? 'var(--color-destructive)' : 'var(--color-coach)' }}
               >
                 {isActive ? <UserX size={13} /> : <UserCheck size={13} />}
-                {isPending ? 'Actualizando…' : isActive ? 'Desactivar' : 'Activar'}
+                {isPending
+                  ? 'Actualizando…'
+                  : isActive
+                    ? 'Desactivar'
+                    : isSuspendedForNonPayment
+                      ? 'Reactivar (pago recibido)'
+                      : 'Activar'}
               </button>
             </div>
           </>
@@ -299,6 +329,66 @@ export function ClientRowActions({
                     {isPending ? 'Desactivando…' : 'Desactivar'}
                   </button>
                 </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Reactivate suspended-for-non-payment account */}
+      {showReactivate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-xl">
+            <h2 className="text-base font-semibold text-[var(--color-foreground)] mb-1">Reactivar membresía</h2>
+            {lapsedSubscriptionId ? (
+              <>
+                <p className="text-sm text-[var(--color-muted-foreground)] mb-4">
+                  <strong>{clientName}</strong> fue suspendido por falta de pago. Registra el pago recibido en efectivo o transferencia y elige cuántos meses cubre.
+                </p>
+                <label className="block text-xs font-medium text-[var(--color-muted-foreground)] mb-1.5">
+                  Meses a extender
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={24}
+                  value={reactivateMonths}
+                  onChange={(e) => setReactivateMonths(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm text-[var(--color-foreground)] mb-4"
+                />
+                {reactivateError && (
+                  <p className="text-sm text-[var(--color-destructive)] bg-[var(--color-destructive)]/5 border border-[var(--color-destructive)]/20 rounded-lg px-3 py-2 mb-4">
+                    {reactivateError}
+                  </p>
+                )}
+                <div className="flex gap-2.5">
+                  <button
+                    onClick={() => setShowReactivate(false)}
+                    disabled={isPending}
+                    className="flex-1 rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmReactivate}
+                    disabled={isPending}
+                    className="flex-1 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    {isPending ? 'Reactivando…' : 'Reactivar'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-[var(--color-muted-foreground)] mb-5">
+                  No se encontró la membresía vencida de <strong>{clientName}</strong>. Asigna un plan nuevo desde &quot;Asignar plan&quot; en vez de reactivar.
+                </p>
+                <button
+                  onClick={() => setShowReactivate(false)}
+                  className="w-full rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors"
+                >
+                  Entendido
+                </button>
               </>
             )}
           </div>

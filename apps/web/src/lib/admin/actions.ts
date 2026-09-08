@@ -122,13 +122,50 @@ export async function toggleProfileActiveAction(targetUserId: string, isActive: 
 
   const { data: updated, error } = await supabase
     .from('profiles')
-    .update({ is_active: isActive })
+    .update(
+      isActive
+        ? { is_active: true, suspension_reason: null, suspended_at: null }
+        : { is_active: false },
+    )
     .eq('id', targetUserId)
     .select('id')
 
   if (error) return { error: error.message }
   if (!updated || updated.length === 0) {
     return { error: 'No se pudo actualizar — el usuario no pertenece a tu gimnasio o no tienes permiso.' }
+  }
+
+  revalidatePath('/admin/clients')
+  revalidatePath('/admin/coaches')
+  return { success: true }
+}
+
+// Reactivates an account that was auto-suspended for non-payment: records
+// the out-of-band payment (cash/transfer) against the given subscription —
+// reviving it so physical check-in works again, not just app login — then
+// lifts the account suspension in the same step.
+export async function reactivateSuspendedClientAction(
+  targetUserId: string,
+  subscriptionId: string,
+  months: number,
+) {
+  const supabase = await createClient()
+
+  const { error: rpcError } = await supabase.rpc('record_manual_subscription_payment', {
+    p_subscription_id: subscriptionId,
+    p_months: months,
+  })
+  if (rpcError) return { error: rpcError.message }
+
+  const { data: updated, error } = await supabase
+    .from('profiles')
+    .update({ is_active: true, suspension_reason: null, suspended_at: null })
+    .eq('id', targetUserId)
+    .select('id')
+
+  if (error) return { error: error.message }
+  if (!updated || updated.length === 0) {
+    return { error: 'No se pudo reactivar — el usuario no pertenece a tu gimnasio o no tienes permiso.' }
   }
 
   revalidatePath('/admin/clients')
