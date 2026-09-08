@@ -291,10 +291,9 @@ export default function AdminAppointmentsScreen() {
     if (startDateStr < todayDateStr) {
       errors.push(t('admin.appointments.errors.pastDate', { date: startDateStr }));
     } else if (startDateStr === todayDateStr) {
-      const oneHourAgo = new Date(now.getTime() - 3600000);
       const startDt = new Date(startISO);
-      if (startDt < oneHourAgo) {
-        const limit = oneHourAgo.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' });
+      if (startDt < now) {
+        const limit = now.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' });
         errors.push(t('admin.appointments.errors.pastTime', { time: limit }));
       }
     }

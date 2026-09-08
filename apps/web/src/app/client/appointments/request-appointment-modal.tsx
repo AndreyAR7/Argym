@@ -84,9 +84,28 @@ export function RequestAppointmentModal() {
     setForm(prev => ({ ...prev, [key]: value }))
   }
 
+  function validate(): string | null {
+    const now      = new Date()
+    const todayStr = todayISO()
+    const start    = new Date(`${form.preferred_date}T${form.preferred_time}:00`)
+    if (isNaN(start.getTime())) return 'La fecha o la hora ingresada no es válida.'
+
+    if (form.preferred_date < todayStr) {
+      return 'No puedes solicitar una cita en una fecha pasada.'
+    }
+    if (form.preferred_date === todayStr && start < now) {
+      const limit = now.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' })
+      return `La hora no puede ser anterior a la hora actual (${limit}).`
+    }
+    return null
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (isPending) return
+
+    const validationError = validate()
+    if (validationError) { setError(validationError); return }
 
     setError(null)
     setIsPending(true)

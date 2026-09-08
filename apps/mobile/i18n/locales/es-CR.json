@@ -524,7 +524,7 @@
         "clientRequired": "Selecciona al menos un cliente.",
         "durationRequired": "Selecciona una duración.",
         "pastDate": "No se puede crear una cita en una fecha pasada ({{date}}).",
-        "pastTime": "La hora de inicio no puede ser anterior a las {{time}} (máximo 1 hora en el pasado).",
+        "pastTime": "La hora de inicio no puede ser anterior a la hora actual ({{time}}).",
         "noTenant": "No se pudo determinar el tenant actual.",
         "createFailed": "No se pudo crear la cita."
       },

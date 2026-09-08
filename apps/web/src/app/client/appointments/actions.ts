@@ -33,6 +33,9 @@ export async function requestAppointmentAction(formData: {
     if (isNaN(start_time.getTime())) {
       return { success: false, error: 'Fecha u hora inválida.' }
     }
+    if (start_time < new Date()) {
+      return { success: false, error: 'No puedes solicitar una cita en un horario que ya pasó.' }
+    }
 
     const end_time = new Date(start_time.getTime() + formData.duration_minutes * 60 * 1000)
 

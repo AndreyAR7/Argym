@@ -136,11 +136,17 @@ export function AppointmentsCalendar({ appointments, coaches, clients, branches,
     const rect = e.currentTarget.getBoundingClientRect()
     const y    = e.clientY - rect.top
     if (y < 0 || y > TOTAL_HEIGHT) return
-    setEditingApt(null)
     const mins  = Math.floor(y / PX_PER_MIN) + HOUR_START * 60
     const h     = Math.min(Math.floor(mins / 60), HOUR_END - 1)
     const m     = Math.floor((mins % 60) / 30) * 30
     const time  = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+
+    if (dateStr === todayStr) {
+      const clicked = new Date(`${dateStr}T${time}:00`)
+      if (clicked < new Date()) return // that slot already passed today — disabled
+    }
+
+    setEditingApt(null)
     setSlotClick({ date: dateStr, time })
   }
 
@@ -273,6 +279,18 @@ export function AppointmentsCalendar({ appointments, coaches, clients, branches,
                   <div key={`hh${i}`} className="absolute inset-x-0 border-t border-dashed opacity-35"
                     style={{ top: `${(i * 60 + 30) * PX_PER_MIN}px`, borderColor: 'var(--color-border)' }} />
                 ))}
+
+                {/* Already-passed portion of today — visual only; handleColumnClick
+                    does the actual time-based gating regardless of this overlay */}
+                {isToday && (
+                  <div
+                    className="absolute inset-x-0 top-0 pointer-events-none"
+                    style={{
+                      height: `${Math.max(0, currentTopPx ?? TOTAL_HEIGHT)}px`,
+                      backgroundColor: 'color-mix(in srgb, var(--color-muted-foreground) 8%, transparent)',
+                    }}
+                  />
+                )}
 
                 {/* Current time red line — only on today's column */}
                 {isToday && currentTopPx !== null && (

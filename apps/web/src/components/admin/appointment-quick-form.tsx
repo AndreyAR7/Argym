@@ -76,12 +76,9 @@ export function AppointmentQuickForm({ date, startTime, coaches, clients, onClos
     if (date < todayStr) {
       return `No se puede crear una cita en una fecha pasada (${date}).`
     }
-    if (date === todayStr) {
-      const oneHourAgo = new Date(now.getTime() - 3600000)
-      if (start < oneHourAgo) {
-        const limit = oneHourAgo.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' })
-        return `La hora de inicio no puede ser anterior a las ${limit} (máximo 1 hora en el pasado).`
-      }
+    if (date === todayStr && start < now) {
+      const limit = now.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' })
+      return `La hora de inicio no puede ser anterior a la hora actual (${limit}).`
     }
 
     return null

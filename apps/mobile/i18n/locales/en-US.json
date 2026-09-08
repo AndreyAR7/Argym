@@ -524,7 +524,7 @@
         "clientRequired": "Select at least one client.",
         "durationRequired": "Select a duration.",
         "pastDate": "Cannot create an appointment on a past date ({{date}}).",
-        "pastTime": "The start time cannot be earlier than {{time}} (maximum 1 hour in the past).",
+        "pastTime": "The start time cannot be earlier than the current time ({{time}}).",
         "noTenant": "Could not determine the current tenant.",
         "createFailed": "Could not create the appointment."
       },

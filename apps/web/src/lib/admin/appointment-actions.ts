@@ -46,6 +46,10 @@ export async function createAppointmentAction(data: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
 
+  if (new Date(data.start_time) < new Date()) {
+    return { error: 'No se puede crear una cita en un horario que ya pasó.' }
+  }
+
   const { data: newId, error } = await supabase.rpc('create_appointment', {
     p_title:            data.title,
     p_client_id:        data.client_id,
