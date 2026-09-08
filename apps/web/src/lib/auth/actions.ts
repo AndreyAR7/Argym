@@ -159,12 +159,13 @@ export async function registerAction(_prevState: { error: string } | null, formD
 
   let tenantId: string
   let resolvedBranchId: string | null = null
+  let tenant: { name: string; logo_url: string | null; primary_color: string | null } | null = null
 
   if (branchId) {
     // User selected a specific branch — derive the tenant from it.
     const { data: branch, error: branchError } = await supabase
       .from('branches')
-      .select('id, tenant_id')
+      .select('id, tenant_id, tenants (name, logo_url, primary_color)')
       .eq('id', branchId)
       .eq('is_active', true)
       .single()
@@ -174,20 +175,23 @@ export async function registerAction(_prevState: { error: string } | null, formD
     }
     tenantId = branch.tenant_id
     resolvedBranchId = branch.id
+    const tenantsRel = branch.tenants as any
+    tenant = (Array.isArray(tenantsRel) ? tenantsRel[0] : tenantsRel) ?? null
   } else {
     // Fallback: no branches configured yet — find the single active tenant.
     // Requires the "tenants_public_read_active" RLS policy (migration 000043).
-    const { data: tenant } = await supabase
+    const { data: activeTenant } = await supabase
       .from('tenants')
-      .select('id')
+      .select('id, name, logo_url, primary_color')
       .eq('is_active', true)
       .limit(1)
       .single()
 
-    if (!tenant) {
+    if (!activeTenant) {
       return { error: 'No se encontró un gimnasio activo. Contacta al administrador.' }
     }
-    tenantId = tenant.id
+    tenantId = activeTenant.id
+    tenant = activeTenant
   }
 
   const { error } = await supabase.auth.signUp({
@@ -199,6 +203,12 @@ export async function registerAction(_prevState: { error: string } | null, formD
         tenant_id: tenantId,
         ...(resolvedBranchId ? { branch_id: resolvedBranchId } : {}),
         requested_role: 'client',
+        // Used only by the Supabase Auth "Confirm signup" email template
+        // (supabase/templates/confirmation.html) to render the gym's own
+        // branding — not read by the handle_new_user trigger.
+        tenant_name: tenant?.name ?? 'ARGYM',
+        tenant_logo_url: tenant?.logo_url ?? null,
+        tenant_primary_color: tenant?.primary_color ?? null,
       },
     },
   })

@@ -1,0 +1,89 @@
+<!--
+  Supabase Auth "Confirm signup" email template.
+
+  Multi-tenant: this ONE template is shared by every gym on the platform.
+  Branding (name/logo/color) comes from the user_metadata passed at signUp
+  time (see apps/web/src/lib/auth/actions.ts registerAction and
+  apps/mobile/app/(auth)/register.tsx), exposed here via {{ .Data.* }}.
+  Falls back to generic ARGYM branding if a gym hasn't set a logo/color.
+
+  Deployment: local dev picks this up automatically via
+  supabase/config.toml's [auth.email.template.confirmation]. The hosted
+  project's Auth settings are separate (Dashboard or Management API) and
+  must be updated manually with this same content.
+-->
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confirma tu correo</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f3f4f6; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6; padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px; width:100%; background-color:#ffffff; border-radius:16px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+
+            <!-- Brand header -->
+            <tr>
+              <td align="center" style="background-color:{{ if .Data.tenant_primary_color }}{{ .Data.tenant_primary_color }}{{ else }}#3B82F6{{ end }}; padding:32px 24px;">
+                {{ if .Data.tenant_logo_url }}
+                <img src="{{ .Data.tenant_logo_url }}" alt="{{ if .Data.tenant_name }}{{ .Data.tenant_name }}{{ else }}ARGYM{{ end }}" width="72" height="72" style="display:block; width:72px; height:72px; object-fit:contain; border-radius:12px; background-color:#ffffff; padding:8px;" />
+                {{ end }}
+                <p style="margin:16px 0 0; font-size:20px; font-weight:700; color:#ffffff; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+                  {{ if .Data.tenant_name }}{{ .Data.tenant_name }}{{ else }}ARGYM{{ end }}
+                </p>
+              </td>
+            </tr>
+
+            <!-- Body -->
+            <tr>
+              <td style="padding:32px 32px 24px;">
+                <p style="margin:0 0 16px; font-size:16px; line-height:1.5; color:#111827;">
+                  ¡Hola!
+                </p>
+                <p style="margin:0 0 24px; font-size:15px; line-height:1.6; color:#374151;">
+                  Gracias por registrarte en
+                  <strong>{{ if .Data.tenant_name }}{{ .Data.tenant_name }}{{ else }}ARGYM{{ end }}</strong>.
+                  Para completar tu registro, confirma que esta dirección de correo es tuya:
+                </p>
+
+                <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+                  <tr>
+                    <td align="center" style="border-radius:10px; background-color:{{ if .Data.tenant_primary_color }}{{ .Data.tenant_primary_color }}{{ else }}#3B82F6{{ end }};">
+                      <a href="{{ .ConfirmationURL }}" style="display:inline-block; padding:14px 32px; font-size:15px; font-weight:600; color:#ffffff; text-decoration:none;">
+                        Confirmar mi correo
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin:0 0 8px; font-size:13px; line-height:1.6; color:#6b7280;">
+                  Después de confirmar tu correo, un administrador de
+                  {{ if .Data.tenant_name }}{{ .Data.tenant_name }}{{ else }}tu gimnasio{{ end }}
+                  revisará tu solicitud y activará tu cuenta — te avisaremos apenas quede lista.
+                </p>
+
+                <p style="margin:24px 0 0; font-size:12px; line-height:1.6; color:#9ca3af;">
+                  Si el botón no funciona, copia y pega este enlace en tu navegador:<br />
+                  <a href="{{ .ConfirmationURL }}" style="color:#6b7280; word-break:break-all;">{{ .ConfirmationURL }}</a>
+                </p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td style="padding:16px 32px 28px; border-top:1px solid #f3f4f6;">
+                <p style="margin:0; font-size:12px; line-height:1.6; color:#9ca3af;">
+                  Si no creaste esta cuenta, puedes ignorar este correo con tranquilidad.
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

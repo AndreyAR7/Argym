@@ -12,7 +12,10 @@ import { supabase } from '@/lib/supabase';
 import { registerSchema, type RegisterFormValues } from '@/lib/validations';
 import { useTheme } from '@/hooks/useTheme';
 
-type Branch = { id: string; name: string; address: string | null; tenant_id: string };
+type Branch = {
+  id: string; name: string; address: string | null; tenant_id: string;
+  tenants: { name: string; logo_url: string | null; primary_color: string | null }[] | null;
+};
 
 export default function RegisterScreen() {
   const { t } = useTranslation();
@@ -40,7 +43,7 @@ export default function RegisterScreen() {
     setIsSearching(true);
     const req = supabase
       .from('branches')
-      .select('id, name, address, tenant_id')
+      .select('id, name, address, tenant_id, tenants (name, logo_url, primary_color)')
       .eq('is_active', true)
       .order('name');
     if (query.trim()) req.ilike('name', `%${query.trim()}%`);
@@ -91,6 +94,11 @@ export default function RegisterScreen() {
             tenant_id: selectedBranch.tenant_id,
             branch_id: selectedBranch.id,
             requested_role: 'client',
+            // Used only by the Supabase Auth "Confirm signup" email template
+            // (supabase/templates/confirmation.html) for the gym's branding.
+            tenant_name: selectedBranch.tenants?.[0]?.name ?? 'ARGYM',
+            tenant_logo_url: selectedBranch.tenants?.[0]?.logo_url ?? null,
+            tenant_primary_color: selectedBranch.tenants?.[0]?.primary_color ?? null,
           },
         },
       });
