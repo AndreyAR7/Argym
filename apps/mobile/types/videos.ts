@@ -41,6 +41,10 @@ export interface Video {
   video_mime_type: string | null;
   video_file_size_bytes: number | null;
 
+  // Set instead of video_storage_path when the content lives elsewhere
+  // (YouTube, etc.) — playback opens this URL instead of a signed Storage URL.
+  external_url: string | null;
+
   thumbnail_bucket: string;
   thumbnail_storage_path: string | null;
   thumbnail_color: string; // fallback when no thumbnail

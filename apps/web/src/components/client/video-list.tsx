@@ -13,6 +13,7 @@ interface VideoItem {
   video_storage_path: string | null
   thumbnail_storage_path: string | null
   thumbnail_color: string | null
+  external_url: string | null
   note: string | null
   updated_at?: string | null
 }
@@ -103,8 +104,11 @@ export function ClientVideoList({ videos, supabaseUrl }: Props) {
           return (
             <button
               key={video.id}
-              onClick={() => video.video_storage_path && setPlaying(video)}
-              disabled={!video.video_storage_path}
+              onClick={() => {
+                if (video.external_url) window.open(video.external_url, '_blank', 'noopener,noreferrer')
+                else if (video.video_storage_path) setPlaying(video)
+              }}
+              disabled={!video.video_storage_path && !video.external_url}
               className="text-left rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden hover:border-[var(--color-client)]/40 hover:shadow-md transition-all group disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {/* Thumbnail */}
@@ -117,7 +121,7 @@ export function ClientVideoList({ videos, supabaseUrl }: Props) {
                 ) : (
                   <Video size={32} className="text-white/50" />
                 )}
-                {video.video_storage_path && (
+                {(video.video_storage_path || video.external_url) && (
                   <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
                       <Play size={20} className="text-white ml-0.5" />

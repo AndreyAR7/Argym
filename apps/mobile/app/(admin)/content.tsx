@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Image,
   StatusBar, Switch, ActivityIndicator, Alert, Modal,
   TextInput, KeyboardAvoidingView, Platform, RefreshControl,
-  useWindowDimensions,
+  useWindowDimensions, Linking,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { showToast, ToastNotification } from '@/components/ui/Toast';
@@ -654,6 +654,7 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
   const [allowedLevels, setAllowedLevels] = useState<VideoLevel[]>([]);
   const [isFeatured, setIsFeatured] = useState(false);
   const [isFree, setIsFree] = useState(false);
+  const [externalUrl, setExternalUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [videoFile, setVideoFile] = useState<{ uri: string; name: string; mimeType: string; size: number } | null>(null);
@@ -667,6 +668,7 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
       setAllowedLevels((video.allowed_levels ?? []) as VideoLevel[]);
       setIsFeatured(video.is_featured);
       setIsFree(video.is_free ?? false);
+      setExternalUrl(video.external_url ?? '');
       setVideoFile(null);
       setUploadProgress('');
     }
@@ -730,6 +732,7 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
         allowed_levels: allowedLevels,
         is_featured: isFeatured,
         is_free: isFree,
+        external_url: externalUrl.trim() || null,
       });
       onSaved(); onClose();
     } catch (e: any) { Alert.alert(t('common.error'), e.message); }
@@ -771,6 +774,20 @@ function EditVideoModal({ video, visible, onClose, onSaved }: {
               {uploadProgress ? (
                 <Text style={{ color: T.accent, fontSize: 12, marginTop: 6, marginBottom: 4 }}>{uploadProgress}</Text>
               ) : null}
+
+              <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.videos.linkLabel')}</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
+                placeholder={t('admin.content.videos.linkPlaceholder')}
+                placeholderTextColor={T.textMuted}
+                value={externalUrl}
+                onChangeText={setExternalUrl}
+                autoCapitalize="none"
+                keyboardType="url"
+              />
+              <Text style={{ color: T.textMuted, fontSize: 11, marginTop: -8, marginBottom: 16 }}>
+                {t('admin.content.videos.linkHint')}
+              </Text>
 
               <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.fields.titleRequired')}</Text>
               <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
@@ -1027,6 +1044,8 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
   const [uploadProgress, setUploadProgress] = useState('');
 
   // Form state
+  const [sourceMode, setSourceMode] = useState<'file' | 'link'>('file');
+  const [externalUrl, setExternalUrl] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [categorySlug, setCategorySlug] = useState('general');
@@ -1075,7 +1094,7 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
   };
 
   const reset = () => {
-    setStep('meta'); setTitle(''); setDescription(''); setCategorySlug('general');
+    setStep('meta'); setSourceMode('file'); setExternalUrl(''); setTitle(''); setDescription(''); setCategorySlug('general');
     setLevel('beginner'); setAllowedPlans([]); setAllowedLevels([]);
     setIsFeatured(false); setIsFree(false); setThumbColor(THUMB_COLORS[0]); setErrors([]);
     setVideoFile(null); setThumbFile(null); setUploadProgress('');
@@ -1084,6 +1103,7 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
   const handleSave = async () => {
     const errs: string[] = [];
     if (!title.trim()) errs.push(t('admin.content.videos.titleRequiredError'));
+    if (sourceMode === 'link' && !externalUrl.trim()) errs.push(t('admin.content.videos.linkRequiredError'));
     if (errs.length) { setErrors(errs); return; }
 
     setStep('uploading');
@@ -1099,8 +1119,9 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
         level,
         video_bucket: 'videos',
         video_storage_path: null,
-        video_mime_type: videoFile?.mimeType ?? null,
-        video_file_size_bytes: videoFile?.size ?? null,
+        video_mime_type: sourceMode === 'file' ? (videoFile?.mimeType ?? null) : null,
+        video_file_size_bytes: sourceMode === 'file' ? (videoFile?.size ?? null) : null,
+        external_url: sourceMode === 'link' ? externalUrl.trim() : null,
         thumbnail_bucket: 'video-thumbnails',
         thumbnail_storage_path: null,
         thumbnail_color: thumbColor,
@@ -1116,7 +1137,7 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
       });
 
       // 2. Upload video file if selected
-      if (videoFile) {
+      if (sourceMode === 'file' && videoFile) {
         setUploadProgress(t('admin.content.videos.uploadingProgress', { percent: 0 }));
         await changeVideoStatus(created.id, 'uploading', user?.id ?? '');
         const ext = videoFile.name.split('.').pop() ?? 'mp4';
@@ -1190,25 +1211,61 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
                   </View>
                 )}
 
-                {/* Video file picker */}
-                <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.videos.fileLabel')}</Text>
-                <TouchableOpacity onPress={pickVideo}
-                  style={[styles.filePicker, { borderColor: videoFile ? T.accent : T.border, backgroundColor: T.bg }]}>
-                  <Text style={{ fontSize: 20 }}>🎬</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: videoFile ? T.text : T.textMuted, fontSize: 14, fontWeight: videoFile ? '600' : '400' }}>
-                      {videoFile ? videoFile.name : t('admin.content.videos.selectVideoPlaceholder')}
+                {/* Source mode toggle */}
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                  <TouchableOpacity onPress={() => setSourceMode('file')}
+                    style={[styles.chip, { flex: 1, justifyContent: 'center', backgroundColor: sourceMode === 'file' ? T.accent : T.bg, borderColor: sourceMode === 'file' ? T.accent : T.border }]}>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: sourceMode === 'file' ? '#fff' : T.textSecondary, textAlign: 'center' }}>
+                      {t('admin.content.videos.sourceModeFile')}
                     </Text>
-                    {videoFile?.size ? (
-                      <Text style={{ color: T.textMuted, fontSize: 11, marginTop: 2 }}>
-                        {(videoFile.size / 1024 / 1024).toFixed(1)} MB
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setSourceMode('link')}
+                    style={[styles.chip, { flex: 1, justifyContent: 'center', backgroundColor: sourceMode === 'link' ? T.accent : T.bg, borderColor: sourceMode === 'link' ? T.accent : T.border }]}>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: sourceMode === 'link' ? '#fff' : T.textSecondary, textAlign: 'center' }}>
+                      {t('admin.content.videos.sourceModeLink')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {sourceMode === 'link' ? (
+                  <>
+                    <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.videos.linkLabel')}</Text>
+                    <TextInput
+                      style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
+                      placeholder={t('admin.content.videos.linkPlaceholder')}
+                      placeholderTextColor={T.textMuted}
+                      value={externalUrl}
+                      onChangeText={(v) => { setExternalUrl(v); setErrors([]); }}
+                      autoCapitalize="none"
+                      keyboardType="url"
+                    />
+                    <Text style={{ color: T.textMuted, fontSize: 11, marginTop: -8, marginBottom: 16 }}>
+                      {t('admin.content.videos.linkHint')}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    {/* Video file picker */}
+                    <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.videos.fileLabel')}</Text>
+                    <TouchableOpacity onPress={pickVideo}
+                      style={[styles.filePicker, { borderColor: videoFile ? T.accent : T.border, backgroundColor: T.bg }]}>
+                      <Text style={{ fontSize: 20 }}>🎬</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: videoFile ? T.text : T.textMuted, fontSize: 14, fontWeight: videoFile ? '600' : '400' }}>
+                          {videoFile ? videoFile.name : t('admin.content.videos.selectVideoPlaceholder')}
+                        </Text>
+                        {videoFile?.size ? (
+                          <Text style={{ color: T.textMuted, fontSize: 11, marginTop: 2 }}>
+                            {(videoFile.size / 1024 / 1024).toFixed(1)} MB
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Text style={{ color: T.accent, fontWeight: '700', fontSize: 13 }}>
+                        {videoFile ? t('admin.content.change') : t('admin.content.choose')}
                       </Text>
-                    ) : null}
-                  </View>
-                  <Text style={{ color: T.accent, fontWeight: '700', fontSize: 13 }}>
-                    {videoFile ? t('admin.content.change') : t('admin.content.choose')}
-                  </Text>
-                </TouchableOpacity>
+                    </TouchableOpacity>
+                  </>
+                )}
 
                 {/* Thumbnail picker */}
                 <Text style={[styles.label, { color: T.textSecondary }]}>{t('admin.content.videos.thumbnailLabel')}</Text>
@@ -1301,7 +1358,9 @@ function UploadVideoModal({ visible, onClose, tenantId }: {
                   <TouchableOpacity onPress={handleSave}
                     style={[styles.btn, { backgroundColor: T.accent, flex: 1 }]}>
                     <Text style={{ color: '#fff', fontWeight: '700' }}>
-                      {videoFile ? t('admin.content.videos.uploadAndPublish') : t('admin.content.videos.saveDraft')}
+                      {sourceMode === 'link'
+                        ? t('admin.content.videos.saveAndPublish')
+                        : videoFile ? t('admin.content.videos.uploadAndPublish') : t('admin.content.videos.saveDraft')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -1832,7 +1891,8 @@ export default function AdminContentScreen() {
                   <TouchableOpacity
                     onPress={() => {
                       const acts: SheetAction[] = [];
-                      if (v.video_storage_path) acts.push({ icon: '▶', label: t('admin.content.videos.viewVideo'), color: T.blue, onPress: () => router.push(`/(admin)/video-player?id=${v.id}` as any) });
+                      if (v.external_url) acts.push({ icon: '▶', label: t('admin.content.videos.viewVideo'), color: T.blue, onPress: () => Linking.openURL(v.external_url!) });
+                      else if (v.video_storage_path) acts.push({ icon: '▶', label: t('admin.content.videos.viewVideo'), color: T.blue, onPress: () => router.push(`/(admin)/video-player?id=${v.id}` as any) });
                       acts.push({ icon: '✏️', label: t('common.edit'), onPress: () => setEditTarget(v) });
                       acts.push({ icon: '👤', label: t('admin.content.assignToClient'), onPress: () => setAssignTarget(v) });
                       if (v.status !== 'published' && v.status !== 'uploading') acts.push({ icon: '✅', label: t('admin.content.publish'), color: T.green, onPress: async () => { try { await publish(v.id); showToast(t('admin.content.videos.published')); } catch (e: any) { Alert.alert(t('common.error'), e.message); } } });

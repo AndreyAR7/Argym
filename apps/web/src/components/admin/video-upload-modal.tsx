@@ -6,6 +6,7 @@ import {
   Camera,
   X,
   Film,
+  Link as LinkIcon,
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react'
@@ -44,11 +45,14 @@ type UploadState = 'idle' | 'uploading' | 'saving' | 'done' | 'error'
 export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const [sourceMode, setSourceMode] = useState<'file' | 'link'>('file')
+  const [externalUrl, setExternalUrl] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [showCamera, setShowCamera] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [level, setLevel] = useState<Level>('beginner')
+  const [allowedLevels, setAllowedLevels] = useState<Level[]>([])
 
   const thumbInputRef = useRef<HTMLInputElement>(null)
   const [selectedThumb, setSelectedThumb] = useState<File | null>(null)
@@ -84,9 +88,17 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
     }
   }
 
+  function toggleAllowedLevel(l: Level) {
+    setAllowedLevels((prev) => (prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l]))
+  }
+
   async function handleUpload() {
-    if (!selectedFile) {
+    if (sourceMode === 'file' && !selectedFile) {
       setErrorMsg('Selecciona un archivo de video.')
+      return
+    }
+    if (sourceMode === 'link' && !externalUrl.trim()) {
+      setErrorMsg('Ingresa el enlace del video.')
       return
     }
     if (!title.trim()) {
@@ -99,57 +111,62 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
 
     try {
       const supabase = createClient()
-      const { data: sessionData } = await supabase.auth.getSession()
-      const token = sessionData?.session?.access_token
 
-      if (!token) {
-        throw new Error('No hay sesion activa.')
+      let storagePath: string | null = null
+      let thumbStoragePath: string | null = null
+
+      if (sourceMode === 'file' && selectedFile) {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const token = sessionData?.session?.access_token
+        if (!token) throw new Error('No hay sesion activa.')
+
+        const ext = selectedFile.name.split('.').pop() ?? 'mp4'
+        const uuid = generateUUID()
+        storagePath = `${tenantId}/${uuid}.${ext}`
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+        const uploadUrl = `${supabaseUrl}/storage/v1/object/videos/${storagePath}`
+
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest()
+
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              setProgress((e.loaded / e.total) * 100)
+            }
+          }
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve()
+            } else {
+              let msg = `Error al subir el video (${xhr.status})`
+              try {
+                const body = JSON.parse(xhr.responseText)
+                if (body?.message) msg = body.message
+              } catch {
+                // ignore parse error
+              }
+              reject(new Error(msg))
+            }
+          }
+
+          xhr.onerror = () => reject(new Error('Error de red al subir el video.'))
+          xhr.onabort = () => reject(new Error('Subida cancelada.'))
+
+          xhr.open('POST', uploadUrl)
+          xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+          xhr.setRequestHeader('Content-Type', selectedFile.type || 'video/mp4')
+          xhr.setRequestHeader('x-upsert', 'true')
+          xhr.send(selectedFile)
+        })
+
+        setProgress(100)
+      } else {
+        setProgress(100)
       }
 
-      const ext = selectedFile.name.split('.').pop() ?? 'mp4'
-      const uuid = generateUUID()
-      const storagePath = `${tenantId}/${uuid}.${ext}`
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-      const uploadUrl = `${supabaseUrl}/storage/v1/object/videos/${storagePath}`
-
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest()
-
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            setProgress((e.loaded / e.total) * 100)
-          }
-        }
-
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve()
-          } else {
-            let msg = `Error al subir el video (${xhr.status})`
-            try {
-              const body = JSON.parse(xhr.responseText)
-              if (body?.message) msg = body.message
-            } catch {
-              // ignore parse error
-            }
-            reject(new Error(msg))
-          }
-        }
-
-        xhr.onerror = () => reject(new Error('Error de red al subir el video.'))
-        xhr.onabort = () => reject(new Error('Subida cancelada.'))
-
-        xhr.open('POST', uploadUrl)
-        xhr.setRequestHeader('Authorization', `Bearer ${token}`)
-        xhr.setRequestHeader('Content-Type', selectedFile.type || 'video/mp4')
-        xhr.setRequestHeader('x-upsert', 'true')
-        xhr.send(selectedFile)
-      })
-
-      setProgress(100)
       setUploadState('saving')
 
-      let thumbStoragePath: string | null = null
       if (selectedThumb) {
         const thumbExt = selectedThumb.name.split('.').pop() ?? 'jpg'
         thumbStoragePath = `${tenantId}/${generateUUID()}-thumb.${thumbExt}`
@@ -166,9 +183,11 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
         is_featured: false,
         is_free: false,
         storage_path: storagePath,
-        storage_bucket: 'videos',
+        storage_bucket: storagePath ? 'videos' : null,
         thumbnail_storage_path: thumbStoragePath,
         thumbnail_bucket: thumbStoragePath ? 'video-thumbnails' : null,
+        external_url: sourceMode === 'link' ? externalUrl.trim() : null,
+        allowed_levels: allowedLevels,
       })
 
       if (result.error) {
@@ -185,6 +204,7 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
 
   const isWorking = uploadState === 'uploading' || uploadState === 'saving'
   const isDone = uploadState === 'done'
+  const canSubmit = sourceMode === 'file' ? !!selectedFile : !!externalUrl.trim()
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -219,8 +239,57 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
 
+          {/* Source mode toggle */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={isWorking || isDone}
+              onClick={() => setSourceMode('file')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg border transition-all disabled:opacity-50 ${
+                sourceMode === 'file'
+                  ? 'border-[var(--color-admin)] bg-[var(--color-admin-light)] text-[var(--color-admin)]'
+                  : 'border-[var(--color-border)] text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]'
+              }`}
+            >
+              <Upload size={13} />
+              Subir archivo
+            </button>
+            <button
+              type="button"
+              disabled={isWorking || isDone}
+              onClick={() => setSourceMode('link')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg border transition-all disabled:opacity-50 ${
+                sourceMode === 'link'
+                  ? 'border-[var(--color-admin)] bg-[var(--color-admin-light)] text-[var(--color-admin)]'
+                  : 'border-[var(--color-border)] text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]'
+              }`}
+            >
+              <LinkIcon size={13} />
+              Enlace externo
+            </button>
+          </div>
+
+          {sourceMode === 'link' && (
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-foreground)] mb-1.5">
+                Enlace del video <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="url"
+                value={externalUrl}
+                onChange={(e) => setExternalUrl(e.target.value)}
+                disabled={isWorking || isDone}
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-[var(--color-input)] bg-[var(--color-muted)] text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] outline-none focus:border-[var(--color-admin)] focus:ring-2 focus:ring-[var(--color-admin)]/15 transition-all disabled:opacity-50"
+              />
+              <p className="text-xs text-[var(--color-muted-foreground)] mt-1">
+                Puede ser un video de YouTube o cualquier otro sitio. Al reproducirlo, se abrirá ese enlace en vez de un archivo propio.
+              </p>
+            </div>
+          )}
+
           {/* File picker area */}
-          {!selectedFile ? (
+          {sourceMode === 'file' && (!selectedFile ? (
             <div className="rounded-xl border-2 border-dashed border-[var(--color-border)] p-8 flex flex-col items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-[var(--color-muted)] flex items-center justify-center">
                 <Film size={22} className="text-[var(--color-muted-foreground)]" />
@@ -290,7 +359,7 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
                 </button>
               )}
             </div>
-          )}
+          ))}
 
           {/* Thumbnail picker (optional) */}
           <div>
@@ -334,7 +403,7 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
               <div className="flex items-center justify-between text-xs text-[var(--color-muted-foreground)]">
                 <span>
                   {uploadState === 'uploading'
-                    ? 'Subiendo archivo…'
+                    ? (sourceMode === 'link' ? 'Preparando…' : 'Subiendo archivo…')
                     : uploadState === 'saving'
                       ? 'Guardando registro…'
                       : 'Completado'}
@@ -418,6 +487,45 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
               ))}
             </div>
           </div>
+
+          {/* Allowed levels (access control) */}
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-foreground)] mb-1.5">
+              Niveles con acceso
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={isWorking || isDone}
+                onClick={() => setAllowedLevels([])}
+                className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-all disabled:opacity-50 ${
+                  allowedLevels.length === 0
+                    ? 'border-[var(--color-admin)] bg-[var(--color-admin-light)] text-[var(--color-admin)]'
+                    : 'border-[var(--color-border)] text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:border-[var(--color-ring)]'
+                }`}
+              >
+                Todos
+              </button>
+              {LEVEL_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  disabled={isWorking || isDone}
+                  onClick={() => toggleAllowedLevel(opt.value)}
+                  className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-all disabled:opacity-50 ${
+                    allowedLevels.includes(opt.value)
+                      ? 'border-[var(--color-admin)] bg-[var(--color-admin-light)] text-[var(--color-admin)]'
+                      : 'border-[var(--color-border)] text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:border-[var(--color-ring)]'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-[var(--color-muted-foreground)] mt-1">
+              Restringe qué clientes ven este video según su nivel. "Todos" lo hace visible a cualquier nivel.
+            </p>
+          </div>
         </div>
 
         {/* Footer */}
@@ -441,7 +549,7 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
             <button
               type="button"
               onClick={handleUpload}
-              disabled={isWorking || isDone || !selectedFile}
+              disabled={isWorking || isDone || !canSubmit}
               className="flex-1 py-2.5 rounded-lg bg-[var(--color-admin)] text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {uploadState === 'uploading' ? (
@@ -459,7 +567,7 @@ export function VideoUploadModal({ tenantId, onClose }: VideoUploadModalProps) {
               ) : (
                 <>
                   <Upload size={14} />
-                  Subir video
+                  {sourceMode === 'link' ? 'Guardar video' : 'Subir video'}
                 </>
               )}
             </button>

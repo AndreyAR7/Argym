@@ -51,7 +51,7 @@ export default async function VideosPage({
 
   let query = supabase
     .from('videos')
-    .select('id, title, description, level, status, is_featured, is_free, duration_seconds, views_count, thumbnail_storage_path, thumbnail_color, video_storage_path, created_at, updated_at', { count: 'exact' })
+    .select('id, title, description, level, status, is_featured, is_free, duration_seconds, views_count, thumbnail_storage_path, thumbnail_color, video_storage_path, external_url, allowed_levels, created_at, updated_at', { count: 'exact' })
     .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false })
 
@@ -158,6 +158,9 @@ export default async function VideosPage({
                           )}
                           {video.is_featured && (
                             <span className="ml-1.5 text-[10px] font-semibold text-amber-600 uppercase tracking-wide">Destacado</span>
+                          )}
+                          {video.external_url && (
+                            <span className="ml-1.5 text-[10px] font-semibold text-blue-600 uppercase tracking-wide">Enlace</span>
                           )}
                         </div>
                       </div>

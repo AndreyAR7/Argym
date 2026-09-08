@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, StatusBar, ActivityIndicator,
+  StyleSheet, StatusBar, ActivityIndicator, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -33,6 +33,10 @@ export default function VideosScreen() {
     : accessible.filter((v) => v.level === activeLevel);
 
   const handlePress = async (video: ClientVideo) => {
+    if (video.external_url) {
+      Linking.openURL(video.external_url);
+      return;
+    }
     await openVideo(video);
     router.push(`/(client)/video-player?id=${video.id}` as any);
   };

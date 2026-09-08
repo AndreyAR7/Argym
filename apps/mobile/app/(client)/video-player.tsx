@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  StatusBar, ActivityIndicator,
+  StatusBar, ActivityIndicator, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -58,8 +58,19 @@ export default function VideoPlayerScreen() {
     };
   }, []);
 
+  // Defensive: if reached directly with an external-link video (e.g. stale
+  // deep link), redirect out instead of trying to play a Storage path that
+  // doesn't exist for it — every normal entry point already intercepts this.
+  useEffect(() => {
+    if (video?.external_url) {
+      Linking.openURL(video.external_url);
+      router.back();
+    }
+  }, [video?.external_url]);
+
   // Load signed URL
   useEffect(() => {
+    if (video?.external_url) return;
     if (!video?.video_storage_path) {
       setLoadingUrl(false);
       setUrlError(t('client.videoPlayer.noFileAvailable'));

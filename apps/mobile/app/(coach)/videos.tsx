@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, StatusBar, ActivityIndicator,
+  View, Text, FlatList, TouchableOpacity, StyleSheet, StatusBar, ActivityIndicator, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -47,7 +47,10 @@ export default function CoachVideosScreen() {
     <TouchableOpacity
       style={[s.card, { backgroundColor: T.bgCard, borderColor: T.border }]}
       activeOpacity={0.8}
-      onPress={() => router.push({ pathname: '/(coach)/video-player', params: { videoId: item.id } })}
+      onPress={() => {
+        if (item.external_url) Linking.openURL(item.external_url);
+        else router.push({ pathname: '/(coach)/video-player', params: { videoId: item.id } });
+      }}
     >
       {/* Thumbnail block */}
       <View style={[s.thumbnail, { backgroundColor: item.thumbnail_color || T.accent + '33' }]}>

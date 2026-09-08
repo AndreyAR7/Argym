@@ -12,6 +12,8 @@ export async function updateVideoMetadataAction(
     is_featured: boolean
     is_free: boolean
     status: 'draft' | 'published' | 'archived'
+    external_url?: string | null
+    allowed_levels?: string[]
   },
 ): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createClient()
@@ -25,6 +27,8 @@ export async function updateVideoMetadataAction(
       is_featured: data.is_featured,
       is_free: data.is_free,
       status: data.status,
+      external_url: data.external_url ?? null,
+      allowed_levels: data.allowed_levels ?? [],
     })
     .eq('id', videoId)
 
@@ -167,10 +171,12 @@ export async function createVideoRecordAction(data: {
   level: string
   is_featured: boolean
   is_free: boolean
-  storage_path: string
-  storage_bucket: string
+  storage_path: string | null
+  storage_bucket: string | null
   thumbnail_storage_path?: string | null
   thumbnail_bucket?: string | null
+  external_url?: string | null
+  allowed_levels?: string[]
 }): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createClient()
 
@@ -178,6 +184,10 @@ export async function createVideoRecordAction(data: {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
+
+  if (!data.storage_path && !data.external_url) {
+    return { error: 'Debes subir un archivo o indicar un enlace de video' }
+  }
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -200,9 +210,10 @@ export async function createVideoRecordAction(data: {
     video_bucket: data.storage_bucket,
     thumbnail_storage_path: data.thumbnail_storage_path ?? null,
     thumbnail_bucket: data.thumbnail_bucket ?? 'video-thumbnails',
+    external_url: data.external_url ?? null,
     views_count: 0,
     allowed_plans: [],
-    allowed_levels: [],
+    allowed_levels: data.allowed_levels ?? [],
   })
 
   if (error) return { error: error.message }

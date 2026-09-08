@@ -375,7 +375,15 @@
         "emptyStateLine1": "No hay videos aún.",
         "emptyStateLine2": "Toca \"+ Nuevo\" para agregar el primero.",
         "hasVideo": "Video ya cargado — toca para cambiar",
-        "noVideo": "Sin video — toca para agregar"
+        "noVideo": "Sin video — toca para agregar",
+        "sourceModeFile": "Subir archivo",
+        "sourceModeLink": "Enlace externo",
+        "linkLabel": "Enlace del video",
+        "linkPlaceholder": "https://www.youtube.com/watch?v=...",
+        "linkHint": "Puede ser un video de YouTube o cualquier otro sitio. Al reproducirlo, se abrirá ese enlace.",
+        "linkRequiredError": "Ingresa el enlace del video.",
+        "hasLink": "Enlace agregado",
+        "saveAndPublish": "Guardar y publicar"
       }
     },
     "clients": {

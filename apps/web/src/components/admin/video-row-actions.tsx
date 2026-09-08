@@ -19,6 +19,8 @@ interface VideoRowActionsProps {
     storage_path: string | null
     thumbnail_storage_path?: string | null
     updated_at?: string | null
+    external_url?: string | null
+    allowed_levels?: string[] | null
   }
   tenantId: string
 }
@@ -104,12 +106,15 @@ export function VideoRowActions({ video, tenantId }: VideoRowActionsProps) {
   return (
     <>
       <div className="flex items-center justify-end gap-2">
-        {video.storage_path && (
+        {(video.storage_path || video.external_url) && (
           <button
-            onClick={() => setPlayerOpen(true)}
+            onClick={() => {
+              if (video.external_url) window.open(video.external_url, '_blank', 'noopener,noreferrer')
+              else setPlayerOpen(true)
+            }}
             disabled={isPending}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-admin)]/30 bg-[var(--color-admin-light)] text-xs font-medium text-[var(--color-admin)] hover:opacity-80 transition-opacity disabled:opacity-40"
-            title="Ver video"
+            title={video.external_url ? 'Abrir enlace del video' : 'Ver video'}
           >
             <Play size={12} />
             Ver

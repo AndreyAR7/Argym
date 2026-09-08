@@ -375,7 +375,15 @@
         "emptyStateLine1": "No videos yet.",
         "emptyStateLine2": "Tap \"+ New\" to add the first one.",
         "hasVideo": "Video already uploaded — tap to change",
-        "noVideo": "No video — tap to add one"
+        "noVideo": "No video — tap to add one",
+        "sourceModeFile": "Upload file",
+        "sourceModeLink": "External link",
+        "linkLabel": "Video link",
+        "linkPlaceholder": "https://www.youtube.com/watch?v=...",
+        "linkHint": "Can be a YouTube video or any other site. Playing it will open that link.",
+        "linkRequiredError": "Enter the video link.",
+        "hasLink": "Link added",
+        "saveAndPublish": "Save and publish"
       }
     },
     "clients": {

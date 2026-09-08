@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useTransition } from 'react'
-import { X, Upload, Film, Image as ImageIcon } from 'lucide-react'
+import { X, Upload, Film, Image as ImageIcon, Link as LinkIcon } from 'lucide-react'
 import { updateVideoMetadataAction, updateVideoFileAction, updateVideoThumbnailAction } from '@/lib/admin/video-actions'
 import { createClient } from '@/lib/supabase/client'
 
@@ -17,6 +17,8 @@ interface VideoEditModalProps {
     storage_path?: string | null
     thumbnail_storage_path?: string | null
     updated_at?: string | null
+    external_url?: string | null
+    allowed_levels?: string[] | null
   }
   tenantId: string
   onClose: () => void
@@ -55,6 +57,8 @@ export function VideoEditModal({ video, tenantId, onClose }: VideoEditModalProps
   const [status, setStatus] = useState(video.status)
   const [isFeatured, setIsFeatured] = useState(video.is_featured)
   const [isFree, setIsFree] = useState(video.is_free)
+  const [externalUrl, setExternalUrl] = useState(video.external_url ?? '')
+  const [allowedLevels, setAllowedLevels] = useState<string[]>(video.allowed_levels ?? [])
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -69,6 +73,10 @@ export function VideoEditModal({ video, tenantId, onClose }: VideoEditModalProps
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null
     if (file) setSelectedFile(file)
+  }
+
+  function toggleAllowedLevel(l: string) {
+    setAllowedLevels((prev) => (prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l]))
   }
 
   function handleThumbChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -163,6 +171,8 @@ export function VideoEditModal({ video, tenantId, onClose }: VideoEditModalProps
           is_featured: isFeatured,
           is_free: isFree,
           status: status as 'draft' | 'published' | 'archived',
+          external_url: externalUrl.trim() || null,
+          allowed_levels: allowedLevels,
         })
 
         if (result?.error) {
@@ -255,6 +265,27 @@ export function VideoEditModal({ video, tenantId, onClose }: VideoEditModalProps
                 </div>
                 <p className="text-xs text-[var(--color-muted-foreground)]">Subiendo video… {Math.round(uploadPct)}%</p>
               </div>
+            )}
+          </div>
+
+          {/* External link */}
+          <div>
+            <label className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-foreground)] mb-1.5">
+              <LinkIcon size={12} />
+              Enlace externo
+              <span className="text-[var(--color-muted-foreground)] font-normal">(opcional, ej. YouTube)</span>
+            </label>
+            <input
+              type="url"
+              value={externalUrl}
+              onChange={(e) => setExternalUrl(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+              className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-[var(--color-input)] bg-[var(--color-muted)] text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] outline-none focus:border-[var(--color-admin)] focus:ring-2 focus:ring-[var(--color-admin)]/15 transition-all"
+            />
+            {externalUrl.trim() && (
+              <p className="text-xs text-[var(--color-muted-foreground)] mt-1">
+                Si dejas esto con un valor, reproducir el video abrirá este enlace en vez del archivo subido.
+              </p>
             )}
           </div>
 
@@ -356,6 +387,43 @@ export function VideoEditModal({ video, tenantId, onClose }: VideoEditModalProps
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Allowed levels (access control) */}
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-foreground)] mb-1.5">
+              Niveles con acceso
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setAllowedLevels([])}
+                className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-all ${
+                  allowedLevels.length === 0
+                    ? 'border-[var(--color-admin)] bg-[var(--color-admin-light)] text-[var(--color-admin)]'
+                    : 'border-[var(--color-border)] text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:border-[var(--color-ring)]'
+                }`}
+              >
+                Todos
+              </button>
+              {LEVEL_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => toggleAllowedLevel(opt.value)}
+                  className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-all ${
+                    allowedLevels.includes(opt.value)
+                      ? 'border-[var(--color-admin)] bg-[var(--color-admin-light)] text-[var(--color-admin)]'
+                      : 'border-[var(--color-border)] text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:border-[var(--color-ring)]'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-[var(--color-muted-foreground)] mt-1">
+              Restringe qué clientes ven este video según su nivel. "Todos" lo hace visible a cualquier nivel.
+            </p>
           </div>
 
           {/* Status */}

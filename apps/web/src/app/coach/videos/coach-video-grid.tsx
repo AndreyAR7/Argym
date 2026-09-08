@@ -16,6 +16,7 @@ interface VideoItem {
   thumbnail_color: string | null
   thumbnail_storage_path: string | null
   video_storage_path: string | null
+  external_url: string | null
   updated_at?: string | null
 }
 
@@ -50,8 +51,11 @@ export function CoachVideoGrid({ videos, supabaseUrl }: Props) {
               {/* Thumbnail — clickable to play */}
               <button
                 type="button"
-                onClick={() => video.video_storage_path && setPlaying(video)}
-                disabled={!video.video_storage_path}
+                onClick={() => {
+                  if (video.external_url) window.open(video.external_url, '_blank', 'noopener,noreferrer')
+                  else if (video.video_storage_path) setPlaying(video)
+                }}
+                disabled={!video.video_storage_path && !video.external_url}
                 className="relative w-full aspect-video flex items-center justify-center overflow-hidden group disabled:cursor-not-allowed"
                 style={{ background: thumbUrl ? undefined : (video.thumbnail_color ?? '#6C63FF') }}
               >
@@ -60,7 +64,7 @@ export function CoachVideoGrid({ videos, supabaseUrl }: Props) {
                 ) : (
                   <Video size={32} className="text-white/40" />
                 )}
-                {video.video_storage_path && (
+                {(video.video_storage_path || video.external_url) && (
                   <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <div className="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center backdrop-blur-sm">
                       <Play size={18} className="text-white fill-white translate-x-0.5" />

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  RefreshControl, StatusBar, Alert,
+  RefreshControl, StatusBar, Alert, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -281,7 +281,10 @@ export default function ClientHome() {
                 <VideoCard
                   key={v.id}
                   video={v}
-                  onPress={() => router.push(`/(client)/video-player?id=${v.id}` as any)}
+                  onPress={() => {
+                    if (v.external_url) Linking.openURL(v.external_url);
+                    else router.push(`/(client)/video-player?id=${v.id}` as any);
+                  }}
                 />
               ))}
             </ScrollView>
