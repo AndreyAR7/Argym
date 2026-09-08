@@ -241,7 +241,7 @@ export default function LoginScreen() {
           <Text style={{ color: T.textSecondary, fontSize: 14 }}>
             {t('auth.noAccount')}
           </Text>
-          <Link href="/(auth)/register" asChild>
+          <Link href="/(auth)/register-gym" asChild>
             <TouchableOpacity>
               <Text style={{ color: T.accent, fontSize: 14, fontWeight: '600' }}>
                 {t('auth.registerHere')}

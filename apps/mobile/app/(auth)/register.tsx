@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link, useRouter } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/lib/supabase';
 import { registerSchema, type RegisterFormValues } from '@/lib/validations';
@@ -21,6 +21,7 @@ export default function RegisterScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const T = useTheme();
+  const { tenantId } = useLocalSearchParams<{ tenantId?: string }>();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -32,6 +33,7 @@ export default function RegisterScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [branchError, setBranchError] = useState<string | null>(null);
+  const [gymName, setGymName] = useState<string | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { control, handleSubmit, formState: { errors } } = useForm<RegisterFormValues>({
@@ -39,12 +41,25 @@ export default function RegisterScreen() {
     defaultValues: { full_name: '', email: '', password: '', confirmPassword: '' },
   });
 
+  // Gym is chosen on the previous screen (register-gym) — this screen only
+  // lists branches within that gym, never across tenants.
+  useEffect(() => {
+    if (!tenantId) {
+      router.replace('/(auth)/register-gym');
+      return;
+    }
+    supabase.from('tenants').select('name').eq('id', tenantId).single()
+      .then(({ data }) => setGymName(data?.name ?? null));
+  }, [tenantId]);
+
   const loadBranches = async (query: string) => {
+    if (!tenantId) return;
     setIsSearching(true);
     const req = supabase
       .from('branches')
       .select('id, name, address, tenant_id, tenants (name, logo_url, primary_color)')
       .eq('is_active', true)
+      .eq('tenant_id', tenantId)
       .order('name');
     if (query.trim()) req.ilike('name', `%${query.trim()}%`);
     const { data } = await req.limit(20);
@@ -176,6 +191,18 @@ export default function RegisterScreen() {
           <Text style={{ fontSize: 14, color: T.textSecondary, textAlign: 'center' }}>
             {t('auth.register.subtitle')}
           </Text>
+          {gymName && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
+              <Text style={{ fontSize: 13, color: T.textSecondary }}>
+                {t('auth.register.registeringAt', { name: gymName })}
+              </Text>
+              <TouchableOpacity onPress={() => router.replace('/(auth)/register-gym')}>
+                <Text style={{ fontSize: 13, color: T.accent, fontWeight: '700' }}>
+                  {t('auth.register.changeGym')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {error && (
