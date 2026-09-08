@@ -10,6 +10,7 @@ import {
   Video,
   Dumbbell,
   CalendarDays,
+  CalendarRange,
   CreditCard,
   Tag,
   BarChart3,
@@ -84,6 +85,7 @@ const NAV: NavSection[] = [
     title: 'Agenda',
     items: [
       { label: 'Citas', href: '/admin/appointments', icon: CalendarDays },
+      { label: 'Clases', href: '/admin/clases', icon: CalendarRange },
     ],
   },
   {

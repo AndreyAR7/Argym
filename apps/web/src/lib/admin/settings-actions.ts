@@ -8,6 +8,8 @@ export async function updateTenantSettingsAction(data: {
   timezone: string
   currency: string
   locale: string
+  appointment_grace_hours: number
+  default_class_capacity: number
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -26,6 +28,8 @@ export async function updateTenantSettingsAction(data: {
       timezone: data.timezone,
       currency: data.currency,
       locale: data.locale,
+      appointment_grace_hours: data.appointment_grace_hours,
+      default_class_capacity: data.default_class_capacity,
     })
     .eq('id', profile!.tenant_id)
 

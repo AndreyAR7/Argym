@@ -3144,6 +3144,8 @@ export type Database = {
         Args: { p_end_time?: string; p_start_time?: string }
         Returns: {
           appointment_type: string
+          branch_id: string | null
+          class_template_id: string | null
           client_avatar: string
           client_id: string
           client_name: string
@@ -3154,6 +3156,7 @@ export type Database = {
           group_mode: string
           id: string
           location: string
+          max_participants: number | null
           meeting_url: string
           participants: Json
           start_time: string

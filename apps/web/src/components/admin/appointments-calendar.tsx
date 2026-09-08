@@ -2,26 +2,42 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Lock } from 'lucide-react'
 import AppointmentFormModal from '@/components/admin/appointment-form-modal'
 import AppointmentEditModal, { type AppointmentForEdit } from '@/components/admin/appointment-edit-modal'
+import { ScheduleBlockModal } from '@/components/admin/schedule-block-modal'
+import { ClassRosterModal } from '@/components/admin/class-roster-modal'
 
-interface Participant { id: string; full_name: string; avatar_url: string | null }
+interface Participant { id: string; full_name: string; avatar_url: string | null; status?: string; participant_id?: string }
 
 interface Appointment extends AppointmentForEdit {
   client_avatar: string | null
   client:  { full_name: string; avatar_url: string | null } | null
   coach:   { full_name: string } | null
   participants: Participant[]
+  max_participants?: number | null
+  class_template_id?: string | null
+}
+
+interface Block {
+  id: string
+  branch_id: string | null
+  coach_id: string | null
+  start_time: string
+  end_time: string
+  reason: string | null
 }
 
 interface Client { id: string; full_name: string; client_level: string | null }
 interface Coach  { id: string; full_name: string }
+interface Branch { id: string; name: string }
 
 interface Props {
   appointments: Appointment[]
   coaches:      Coach[]
   clients:      Client[]
+  branches:     Branch[]
+  blocks:       Block[]
   weekStart:    string
 }
 
@@ -63,11 +79,12 @@ function nowTop(): number | null {
 
 interface SlotClick { date: string; time: string }
 
-export function AppointmentsCalendar({ appointments, coaches, clients, weekStart }: Props) {
+export function AppointmentsCalendar({ appointments, coaches, clients, branches, blocks, weekStart }: Props) {
   const router = useRouter()
   const [slotClick,    setSlotClick]    = useState<SlotClick | null>(null)
   const [editingApt,   setEditingApt]   = useState<Appointment | null>(null)
   const [currentTopPx, setCurrentTopPx] = useState<number | null>(nowTop)
+  const [showBlockModal, setShowBlockModal] = useState(false)
 
   // Update current-time line every minute
   useEffect(() => {
@@ -96,12 +113,26 @@ export function AppointmentsCalendar({ appointments, coaches, clients, weekStart
     aptsByDate[k].push(apt)
   }
 
+  // Branch-wide blocks (no coach_id) apply to everyone and gate click-to-create.
+  // Coach-specific blocks only affect that one coach — the calendar shows one
+  // shared timeline (no per-coach lanes), so those render as a visual marker
+  // only, without blocking clicks that might be for a different coach.
+  const branchBlocksByDate: Record<string, Block[]> = {}
+  const coachBlocksByDate:  Record<string, Block[]> = {}
+  for (const b of blocks) {
+    const k = isoToLocalDateStr(b.start_time)
+    const bucket = b.coach_id ? coachBlocksByDate : branchBlocksByDate
+    if (!bucket[k]) bucket[k] = []
+    bucket[k].push(b)
+  }
+
   const monthLabel    = new Intl.DateTimeFormat('es-CR', { month: 'long', year: 'numeric' }).format(baseDate)
   const weekEndDate   = new Date(baseDate); weekEndDate.setDate(baseDate.getDate() + 6)
   const weekRangeLabel = `${baseDate.getDate()} – ${weekEndDate.getDate()} ${new Intl.DateTimeFormat('es-CR', { month: 'long' }).format(weekEndDate)}`
 
   function handleColumnClick(e: React.MouseEvent<HTMLDivElement>, dateStr: string) {
     if ((e.target as HTMLElement).closest('[data-apt]')) return
+    if ((e.target as HTMLElement).closest('[data-blocked]')) return
     const rect = e.currentTarget.getBoundingClientRect()
     const y    = e.clientY - rect.top
     if (y < 0 || y > TOTAL_HEIGHT) return
@@ -161,6 +192,13 @@ export function AppointmentsCalendar({ appointments, coaches, clients, weekStart
           )}
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowBlockModal(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md text-[var(--color-muted-foreground)] hover:bg-[var(--color-card)] transition-colors"
+          >
+            <Lock size={13} />
+            Bloquear horario
+          </button>
           <button onClick={prevWeek} className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--color-muted-foreground)] hover:bg-[var(--color-card)] transition-colors">
             <ChevronLeft size={16} />
           </button>
@@ -216,6 +254,8 @@ export function AppointmentsCalendar({ appointments, coaches, clients, weekStart
           {days.map((d, di) => {
             const dateStr = localDateStr(d)
             const dayApts = aptsByDate[dateStr] ?? []
+            const dayBranchBlocks = branchBlocksByDate[dateStr] ?? []
+            const dayCoachBlocks  = coachBlocksByDate[dateStr] ?? []
             const isToday = dateStr === todayStr
             const layout  = layoutDay(dayApts)
 
@@ -242,6 +282,37 @@ export function AppointmentsCalendar({ appointments, coaches, clients, weekStart
                   </div>
                 )}
 
+                {/* Branch-wide blocks — hard-block click-to-create */}
+                {dayBranchBlocks.map(b => (
+                  <div key={b.id} data-blocked="1"
+                    className="absolute inset-x-0 flex items-center justify-center overflow-hidden"
+                    style={{
+                      top:    `${topForTime(b.start_time)}px`,
+                      height: `${heightForDuration(b.start_time, b.end_time)}px`,
+                      backgroundImage: 'repeating-linear-gradient(45deg, color-mix(in srgb, var(--color-muted-foreground) 12%, transparent), color-mix(in srgb, var(--color-muted-foreground) 12%, transparent) 6px, transparent 6px, transparent 12px)',
+                    }}
+                    title={b.reason ?? 'Horario bloqueado'}
+                  >
+                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[var(--color-muted-foreground)] text-white flex items-center gap-1">
+                      <Lock size={9} />
+                      {b.reason ?? 'Bloqueado'}
+                    </span>
+                  </div>
+                ))}
+
+                {/* Coach-specific blocks — visual only, no per-coach lanes to gate against */}
+                {dayCoachBlocks.map(b => (
+                  <div key={b.id}
+                    className="absolute left-0 w-1 pointer-events-none"
+                    style={{
+                      top:    `${topForTime(b.start_time)}px`,
+                      height: `${heightForDuration(b.start_time, b.end_time)}px`,
+                      backgroundColor: 'var(--color-muted-foreground)',
+                    }}
+                    title={b.reason ? `Coach bloqueado: ${b.reason}` : 'Coach bloqueado'}
+                  />
+                ))}
+
                 {/* Appointment blocks */}
                 {dayApts.map(apt => {
                   const top    = topForTime(apt.start_time)
@@ -253,21 +324,23 @@ export function AppointmentsCalendar({ appointments, coaches, clients, weekStart
 
                   const startD   = new Date(apt.start_time)
                   const timeStr  = `${String(startD.getHours()).padStart(2,'0')}:${String(startD.getMinutes()).padStart(2,'0')}`
-                  const isGroup  = apt.group_mode === 'group' && apt.participants.length > 0
+                  const isGroup  = apt.group_mode === 'group'
+                  const takenCount = apt.participants.filter(p => p.status === 'pending_confirmation' || p.status === 'confirmed' || !p.status).length
+                  const isFull   = isGroup && apt.max_participants != null && takenCount >= apt.max_participants
                   const nameStr  = isGroup
-                    ? `${apt.participants.length} clientes`
+                    ? (apt.max_participants != null ? `${takenCount}/${apt.max_participants} cupos` : `${apt.participants.length} clientes`)
                     : (apt.client?.full_name ?? '—')
 
                   return (
                     <div key={apt.id} data-apt="1"
-                      className="absolute overflow-hidden px-1 py-0.5 rounded cursor-pointer transition-all hover:brightness-95 hover:shadow-md"
+                      className={`absolute overflow-hidden px-1 py-0.5 rounded cursor-pointer transition-all hover:brightness-95 hover:shadow-md ${isFull ? 'opacity-60' : ''}`}
                       style={{
                         top:         `${top}px`,
                         height:      `${height}px`,
                         left:        `${left + 0.5}%`,
                         width:       `${width - 1}%`,
                         backgroundColor: colors.bg,
-                        borderLeft:  `3px solid ${colors.border}`,
+                        borderLeft:  `3px solid ${isFull ? '#ef4444' : colors.border}`,
                       }}
                       onClick={e => {
                         e.stopPropagation()
@@ -275,7 +348,9 @@ export function AppointmentsCalendar({ appointments, coaches, clients, weekStart
                         setEditingApt(apt)
                       }}
                     >
-                      <p className="text-[10px] font-semibold truncate leading-tight" style={{ color: colors.text }}>{apt.title}</p>
+                      <p className="text-[10px] font-semibold truncate leading-tight" style={{ color: colors.text }}>
+                        {apt.title}{isFull ? ' · Lleno' : ''}
+                      </p>
                       {height > 36 && (
                         <p className="text-[9px] truncate leading-tight opacity-80" style={{ color: colors.text }}>
                           {timeStr} · {nameStr}
@@ -290,8 +365,13 @@ export function AppointmentsCalendar({ appointments, coaches, clients, weekStart
         </div>
       </div>
 
-      {/* Edit modal — opens when clicking an existing appointment */}
-      {editingApt && (
+      {/* Group class instances open a roster; everything else opens the edit modal */}
+      {editingApt && editingApt.class_template_id ? (
+        <ClassRosterModal
+          appointment={editingApt as any}
+          onClose={() => setEditingApt(null)}
+        />
+      ) : editingApt && (
         <AppointmentEditModal
           appointment={editingApt}
           coaches={coaches}
@@ -308,6 +388,14 @@ export function AppointmentsCalendar({ appointments, coaches, clients, weekStart
           initialDate={slotClick.date}
           initialTime={slotClick.time}
           onClose={() => setSlotClick(null)}
+        />
+      )}
+
+      {showBlockModal && (
+        <ScheduleBlockModal
+          branches={branches}
+          coaches={coaches}
+          onClose={() => setShowBlockModal(false)}
         />
       )}
     </div>

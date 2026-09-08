@@ -28,7 +28,7 @@ export default async function ClientDetailPage({
   const session = await getSessionData()
   const { supabase, tenantId } = session!
 
-  const [profileResult, subscriptionsResult, nutritionResult, measurementsResult] = await Promise.all([
+  const [profileResult, subscriptionsResult, nutritionResult, measurementsResult, appointmentStatsResult] = await Promise.all([
     supabase
       .from('profiles')
       .select('id, full_name, avatar_url, phone, client_level, is_active, approval_status, created_at')
@@ -55,6 +55,8 @@ export default async function ClientDetailPage({
       .eq('client_id', clientId)
       .order('measured_at', { ascending: false })
       .limit(12),
+
+    supabase.rpc('get_client_appointment_stats', { p_client_id: clientId }),
   ])
 
   const profile = profileResult.data
@@ -79,6 +81,11 @@ export default async function ClientDetailPage({
   }[]
 
   const isActive = profile.is_active !== false
+  const appointmentStats = (appointmentStatsResult.data?.[0] ?? null) as {
+    attended_count: number
+    cancelled_count: number
+    no_show_count: number
+  } | null
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
@@ -111,6 +118,13 @@ export default async function ClientDetailPage({
               )}
             </div>
           </PageHeader>
+          {appointmentStats && (
+            <p className="text-xs text-[var(--color-muted-foreground)] mt-2">
+              {appointmentStats.attended_count} asistencia{appointmentStats.attended_count !== 1 ? 's' : ''} ·{' '}
+              {appointmentStats.cancelled_count} cancelación{appointmentStats.cancelled_count !== 1 ? 'es' : ''} ·{' '}
+              {appointmentStats.no_show_count} inasistencia{appointmentStats.no_show_count !== 1 ? 's' : ''} a citas/clases
+            </p>
+          )}
         </div>
       </div>
 

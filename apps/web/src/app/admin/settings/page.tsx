@@ -24,7 +24,7 @@ export default async function SettingsPage() {
 
   const { data: tenant } = await supabase
     .from('tenants')
-    .select('id, name, slug, timezone, currency, locale, logo_url, is_active, created_at')
+    .select('id, name, slug, timezone, currency, locale, logo_url, is_active, created_at, appointment_grace_hours, default_class_capacity')
     .eq('id', tenantId)
     .single()
 

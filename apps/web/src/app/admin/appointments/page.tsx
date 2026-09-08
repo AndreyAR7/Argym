@@ -45,13 +45,13 @@ export default async function AppointmentsPage({
   const PAGE_SIZE   = 30
 
   const session = await getSessionData()
-  const { supabase, user } = session!
+  const { supabase, user, tenantId } = session!
 
   const weekStart = getWeekStart(params.week)
   const weekEnd   = new Date(weekStart)
   weekEnd.setDate(weekStart.getDate() + 7)
 
-  const [coachResult, clientResult, appointmentsResult] = await Promise.all([
+  const [coachResult, clientResult, appointmentsResult, branchResult, blocksResult] = await Promise.all([
     supabase.rpc('get_profiles_by_role', { role_name: 'coach' }),
     supabase.rpc('get_profiles_by_role', { role_name: 'client' }),
     // SECURITY DEFINER RPC — bypasses RLS issues with user_roles subquery
@@ -61,6 +61,15 @@ export default async function AppointmentsPage({
           p_end_time:   weekEnd.toISOString(),
         })
       : supabase.rpc('list_appointments'),
+    supabase.from('branches').select('id, name').eq('tenant_id', tenantId).eq('is_active', true).order('name'),
+    view === 'calendar'
+      ? supabase
+          .from('schedule_blocks')
+          .select('id, branch_id, coach_id, start_time, end_time, reason')
+          .eq('tenant_id', tenantId)
+          .lt('start_time', weekEnd.toISOString())
+          .gt('end_time', weekStart.toISOString())
+      : Promise.resolve({ data: [], error: null }),
   ])
 
   if (appointmentsResult.error) {
@@ -69,6 +78,8 @@ export default async function AppointmentsPage({
 
   const coachList  = coachResult.data  ?? []
   const clientList = clientResult.data ?? []
+  const branchList = branchResult.data ?? []
+  const blockList  = blocksResult.data ?? []
 
   // Normalize flat RPC response → shape expected by child components
   const rawApts = (appointmentsResult.data ?? []) as Array<{
@@ -135,6 +146,8 @@ export default async function AppointmentsPage({
           appointments={appointments as any}
           coaches={coachList}
           clients={clientList}
+          branches={branchList}
+          blocks={blockList}
           weekStart={localDateStr(weekStart)}
         />
       ) : (
