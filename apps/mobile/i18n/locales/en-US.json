@@ -574,7 +574,9 @@
         "notesPlaceholder": "Instructions, reminders...",
         "submitGroup": "Create group appointment ({{count}})",
         "submitMultiple": "Create {{count}} appointments",
-        "submitSingle": "Create appointment"
+        "submitSingle": "Create appointment",
+        "slotAvailable": "✓ Slot available, no conflicts",
+        "slotConflict": "⚠ This slot overlaps with another appointment"
       }
     },
     "nutrition": {
@@ -1668,6 +1670,9 @@
       "emptyState": "No appointments assigned",
       "defaultClientName": "Client",
       "today": "Today"
+    },
+    "selectClients": {
+      "noClientsAssigned": "You don't have any assigned clients yet. Contact your administrator."
     }
   },
   "onboarding": {

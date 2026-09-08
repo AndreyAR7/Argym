@@ -574,7 +574,9 @@
         "notesPlaceholder": "Instrucciones, recordatorios...",
         "submitGroup": "Crear cita grupal ({{count}})",
         "submitMultiple": "Crear {{count}} citas",
-        "submitSingle": "Crear cita"
+        "submitSingle": "Crear cita",
+        "slotAvailable": "✓ Espacio disponible, sin conflictos",
+        "slotConflict": "⚠ Este espacio se traslapa con otra cita"
       }
     },
     "nutrition": {
@@ -1668,6 +1670,9 @@
       "emptyState": "Sin citas asignadas",
       "defaultClientName": "Cliente",
       "today": "Hoy"
+    },
+    "selectClients": {
+      "noClientsAssigned": "Aún no tienes clientes asignados. Contacta al administrador."
     }
   },
   "onboarding": {

@@ -64,6 +64,28 @@ export async function getProfilesByRole(roleName: 'client' | 'coach'): Promise<P
   return (data ?? []) as ProfileRecord[];
 }
 
+// ── Clients assigned to a coach (coach_client_assignments) ────
+// Unlike getClientsWithPlan (all clients in the tenant), this only
+// returns clients the admin explicitly assigned to this coach.
+export async function getCoachClients(coachId: string): Promise<ClientWithPlan[]> {
+  const { data: assignments, error: assignError } = await supabase
+    .from('coach_client_assignments')
+    .select('client_id')
+    .eq('coach_id', coachId);
+  if (assignError) throw assignError;
+
+  const clientIds = (assignments ?? []).map((a) => a.client_id as string);
+  if (clientIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url, client_level, is_active, approval_status, created_at')
+    .in('id', clientIds)
+    .order('full_name', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as ClientWithPlan[];
+}
+
 // ── Update a profile (admin/coach via SECURITY DEFINER RPC) ──
 // Direct .update() on profiles is blocked by RLS for cross-user updates.
 // The RPC validates that the caller is staff in the same tenant.

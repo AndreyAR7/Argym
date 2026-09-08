@@ -21,6 +21,7 @@ import { ToastManager } from '@/components/shared/Toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { NOTIF_KEYS } from '@/hooks/useNotifications';
 import { CalendarDayView } from '@/components/admin/CalendarDayView';
+import { DateStrip, HourPicker, DurationPicker, DayPreviewStrip, computeSlotConflicts, formatDateLabel, buildStartISO, buildEndISO } from '@/components/shared/AppointmentFormPickers';
 import { formatAppointmentDateTime } from '@/lib/timeUtils';
 import type { Appointment } from '@/types/appointments';
 
@@ -33,110 +34,9 @@ const FILTER_LABEL_KEYS: Record<string, string> = {
   'Completadas': 'admin.appointments.filters.completed',
   'Canceladas': 'admin.appointments.filters.cancelled',
 };
-const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-const MINUTES = ['00', '15', '30', '45'];
-const DURATIONS = [
-  { labelKey: 'admin.appointments.durations.min30', minutes: 30 },
-  { labelKey: 'admin.appointments.durations.min45', minutes: 45 },
-  { labelKey: 'admin.appointments.durations.hour1', minutes: 60 },
-  { labelKey: 'admin.appointments.durations.hour1_30', minutes: 90 },
-  { labelKey: 'admin.appointments.durations.hour2', minutes: 120 },
-  { labelKey: 'admin.appointments.durations.hour3', minutes: 180 },
-  { labelKey: 'admin.appointments.durations.hour4', minutes: 240 },
-  { labelKey: 'admin.appointments.durations.hour5', minutes: 300 },
-];
 
 // ─── Helpers ──────────────────────────────────────────────────
 const formatDateTime = formatAppointmentDateTime;
-
-function formatDateLabel(d: Date) {
-  return d.toLocaleDateString('es-CR', { weekday: 'long', day: 'numeric', month: 'long' });
-}
-
-function buildStartISO(date: Date, hour: string, minute: string) {
-  const d = new Date(date);
-  d.setHours(parseInt(hour, 10), parseInt(minute, 10), 0, 0);
-  return d.toISOString();
-}
-
-function buildEndISO(startISO: string, durationMinutes: number) {
-  const d = new Date(startISO);
-  d.setMinutes(d.getMinutes() + durationMinutes);
-  return d.toISOString();
-}
-
-// ─── Date strip (14 days) ─────────────────────────────────────
-function DateStrip({ selected, onChange, T }: { selected: Date; onChange: (d: Date) => void; T: any }) {
-  const days = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date(); d.setDate(d.getDate() + i); return d;
-  });
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-      {days.map((d, i) => {
-        const active = d.toDateString() === selected.toDateString();
-        return (
-          <TouchableOpacity key={i} onPress={() => onChange(d)}
-            style={[st.dayBtn, { backgroundColor: active ? T.accent : T.bgCardElevated, borderColor: active ? T.accent : T.border }]}>
-            <Text style={{ fontSize: 10, color: active ? '#fff' : T.textMuted, fontWeight: '600' }}>
-              {d.toLocaleDateString('es-CR', { weekday: 'short' }).toUpperCase()}
-            </Text>
-            <Text style={{ fontSize: 16, fontWeight: '800', color: active ? '#fff' : T.text }}>{d.getDate()}</Text>
-          </TouchableOpacity>
-        );
-      })}
-    </ScrollView>
-  );
-}
-
-// ─── Hour picker ──────────────────────────────────────────────
-function HourPicker({ hour, minute, onHour, onMinute, T }: {
-  hour: string; minute: string; onHour: (h: string) => void; onMinute: (m: string) => void; T: any;
-}) {
-  return (
-    <View style={{ gap: 8 }}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        {HOURS.map((h) => {
-          const active = h === hour;
-          return (
-            <TouchableOpacity key={h} onPress={() => onHour(h)}
-              style={[st.timeBtn, { backgroundColor: active ? T.accent : T.bgCardElevated, borderColor: active ? T.accent : T.border }]}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: active ? '#fff' : T.text }}>{h}h</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        {MINUTES.map((m) => {
-          const active = m === minute;
-          return (
-            <TouchableOpacity key={m} onPress={() => onMinute(m)}
-              style={[st.timeBtn, { backgroundColor: active ? T.accent : T.bgCardElevated, borderColor: active ? T.accent : T.border, flex: 1 }]}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: active ? '#fff' : T.text }}>:{m}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
-// ─── Duration picker ──────────────────────────────────────────
-function DurationPicker({ selected, onSelect, T }: { selected: number | null; onSelect: (m: number) => void; T: any }) {
-  const { t } = useTranslation();
-  return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-      {DURATIONS.map((d) => {
-        const active = selected === d.minutes;
-        return (
-          <TouchableOpacity key={d.minutes} onPress={() => onSelect(d.minutes)}
-            style={[st.durationBtn, { backgroundColor: active ? T.accent : T.bgCardElevated, borderColor: active ? T.accent : T.border }]}>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: active ? '#fff' : T.text }}>{t(d.labelKey)}</Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
 
 // ─── Main screen ─────────────────────────────────────────────
 export default function AdminAppointmentsScreen() {
@@ -666,6 +566,31 @@ export default function AdminAppointmentsScreen() {
                 <Text style={[styles.label, { color: T.textSecondary, marginTop: 16 }]}>{t('admin.appointments.form.durationLabel')}</Text>
                 <DurationPicker selected={durationMin} onSelect={setDurationMin} T={T} />
 
+                {/* Live slot preview — tenue block where the appointment would
+                    land, turns red if it overlaps the selected client(s)/coach */}
+                {durationMin && (() => {
+                  const previewStartISO = buildStartISO(startDate, startHour, startMin);
+                  const previewEndISO = buildEndISO(previewStartISO, durationMin);
+                  const slot = computeSlotConflicts(
+                    appointments,
+                    previewStartISO,
+                    previewEndISO,
+                    selectedClients.map((c) => c.id),
+                    selectedCoachId
+                  );
+                  return (
+                    <DayPreviewStrip
+                      appointments={appointments}
+                      date={startDate}
+                      startISO={previewStartISO}
+                      endISO={previewEndISO}
+                      hasConflicts={slot.hasConflicts}
+                      T={T}
+                      t={t}
+                    />
+                  );
+                })()}
+
                 {/* Summary */}
                 {durationMin && (
                   <View style={[styles.summary, { backgroundColor: T.accent + '12', borderColor: T.accent + '33' }]}>
@@ -802,9 +727,6 @@ const styles = StyleSheet.create({
   loadMoreBtn: { borderWidth: 1, borderRadius: 12, paddingVertical: 12, alignItems: 'center', marginTop: 8, marginBottom: 16 },});
 
 const st = StyleSheet.create({
-  dayBtn: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8, alignItems: 'center', marginRight: 6, minWidth: 48 },
-  timeBtn: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center', marginRight: 6 },
-  durationBtn: { borderRadius: 20, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8 },
   searchBox: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 },
   clientRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderBottomWidth: 1 },
   avatar: { width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },

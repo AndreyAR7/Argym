@@ -6,6 +6,7 @@ import {
   createUser,
   getClientsWithPlan,
   getClientsWithPlanPage,
+  getCoachClients,
   CLIENTS_PAGE_SIZE,
   type UpdateProfileInput,
   type CreateUserInput,
@@ -14,6 +15,7 @@ import {
 export const PROFILES_KEYS = {
   clients: ['profiles', 'clients'] as const,
   coaches: ['profiles', 'coaches'] as const,
+  coachClients: (coachId: string) => ['profiles', 'coach-clients', coachId] as const,
 };
 
 export const CLIENTS_WITH_PLAN_KEY = ['profiles', 'clients-with-plan'] as const;
@@ -30,6 +32,18 @@ export function useCoaches() {
   return useQuery({
     queryKey: PROFILES_KEYS.coaches,
     queryFn: () => getProfilesByRole('coach'),
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+// Clients assigned to a specific coach (coach_client_assignments) —
+// used by the coach's own appointment-creation flow, unlike useClients()
+// which returns every client in the tenant.
+export function useCoachClients(coachId: string | undefined) {
+  return useQuery({
+    queryKey: PROFILES_KEYS.coachClients(coachId ?? ''),
+    queryFn: () => getCoachClients(coachId!),
+    enabled: !!coachId,
     staleTime: 2 * 60 * 1000,
   });
 }
