@@ -3324,7 +3324,7 @@ export type Database = {
       appointment_type: "in_person" | "virtual"
       audit_action: "create" | "update" | "delete" | "login" | "logout"
       billing_cycle: "monthly" | "yearly"
-      billing_cycle_type: "monthly" | "yearly" | "one_time"
+      billing_cycle_type: "monthly" | "quarterly" | "yearly" | "one_time"
       client_status: "active" | "inactive" | "archived"
       conversation_type: "direct" | "group"
       exercise_muscle:
@@ -3518,7 +3518,7 @@ export const Constants = {
       appointment_type: ["in_person", "virtual"],
       audit_action: ["create", "update", "delete", "login", "logout"],
       billing_cycle: ["monthly", "yearly"],
-      billing_cycle_type: ["monthly", "yearly", "one_time"],
+      billing_cycle_type: ["monthly", "quarterly", "yearly", "one_time"],
       client_status: ["active", "inactive", "archived"],
       conversation_type: ["direct", "group"],
       exercise_muscle: [

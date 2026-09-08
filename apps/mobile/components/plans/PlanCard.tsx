@@ -22,6 +22,7 @@ function discountedPrice(plan: Plan, promo?: Promotion | null): number | null {
 
 function cycleLabel(cycle: Plan['billing_cycle']): string {
   if (cycle === 'monthly') return '/mes';
+  if (cycle === 'quarterly') return '/trimestre';
   if (cycle === 'yearly') return '/año';
   return '';
 }

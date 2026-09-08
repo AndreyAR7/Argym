@@ -13,12 +13,14 @@ import { VideoSelector } from '@/components/admin/VideoSelector';
 
 const CYCLES = [
   { label: 'Mensual', value: 'monthly' },
+  { label: 'Trimestral', value: 'quarterly' },
   { label: 'Anual', value: 'yearly' },
   { label: 'Único', value: 'one_time' },
 ] as const;
 
 const CYCLE_DURATION: Record<string, string> = {
   monthly: '1 mes por ciclo',
+  quarterly: '3 meses por ciclo',
   yearly: '1 año por ciclo',
   one_time: 'Sin vencimiento',
 };
@@ -33,7 +35,7 @@ export default function CreatePlanScreen() {
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
   const [currency, setCurrency] = useState('CRC');
-  const [cycle, setCycle] = useState<'monthly' | 'yearly' | 'one_time'>('monthly');
+  const [cycle, setCycle] = useState<'monthly' | 'quarterly' | 'yearly' | 'one_time'>('monthly');
   const [expiryDate, setExpiryDate] = useState('');
   const [features, setFeatures] = useState<PlanFeature[]>([{ name: '', value: 'true' }]);
   const [grantsPhysicalAccess, setGrantsPhysicalAccess] = useState(false);

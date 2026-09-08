@@ -32,6 +32,7 @@ interface PlanFormModalProps {
 
 const BILLING_LABELS: Record<string, string> = {
   monthly: 'Mensual',
+  quarterly: 'Trimestral',
   yearly: 'Anual',
   one_time: 'Pago único',
 }
@@ -41,8 +42,8 @@ export function PlanFormModal({ plan, branches = [], onClose }: PlanFormModalPro
   const [description, setDescription] = useState(plan?.description ?? '')
   const [price, setPrice] = useState(plan?.price?.toString() ?? '0')
   const [currency, setCurrency] = useState(plan?.currency ?? 'CRC')
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly' | 'one_time'>(
-    (plan?.billing_cycle as 'monthly' | 'yearly' | 'one_time') ?? 'monthly'
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'quarterly' | 'yearly' | 'one_time'>(
+    (plan?.billing_cycle as 'monthly' | 'quarterly' | 'yearly' | 'one_time') ?? 'monthly'
   )
   const [features, setFeatures] = useState<string[]>(
     plan?.features?.map((f) => f.name) ?? ['']
@@ -194,7 +195,7 @@ export function PlanFormModal({ plan, branches = [], onClose }: PlanFormModalPro
               Ciclo de facturación
             </label>
             <div className="flex gap-2">
-              {(['monthly', 'yearly', 'one_time'] as const).map((cycle) => (
+              {(['monthly', 'quarterly', 'yearly', 'one_time'] as const).map((cycle) => (
                 <button
                   key={cycle}
                   type="button"

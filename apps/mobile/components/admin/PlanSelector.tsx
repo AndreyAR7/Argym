@@ -19,6 +19,7 @@ interface Props {
 
 const CYCLE_LABEL: Record<string, string> = {
   monthly: '/mes',
+  quarterly: '/trimestre',
   yearly: '/año',
   one_time: 'único',
 };

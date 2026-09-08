@@ -109,6 +109,12 @@ export async function POST(req: NextRequest) {
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
+    // Only monthly/yearly auto-renew as a Stripe subscription. 'quarterly'
+    // (like 'one_time') is a single lump-sum charge that grants a fixed
+    // access window (subscription_end_date()) — not an auto-recurring
+    // Stripe subscription the client didn't explicitly re-authorize.
+    const isRecurring = plan.billing_cycle === 'monthly' || plan.billing_cycle === 'yearly'
+
     const session = await getStripe().checkout.sessions.create({
       customer: customerId,
       payment_method_types: ['card'],
@@ -120,8 +126,7 @@ export async function POST(req: NextRequest) {
             description: plan.description ?? undefined,
           },
           unit_amount: unitAmount,
-          // For recurring plans, use recurring; for one_time, omit
-          ...(plan.billing_cycle !== 'one_time' ? {
+          ...(isRecurring ? {
             recurring: {
               interval: plan.billing_cycle === 'monthly' ? 'month' : 'year',
             }
@@ -129,7 +134,7 @@ export async function POST(req: NextRequest) {
         },
         quantity: 1,
       }],
-      mode: plan.billing_cycle === 'one_time' ? 'payment' : 'subscription',
+      mode: isRecurring ? 'subscription' : 'payment',
       success_url: baseUrl + '/client/planes/success?session_id={CHECKOUT_SESSION_ID}',
       cancel_url: baseUrl + '/client/planes',
       metadata: {

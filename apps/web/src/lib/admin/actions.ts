@@ -229,7 +229,7 @@ export async function createPlanAction(data: {
   description: string | null
   price: number
   currency: string
-  billing_cycle: 'monthly' | 'yearly' | 'one_time'
+  billing_cycle: 'monthly' | 'quarterly' | 'yearly' | 'one_time'
   features: string[]
   expiry_date?: string | null
   plan_tier?: string | null
@@ -276,7 +276,7 @@ export async function updatePlanAction(planId: string, data: {
   description: string | null
   price: number
   currency: string
-  billing_cycle: 'monthly' | 'yearly' | 'one_time'
+  billing_cycle: 'monthly' | 'quarterly' | 'yearly' | 'one_time'
   features: string[]
   expiry_date?: string | null
   plan_tier?: string | null

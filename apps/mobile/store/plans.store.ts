@@ -13,7 +13,7 @@ export interface Plan {
   description: string | null;
   price: number;
   currency: string;
-  billing_cycle: 'monthly' | 'yearly' | 'one_time';
+  billing_cycle: 'monthly' | 'quarterly' | 'yearly' | 'one_time';
   features: PlanFeature[];
   plan_tier: 'beginner' | 'intermediate' | 'advanced';
   is_active: boolean;

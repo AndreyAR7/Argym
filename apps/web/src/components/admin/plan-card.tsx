@@ -39,12 +39,14 @@ interface PlanCardProps {
 
 const CYCLE_LABELS: Record<string, string> = {
   monthly: 'mes',
+  quarterly: 'trimestre',
   yearly: 'año',
   one_time: 'único',
 }
 
 const CYCLE_BADGE: Record<string, string> = {
   monthly: 'Mensual',
+  quarterly: 'Trimestral',
   yearly: 'Anual',
   one_time: 'Pago único',
 }
