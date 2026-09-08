@@ -9,11 +9,12 @@ import Link from 'next/link'
 export const metadata = { title: 'Citas' }
 
 const STATUS_TABS = [
-  { value: 'all',       label: 'Todas'       },
-  { value: 'scheduled', label: 'Programadas' },
-  { value: 'confirmed', label: 'Confirmadas' },
-  { value: 'completed', label: 'Completadas' },
-  { value: 'cancelled', label: 'Canceladas'  },
+  { value: 'all',                  label: 'Todas'       },
+  { value: 'pending_confirmation', label: 'Pendientes'  },
+  { value: 'scheduled',            label: 'Programadas' },
+  { value: 'confirmed',            label: 'Confirmadas' },
+  { value: 'completed',            label: 'Completadas' },
+  { value: 'cancelled',            label: 'Canceladas'  },
 ]
 
 function getWeekStart(weekParam?: string): Date {

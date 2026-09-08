@@ -5,7 +5,7 @@ type Variant =
   | 'active' | 'inactive' | 'suspended' | 'cancelled' | 'expired'
   | 'paid' | 'overdue'
   | 'beginner' | 'intermediate' | 'advanced'
-  | 'scheduled' | 'confirmed' | 'completed' | 'no_show'
+  | 'scheduled' | 'confirmed' | 'completed' | 'no_show' | 'pending_confirmation'
   | 'published' | 'draft' | 'archived'
   | 'default'
 
@@ -32,6 +32,7 @@ const styles: Record<Variant, string> = {
   confirmed:    'bg-emerald-50  text-emerald-700  border-emerald-200',
   completed:    'bg-purple-50   text-purple-700   border-purple-200',
   no_show:      'bg-orange-50   text-orange-700   border-orange-200',
+  pending_confirmation: 'bg-amber-50 text-amber-700 border-amber-200',
   // Content
   published:    'bg-emerald-50  text-emerald-700  border-emerald-200',
   draft:        'bg-zinc-100    text-zinc-500     border-zinc-200',
@@ -57,6 +58,7 @@ const labels: Partial<Record<string, string>> = {
   confirmed:    'Confirmada',
   completed:    'Completada',
   no_show:      'No asistió',
+  pending_confirmation: 'Pend. confirmación',
   published:    'Publicado',
   draft:        'Borrador',
   archived:     'Archivado',
