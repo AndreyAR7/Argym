@@ -108,3 +108,37 @@ export async function updateAppointmentAction(
   return { success: true }
 }
 
+// Hard delete — only meant for appointments that are already in a terminal
+// state (cancelled/completed/no_show), where nothing further needs to be
+// communicated. An active appointment must go through
+// updateAppointmentStatusAction(id, 'cancelled') first, so the client/coach
+// are always notified before the row can ever disappear.
+export async function deleteAppointmentAction(id: string) {
+  const supabase = await createClient()
+  const { error: authErr, tenantId } = await getCallerTenantId(supabase)
+  if (authErr) return { error: authErr }
+
+  const { data: existing } = await supabase
+    .from('appointments')
+    .select('status')
+    .eq('id', id)
+    .eq('tenant_id', tenantId!)
+    .single()
+
+  if (!existing) return { error: 'Cita no encontrada.' }
+  if (!['cancelled', 'completed', 'no_show'].includes(existing.status)) {
+    return { error: 'Solo se puede eliminar una cita cancelada, completada o marcada como no asistió.' }
+  }
+
+  const { error } = await supabase
+    .from('appointments')
+    .delete()
+    .eq('id', id)
+    .eq('tenant_id', tenantId!)
+
+  if (error) return { error: error.message }
+  revalidatePath('/admin/appointments')
+  revalidatePath('/coach/appointments')
+  return { success: true }
+}
+
