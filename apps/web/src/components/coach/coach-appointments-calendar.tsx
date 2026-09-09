@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight, MapPin, Video, Phone, Users, X, FileText } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
+import { CoachAppointmentModal } from '@/components/coach/coach-new-appointment-button'
 
 interface Participant { id: string; full_name: string; avatar_url: string | null; status?: string }
 
@@ -26,10 +27,17 @@ interface Appointment {
   participants: Participant[]
 }
 
+interface Client { id: string; full_name: string }
+
 interface Props {
   appointments: Appointment[]
   weekStart: string
+  clients:    Client[]
+  coachId:    string
+  coachName:  string
 }
+
+interface SlotClick { date: string; time: string }
 
 const HOUR_START = 6
 const HOUR_END   = 22
@@ -105,9 +113,10 @@ function layoutDay(dayApts: Appointment[]) {
   return result
 }
 
-export function CoachAppointmentsCalendar({ appointments, weekStart }: Props) {
+export function CoachAppointmentsCalendar({ appointments, weekStart, clients, coachId, coachName }: Props) {
   const router = useRouter()
   const [selectedApt, setSelectedApt] = useState<Appointment | null>(null)
+  const [slotClick, setSlotClick] = useState<SlotClick | null>(null)
   const [currentTopPx, setCurrentTopPx] = useState<number | null>(nowTop)
 
   useEffect(() => {
@@ -120,6 +129,25 @@ export function CoachAppointmentsCalendar({ appointments, weekStart }: Props) {
     const d = new Date(baseDate); d.setDate(baseDate.getDate() + i); return d
   })
   const todayStr = localDateStr(new Date())
+
+  function handleColumnClick(e: React.MouseEvent<HTMLDivElement>, dateStr: string) {
+    if ((e.target as HTMLElement).closest('[data-apt]')) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const y = e.clientY - rect.top
+    if (y < 0 || y > TOTAL_HEIGHT) return
+    const mins = Math.floor(y / PX_PER_MIN) + HOUR_START * 60
+    const h = Math.min(Math.floor(mins / 60), HOUR_END - 1)
+    const m = Math.floor((mins % 60) / 30) * 30
+    const time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+
+    if (dateStr === todayStr) {
+      const clicked = new Date(`${dateStr}T${time}:00`)
+      if (clicked < new Date()) return // slot already passed today
+    }
+
+    setSelectedApt(null)
+    setSlotClick({ date: dateStr, time })
+  }
 
   function prevWeek() { const d = new Date(baseDate); d.setDate(d.getDate() - 7); router.push(`?view=calendar&week=${localDateStr(d)}`) }
   function nextWeek() { const d = new Date(baseDate); d.setDate(d.getDate() + 7); router.push(`?view=calendar&week=${localDateStr(d)}`) }
@@ -183,6 +211,7 @@ export function CoachAppointmentsCalendar({ appointments, weekStart }: Props) {
       {appointments.length === 0 && (
         <div className="flex flex-col items-center justify-center py-14 gap-2 text-center">
           <p className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>Sin citas esta semana</p>
+          <p className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>Haz clic en cualquier celda del calendario para crear una cita.</p>
         </div>
       )}
 
@@ -208,8 +237,9 @@ export function CoachAppointmentsCalendar({ appointments, weekStart }: Props) {
 
             return (
               <div key={di}
-                className="relative border-r border-[var(--color-border)] last:border-r-0"
+                className="relative border-r border-[var(--color-border)] last:border-r-0 cursor-crosshair"
                 style={isToday ? { backgroundColor: 'color-mix(in srgb, var(--color-coach) 3%, transparent)' } : undefined}
+                onClick={e => handleColumnClick(e, dateStr)}
               >
                 {Array.from({ length: HOUR_END - HOUR_START }, (_, i) => (
                   <div key={`h${i}`} className="absolute inset-x-0 border-t" style={{ top: `${i * 60 * PX_PER_MIN}px`, borderColor: 'var(--color-border)' }} />
@@ -242,13 +272,13 @@ export function CoachAppointmentsCalendar({ appointments, weekStart }: Props) {
                     : (apt.client_name ?? '—')
 
                   return (
-                    <div key={apt.id}
+                    <div key={apt.id} data-apt="1"
                       className="absolute overflow-hidden px-1 py-0.5 rounded cursor-pointer transition-all hover:brightness-95 hover:shadow-md"
                       style={{
                         top: `${top}px`, height: `${height}px`, left: `${left + 0.5}%`, width: `${width - 1}%`,
                         backgroundColor: colors.bg, borderLeft: `3px solid ${colors.border}`,
                       }}
-                      onClick={() => setSelectedApt(apt)}
+                      onClick={e => { e.stopPropagation(); setSlotClick(null); setSelectedApt(apt) }}
                     >
                       <p className="text-[10px] font-semibold truncate leading-tight" style={{ color: colors.text }}>{apt.title}</p>
                       {height > 36 && (
@@ -265,6 +295,17 @@ export function CoachAppointmentsCalendar({ appointments, weekStart }: Props) {
 
       {selectedApt && (
         <CoachAppointmentDetailModal appointment={selectedApt} onClose={() => setSelectedApt(null)} />
+      )}
+
+      {slotClick && (
+        <CoachAppointmentModal
+          clients={clients}
+          coachId={coachId}
+          coachName={coachName}
+          initialDate={slotClick.date}
+          initialTime={slotClick.time}
+          onClose={() => setSlotClick(null)}
+        />
       )}
     </div>
   )

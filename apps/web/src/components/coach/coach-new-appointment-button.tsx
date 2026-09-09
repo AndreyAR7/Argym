@@ -13,7 +13,8 @@ interface Props {
   coachName:  string
 }
 
-function nextSlot(): string {
+function nextSlot(fromTime?: string): string {
+  if (fromTime) return fromTime
   const now  = new Date()
   const m    = now.getMinutes()
   const bump = m < 30 ? 30 - m : 60 - m
@@ -128,14 +129,18 @@ function ClientCombobox({
   )
 }
 
-function AppointmentModal({ clients, coachId, coachName, onClose }: Props & { onClose: () => void }) {
+export function CoachAppointmentModal({ clients, coachId, coachName, initialDate, initialTime, onClose }: Props & {
+  initialDate?: string
+  initialTime?: string
+  onClose: () => void
+}) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError]   = useState<string | null>(null)
   const [type, setType]     = useState<'in_person' | 'virtual' | 'phone'>('in_person')
   const [selectedClients, setSelectedClients] = useState<Client[]>([])
 
-  const start0 = nextSlot()
+  const start0 = nextSlot(initialTime)
   const [startTime, setStartTime] = useState(start0)
   const [endTime,   setEndTime]   = useState(addHour(start0))
 
@@ -285,7 +290,7 @@ function AppointmentModal({ clients, coachId, coachName, onClose }: Props & { on
                   Fecha <span style={{ color: 'var(--color-coach)' }}>*</span>
                 </label>
                 <input type="date" name="date" required
-                  defaultValue={new Date().toLocaleDateString('en-CA')}
+                  defaultValue={initialDate ?? new Date().toLocaleDateString('en-CA')}
                   className="rounded-lg px-3 py-2 text-sm outline-none" style={inputStyle} />
               </div>
               <div className="flex flex-col gap-1">
@@ -371,7 +376,7 @@ export function CoachNewAppointmentButton({ clients, coachId, coachName }: Props
       </button>
 
       {open && (
-        <AppointmentModal
+        <CoachAppointmentModal
           clients={clients}
           coachId={coachId}
           coachName={coachName}

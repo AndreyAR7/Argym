@@ -165,6 +165,9 @@ export default async function CoachAppointmentsPage({
         <CoachAppointmentsCalendar
           appointments={calendarAppointments}
           weekStart={localDateStr(weekStart)}
+          clients={clientList}
+          coachId={user!.id}
+          coachName={coachName}
         />
       ) : (
         <>
