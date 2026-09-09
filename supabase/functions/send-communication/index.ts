@@ -374,7 +374,7 @@ Deno.serve(async (req: Request) => {
     // ── Appointment event ─────────────────────────────────────────
     const { data: appt } = await supabase
       .from('appointments')
-      .select('id, start_time, appointment_type, title, client_id, coach_id')
+      .select('id, start_time, appointment_type, title, client_id, coach_id, location')
       .eq('id', payload.appointment_id)
       .single()
 
@@ -405,6 +405,26 @@ Deno.serve(async (req: Request) => {
     ])
 
     const startTime = new Date(appt.start_time)
+    // Only meaningful for in-person appointments — virtual/phone ones have
+    // no physical location to send map links for.
+    const hasLocation = appt.appointment_type === 'in_person' && !!appt.location
+    const gMapsUrl = hasLocation
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(appt.location)}`
+      : ''
+    const wazeUrl = hasLocation
+      ? `https://waze.com/ul?q=${encodeURIComponent(appt.location)}&navigate=yes`
+      : ''
+    // Two variants: the appointment.created template lays out each field
+    // as a <p>, the other three (confirmed/cancelled/reminder) use a
+    // <table><tr><td> info block — each stays empty for non in-person
+    // appointments so nothing renders instead of a dead/empty row.
+    const locationRow = hasLocation
+      ? `<p style="margin:8px 0;font-size:16px;">📍 <strong>Ubicación:</strong> ${appt.location} — <a href="${gMapsUrl}" style="color:#2563eb;">Google Maps</a> · <a href="${wazeUrl}" style="color:#2563eb;">Waze</a></p>`
+      : ''
+    const locationRowTable = hasLocation
+      ? `<tr><td style="padding:5px 0;color:#6b7280;white-space:nowrap;width:130px">📍 Ubicación</td><td style="padding:5px 0;font-weight:600;color:#111827">${appt.location}<br/><a href="${gMapsUrl}" style="color:#2563eb;">Google Maps</a> · <a href="${wazeUrl}" style="color:#2563eb;">Waze</a></td></tr>`
+      : ''
+
     templateVars = {
       ...templateVars,
       client_name:      profileMap.get(appt.client_id) ?? 'Cliente',
@@ -417,6 +437,9 @@ Deno.serve(async (req: Request) => {
         hour: '2-digit', minute: '2-digit', timeZone: 'America/Costa_Rica',
       }),
       plan_name: appt.appointment_type ?? appt.title ?? 'Entrenamiento',
+      location: appt.location ?? '',
+      location_row: locationRow,
+      location_row_table: locationRowTable,
     }
   } else if (
     (event_type.startsWith('plan.') || event_type.startsWith('promotion.') ||

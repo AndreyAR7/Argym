@@ -1,11 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, ChevronRight, MapPin, Video, Phone, Users, X, FileText } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, Video, Phone, Users, X, FileText, Pencil, Trash2, UserPlus, Search } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
+import { MapLinks } from '@/components/shared/map-links'
 import { CoachAppointmentModal } from '@/components/coach/coach-new-appointment-button'
+import {
+  updateCoachAppointmentAction,
+  cancelCoachAppointmentAction,
+  addCoachAppointmentParticipantAction,
+  removeCoachAppointmentParticipantAction,
+} from '@/lib/coach/appointment-actions'
 
 interface Participant { id: string; full_name: string; avatar_url: string | null; status?: string }
 
@@ -20,11 +27,14 @@ interface Appointment {
   location: string | null
   meeting_url: string | null
   group_mode: string
+  coach_id: string | null
+  coach_name: string | null
   client_id: string | null
   client_name: string | null
   client_avatar: string | null
   max_participants: number | null
   participants: Participant[]
+  is_own: boolean
 }
 
 interface Client { id: string; full_name: string }
@@ -159,6 +169,8 @@ export function CoachAppointmentsCalendar({ appointments, weekStart, clients, co
     aptsByDate[k].push(apt)
   }
 
+  const ownCount = appointments.filter(a => a.is_own).length
+
   const monthLabel = new Intl.DateTimeFormat('es-CR', { month: 'long', year: 'numeric' }).format(baseDate)
   const weekEndDate = new Date(baseDate); weekEndDate.setDate(baseDate.getDate() + 6)
   const weekRangeLabel = `${baseDate.getDate()} – ${weekEndDate.getDate()} ${new Intl.DateTimeFormat('es-CR', { month: 'long' }).format(weekEndDate)}`
@@ -170,9 +182,9 @@ export function CoachAppointmentsCalendar({ appointments, weekStart, clients, co
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-[var(--color-foreground)] capitalize">{monthLabel}</span>
           <span className="text-xs text-[var(--color-muted-foreground)]">({weekRangeLabel})</span>
-          {appointments.length > 0 && (
+          {ownCount > 0 && (
             <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--color-coach)', color: 'white' }}>
-              {appointments.length}
+              {ownCount}
             </span>
           )}
         </div>
@@ -208,7 +220,7 @@ export function CoachAppointmentsCalendar({ appointments, weekStart, clients, co
       </div>
 
       {/* Empty state */}
-      {appointments.length === 0 && (
+      {ownCount === 0 && (
         <div className="flex flex-col items-center justify-center py-14 gap-2 text-center">
           <p className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>Sin citas esta semana</p>
           <p className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>Haz clic en cualquier celda del calendario para crear una cita.</p>
@@ -267,6 +279,26 @@ export function CoachAppointmentsCalendar({ appointments, weekStart, clients, co
                   const startD  = new Date(apt.start_time)
                   const timeStr = `${String(startD.getHours()).padStart(2, '0')}:${String(startD.getMinutes()).padStart(2, '0')}`
                   const isGroup = apt.group_mode === 'group'
+
+                  // Another coach's appointment — dimmed, non-interactive,
+                  // no client-identifying details (see list_appointments).
+                  if (!apt.is_own) {
+                    return (
+                      <div key={apt.id}
+                        className="absolute overflow-hidden px-1 py-0.5 rounded opacity-40"
+                        style={{
+                          top: `${top}px`, height: `${height}px`, left: `${left + 0.5}%`, width: `${width - 1}%`,
+                          backgroundColor: 'var(--color-muted-foreground)', borderLeft: '3px solid var(--color-muted-foreground)',
+                        }}
+                      >
+                        <p className="text-[10px] font-semibold truncate leading-tight text-white">Ocupado</p>
+                        {height > 36 && (
+                          <p className="text-[9px] truncate leading-tight text-white/80">{timeStr} · {apt.coach_name ?? 'Otro coach'}</p>
+                        )}
+                      </div>
+                    )
+                  }
+
                   const nameStr = isGroup
                     ? (apt.max_participants != null ? `${apt.participants.length}/${apt.max_participants} cupos` : `${apt.participants.length} clientes`)
                     : (apt.client_name ?? '—')
@@ -294,7 +326,11 @@ export function CoachAppointmentsCalendar({ appointments, weekStart, clients, co
       </div>
 
       {selectedApt && (
-        <CoachAppointmentDetailModal appointment={selectedApt} onClose={() => setSelectedApt(null)} />
+        <CoachAppointmentDetailModal
+          appointment={selectedApt}
+          clients={clients}
+          onClose={() => setSelectedApt(null)}
+        />
       )}
 
       {slotClick && (
@@ -311,23 +347,107 @@ export function CoachAppointmentsCalendar({ appointments, weekStart, clients, co
   )
 }
 
-// Read-only detail view — the coach appointments page has no edit
-// affordances today (the list view is a plain table), so this stays
-// informational rather than introducing new edit/cancel permissions.
-function CoachAppointmentDetailModal({ appointment, onClose }: { appointment: Appointment; onClose: () => void }) {
+// Editable detail view for the coach's own appointment: reschedule, edit
+// location/meeting link/notes, add or remove participants, cancel. A
+// reduced field set on purpose — no title/status-machine/coach-
+// reassignment/hard delete, that stays admin-only (appointment-edit-modal.tsx).
+function CoachAppointmentDetailModal({
+  appointment, clients, onClose,
+}: { appointment: Appointment; clients: Client[]; onClose: () => void }) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [editing, setEditing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [confirmCancel, setConfirmCancel] = useState(false)
+  const [addQuery, setAddQuery] = useState('')
+
   const start = new Date(appointment.start_time)
   const end   = new Date(appointment.end_time)
   const dateLabel = start.toLocaleDateString('es-CR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const timeLabel = `${start.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' })} – ${end.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' })}`
   const isGroup = appointment.group_mode === 'group'
+  const isTerminal = appointment.status === 'cancelled' || appointment.status === 'completed'
+
+  const [dateStr, setDateStr] = useState(localDateStr(start))
+  const [startTime, setStartTime] = useState(`${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`)
+  const [endTime, setEndTime] = useState(`${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`)
+  const [location, setLocation] = useState(appointment.location ?? '')
+  const [meetingUrl, setMeetingUrl] = useState(appointment.meeting_url ?? '')
+  const [notes, setNotes] = useState(appointment.description ?? '')
+
+  const existingIds = new Set(appointment.participants.map(p => p.id))
+  const addResults = addQuery.trim()
+    ? clients.filter(c => !existingIds.has(c.id) && c.full_name.toLowerCase().includes(addQuery.toLowerCase())).slice(0, 6)
+    : []
+
+  function handleSave() {
+    setError(null)
+    const startISO = new Date(`${dateStr}T${startTime}`).toISOString()
+    const endISO   = new Date(`${dateStr}T${endTime}`).toISOString()
+    if (new Date(endISO) <= new Date(startISO)) {
+      setError('La hora de fin debe ser posterior a la de inicio.')
+      return
+    }
+    startTransition(async () => {
+      const result = await updateCoachAppointmentAction(appointment.id, {
+        start_time: startISO,
+        end_time: endISO,
+        location: appointment.appointment_type === 'in_person' ? (location.trim() || null) : appointment.location,
+        meeting_url: appointment.appointment_type === 'virtual' ? (meetingUrl.trim() || null) : appointment.meeting_url,
+        description: notes.trim() || null,
+      })
+      if (result?.error) { setError(result.error); return }
+      router.refresh()
+      onClose()
+    })
+  }
+
+  function handleCancel() {
+    startTransition(async () => {
+      const result = await cancelCoachAppointmentAction(appointment.id)
+      if (result?.error) { setError(result.error); return }
+      router.refresh()
+      onClose()
+    })
+  }
+
+  function handleAddParticipant(clientId: string) {
+    startTransition(async () => {
+      const result = await addCoachAppointmentParticipantAction(appointment.id, clientId)
+      if (result?.error) { setError(result.error); return }
+      setAddQuery('')
+      router.refresh()
+    })
+  }
+
+  function handleRemoveParticipant(clientId: string) {
+    startTransition(async () => {
+      const result = await removeCoachAppointmentParticipantAction(appointment.id, clientId)
+      if (result?.error) { setError(result.error); return }
+      router.refresh()
+    })
+  }
+
+  const inputStyle: React.CSSProperties = {
+    backgroundColor: 'var(--color-input)',
+    border: '1px solid var(--color-border)',
+    color: 'var(--color-foreground)',
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-sm rounded-2xl shadow-xl" style={{ backgroundColor: 'var(--color-card)', border: '1px solid var(--color-border)' }}>
+      <div className="w-full max-w-sm rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto" style={{ backgroundColor: 'var(--color-card)', border: '1px solid var(--color-border)' }}>
         <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
           <h2 className="text-base font-semibold" style={{ color: 'var(--color-foreground)' }}>{appointment.title}</h2>
-          <button onClick={onClose} style={{ color: 'var(--color-muted-foreground)' }}><X size={18} /></button>
+          <div className="flex items-center gap-1">
+            {!isTerminal && !editing && (
+              <button onClick={() => setEditing(true)} className="rounded-lg p-1.5 hover:opacity-70" style={{ color: 'var(--color-coach)' }} title="Editar">
+                <Pencil size={16} />
+              </button>
+            )}
+            <button onClick={onClose} style={{ color: 'var(--color-muted-foreground)' }}><X size={18} /></button>
+          </div>
         </div>
 
         <div className="px-6 py-5 flex flex-col gap-4">
@@ -339,55 +459,172 @@ function CoachAppointmentDetailModal({ appointment, onClose }: { appointment: Ap
             </span>
           </div>
 
-          <div>
-            <p className="text-sm font-medium capitalize" style={{ color: 'var(--color-foreground)' }}>{dateLabel}</p>
-            <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>{timeLabel}</p>
-          </div>
+          {editing ? (
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="flex flex-col gap-1 col-span-3 sm:col-span-1">
+                  <label className="text-xs font-medium" style={{ color: 'var(--color-foreground)' }}>Fecha</label>
+                  <input type="date" value={dateStr} onChange={e => setDateStr(e.target.value)}
+                    className="rounded-lg px-2.5 py-2 text-sm outline-none" style={inputStyle} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium" style={{ color: 'var(--color-foreground)' }}>Inicio</label>
+                  <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
+                    className="rounded-lg px-2.5 py-2 text-sm outline-none" style={inputStyle} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium" style={{ color: 'var(--color-foreground)' }}>Fin</label>
+                  <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
+                    className="rounded-lg px-2.5 py-2 text-sm outline-none" style={inputStyle} />
+                </div>
+              </div>
 
-          {isGroup ? (
-            <div>
-              <p className="text-xs font-medium mb-1.5 flex items-center gap-1.5" style={{ color: 'var(--color-muted-foreground)' }}>
-                <Users size={12} />
-                Participantes ({appointment.participants.length}{appointment.max_participants != null ? `/${appointment.max_participants}` : ''})
-              </p>
-              <div className="flex flex-col gap-1.5">
-                {appointment.participants.map(p => (
-                  <div key={p.id} className="flex items-center gap-2">
-                    <Avatar name={p.full_name} src={p.avatar_url} size="sm" className="bg-[var(--color-coach-light)]" />
-                    <span className="text-sm" style={{ color: 'var(--color-foreground)' }}>{p.full_name}</span>
-                  </div>
-                ))}
-                {appointment.participants.length === 0 && (
-                  <p className="text-xs italic" style={{ color: 'var(--color-muted-foreground)' }}>Sin participantes registrados</p>
-                )}
+              {appointment.appointment_type === 'in_person' && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium" style={{ color: 'var(--color-foreground)' }}>Ubicación</label>
+                  <input type="text" value={location} onChange={e => setLocation(e.target.value)}
+                    placeholder="Ej. Local N.° 7, Plaza Andes, Santa Ana"
+                    className="rounded-lg px-2.5 py-2 text-sm outline-none" style={inputStyle} />
+                </div>
+              )}
+              {appointment.appointment_type === 'virtual' && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium" style={{ color: 'var(--color-foreground)' }}>Enlace de reunión</label>
+                  <input type="url" value={meetingUrl} onChange={e => setMeetingUrl(e.target.value)}
+                    className="rounded-lg px-2.5 py-2 text-sm outline-none" style={inputStyle} />
+                </div>
+              )}
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium" style={{ color: 'var(--color-foreground)' }}>Notas</label>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+                  className="rounded-lg px-2.5 py-2 text-sm outline-none resize-none" style={inputStyle} />
               </div>
             </div>
-          ) : appointment.client_name && (
-            <div className="flex items-center gap-2">
-              <Avatar name={appointment.client_name} src={appointment.client_avatar} size="sm" className="bg-[var(--color-coach-light)]" />
-              <span className="text-sm" style={{ color: 'var(--color-foreground)' }}>{appointment.client_name}</span>
+          ) : (
+            <div>
+              <p className="text-sm font-medium capitalize" style={{ color: 'var(--color-foreground)' }}>{dateLabel}</p>
+              <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>{timeLabel}</p>
             </div>
           )}
 
-          {appointment.location && (
-            <div className="flex items-start gap-2 text-sm" style={{ color: 'var(--color-foreground)' }}>
-              <MapPin size={14} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--color-muted-foreground)' }} />
-              {appointment.location}
+          {/* Participants — editable list + add */}
+          <div>
+            <p className="text-xs font-medium mb-1.5 flex items-center gap-1.5" style={{ color: 'var(--color-muted-foreground)' }}>
+              <Users size={12} />
+              {isGroup ? `Participantes (${appointment.participants.length}${appointment.max_participants != null ? `/${appointment.max_participants}` : ''})` : 'Cliente'}
+            </p>
+            <div className="flex flex-col gap-1.5">
+              {appointment.participants.map(p => (
+                <div key={p.id} className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Avatar name={p.full_name} src={p.avatar_url} size="sm" className="bg-[var(--color-coach-light)]" />
+                    <span className="text-sm truncate" style={{ color: 'var(--color-foreground)' }}>{p.full_name}</span>
+                  </div>
+                  {editing && (
+                    <button onClick={() => handleRemoveParticipant(p.id)} disabled={isPending}
+                      className="flex-shrink-0 rounded-md p-1 hover:bg-red-50" style={{ color: 'var(--color-destructive)' }} title="Quitar">
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {appointment.participants.length === 0 && !isGroup && appointment.client_name && (
+                <div className="flex items-center gap-2">
+                  <Avatar name={appointment.client_name} src={appointment.client_avatar} size="sm" className="bg-[var(--color-coach-light)]" />
+                  <span className="text-sm" style={{ color: 'var(--color-foreground)' }}>{appointment.client_name}</span>
+                </div>
+              )}
+              {appointment.participants.length === 0 && !appointment.client_name && (
+                <p className="text-xs italic" style={{ color: 'var(--color-muted-foreground)' }}>Sin participantes registrados</p>
+              )}
+            </div>
+
+            {editing && (
+              <div className="relative mt-2">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-muted-foreground)' }} />
+                <input
+                  type="text" value={addQuery} onChange={e => setAddQuery(e.target.value)}
+                  placeholder="Agregar cliente…"
+                  className="w-full rounded-lg pl-7 pr-2.5 py-1.5 text-xs outline-none" style={inputStyle}
+                />
+                {addResults.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full rounded-lg border shadow-lg overflow-hidden" style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
+                    {addResults.map(c => (
+                      <button key={c.id} type="button" disabled={isPending}
+                        onClick={() => handleAddParticipant(c.id)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs hover:bg-[var(--color-muted)]">
+                        <UserPlus size={12} style={{ color: 'var(--color-coach)' }} />
+                        {c.full_name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {appointment.location && !editing && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-start gap-2 text-sm" style={{ color: 'var(--color-foreground)' }}>
+                <MapPin size={14} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--color-muted-foreground)' }} />
+                {appointment.location}
+              </div>
+              <MapLinks location={appointment.location} />
             </div>
           )}
-          {appointment.meeting_url && (
+          {appointment.meeting_url && !editing && (
             <a href={appointment.meeting_url} target="_blank" rel="noopener noreferrer"
               className="flex items-start gap-2 text-sm hover:underline" style={{ color: 'var(--color-coach)' }}>
               <Video size={14} className="flex-shrink-0 mt-0.5" />
               {appointment.meeting_url}
             </a>
           )}
-          {appointment.description && (
+          {appointment.description && !editing && (
             <div className="flex items-start gap-2 text-sm" style={{ color: 'var(--color-foreground)' }}>
               <FileText size={14} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--color-muted-foreground)' }} />
               {appointment.description}
             </div>
           )}
+
+          {error && (
+            <p className="text-xs rounded-lg px-3 py-2" style={{ backgroundColor: 'color-mix(in srgb, var(--color-destructive) 8%, transparent)', color: 'var(--color-destructive)' }}>
+              {error}
+            </p>
+          )}
+
+          {confirmCancel ? (
+            <div className="flex flex-col gap-2 rounded-lg p-3" style={{ backgroundColor: 'color-mix(in srgb, var(--color-destructive) 6%, transparent)' }}>
+              <p className="text-xs" style={{ color: 'var(--color-foreground)' }}>¿Cancelar esta cita?</p>
+              <div className="flex gap-2">
+                <button onClick={() => setConfirmCancel(false)} disabled={isPending}
+                  className="flex-1 rounded-lg py-1.5 text-xs font-medium" style={{ backgroundColor: 'var(--color-muted)', color: 'var(--color-foreground)' }}>
+                  No
+                </button>
+                <button onClick={handleCancel} disabled={isPending}
+                  className="flex-1 rounded-lg py-1.5 text-xs font-medium text-white" style={{ backgroundColor: 'var(--color-destructive)' }}>
+                  {isPending ? '…' : 'Sí, cancelar'}
+                </button>
+              </div>
+            </div>
+          ) : editing ? (
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmCancel(true)} disabled={isPending}
+                className="flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium" style={{ color: 'var(--color-destructive)' }}>
+                <Trash2 size={13} />
+                Cancelar cita
+              </button>
+              <div className="flex-1" />
+              <button onClick={() => setEditing(false)} disabled={isPending}
+                className="rounded-lg px-3 py-2 text-xs font-medium" style={{ backgroundColor: 'var(--color-muted)', color: 'var(--color-foreground)' }}>
+                Descartar
+              </button>
+              <button onClick={handleSave} disabled={isPending}
+                className="rounded-lg px-3 py-2 text-xs font-medium text-white" style={{ backgroundColor: 'var(--color-coach)' }}>
+                {isPending ? 'Guardando…' : 'Guardar'}
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

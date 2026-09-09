@@ -88,16 +88,22 @@ export default async function CoachAppointmentsPage({
     supabase.from('profiles').select('full_name').eq('id', user!.id).single(),
     supabase.rpc('get_profiles_by_role', { role_name: 'client' }),
     view === 'calendar'
-      ? supabase.rpc('list_appointments', { p_start_time: weekStart.toISOString(), p_end_time: weekEnd.toISOString() })
+      ? supabase.rpc('list_appointments', {
+          p_start_time: weekStart.toISOString(),
+          p_end_time: weekEnd.toISOString(),
+          p_include_other_coaches: true,
+        })
       : Promise.resolve({ data: null, error: null }),
   ])
 
   const { data: appointments, count } = appointmentsResult
   const coachName = profileResult.data?.full_name ?? ''
   const clientList = (clientsResult.data ?? []) as { id: string; full_name: string }[]
-  // list_appointments already scopes to the caller (coach_id/client_id/
-  // participant match) — for a coach that's exactly their own appointments,
-  // same as the table query, just calendar-shaped and week-bounded.
+  // list_appointments scopes to the caller (coach_id/client_id/participant
+  // match) plus, with p_include_other_coaches, other coaches' appointments
+  // in the tenant — those come back with client-identifying fields
+  // blanked out (is_own=false) so the calendar can render them dimmed for
+  // scheduling context only.
   const calendarAppointments = (calendarResult.data ?? []) as any[]
 
   // Fetch client profiles for display in the table
