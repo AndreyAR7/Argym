@@ -1,3 +1,16 @@
+// IMPORTANT — verify_jwt must stay FALSE on this function in production.
+// It's called from Postgres triggers/cron (trigger_appointment_communication
+// etc., see supabase/migrations/20240101000111_*.sql) via net.http_post with
+// only an x-webhook-secret header, no Authorization/JWT. supabase/config.toml
+// declares verify_jwt = false for local dev, but that file is NOT read when
+// redeploying via the Management API's /functions/deploy endpoint (no
+// Supabase CLI in this project's workflow) — omitting verify_jwt from that
+// call resets it to the platform default (true), which makes the gateway
+// reject every trigger-originated call with 401 UNAUTHORIZED_NO_AUTH_HEADER
+// *silently* (the trigger's EXCEPTION WHEN OTHERS swallows it) — this broke
+// every appointment/plan/approval email for a while before being caught.
+// Any redeploy must explicitly PATCH verify_jwt back to false afterward:
+//   PATCH /v1/projects/{ref}/functions/send-communication  body: {"verify_jwt": false}
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { createTransport } from 'npm:nodemailer'
 import PDFDocument from 'npm:pdfkit'
