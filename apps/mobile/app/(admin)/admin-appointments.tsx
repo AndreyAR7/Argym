@@ -49,6 +49,10 @@ export default function AdminAppointmentsScreen() {
   const [showCreate, setShowCreate] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [calendarDate, setCalendarDate] = useState(new Date());
+  // Filters the day view by coach — with several coaches sharing one
+  // shared timeline (no per-coach lanes), telling whose session is whose
+  // gets hard fast. null = "todos" (default, unchanged behavior).
+  const [calendarCoachFilter, setCalendarCoachFilter] = useState<string | null>(null);
   const [page, setPage] = React.useState(1);
 
   // Reset page when filter changes
@@ -378,6 +382,38 @@ export default function AdminAppointmentsScreen() {
               );
             })}
           </ScrollView>
+          {coaches.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+              <TouchableOpacity
+                onPress={() => setCalendarCoachFilter(null)}
+                style={[st.coachChip, {
+                  backgroundColor: calendarCoachFilter === null ? T.accent : T.bgCardElevated,
+                  borderColor: calendarCoachFilter === null ? T.accent : T.border,
+                }]}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '600', color: calendarCoachFilter === null ? '#fff' : T.textMuted }}>
+                  Todos
+                </Text>
+              </TouchableOpacity>
+              {coaches.filter((c) => c.is_active !== false).map((coach) => {
+                const active = calendarCoachFilter === coach.id;
+                return (
+                  <TouchableOpacity
+                    key={coach.id}
+                    onPress={() => setCalendarCoachFilter(coach.id)}
+                    style={[st.coachChip, {
+                      backgroundColor: active ? T.accent : T.bgCardElevated,
+                      borderColor: active ? T.accent : T.border,
+                    }]}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: active ? '#fff' : T.text }}>
+                      {coach.full_name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
         </View>
       )}
 
@@ -385,7 +421,7 @@ export default function AdminAppointmentsScreen() {
       {viewMode === 'calendar' ? (
         <View style={{ flex: 1 }}>
         <CalendarDayView
-            appointments={appointments}
+            appointments={calendarCoachFilter ? appointments.filter((a) => a.coach_id === calendarCoachFilter) : appointments}
             selectedDate={calendarDate}
             onEventPress={(apt) => router.push(`/(admin)/appointment/${apt.id}` as any)}
           />

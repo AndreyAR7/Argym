@@ -144,3 +144,35 @@ export async function deleteAppointmentAction(id: string) {
   return { success: true }
 }
 
+export interface AppointmentHistoryEntry {
+  id: string
+  old_status: AppointmentStatus | null
+  new_status: AppointmentStatus
+  changed_at: string
+  changed_by_name: string | null
+}
+
+export async function getAppointmentHistoryAction(appointmentId: string): Promise<{ entries?: AppointmentHistoryEntry[]; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { data, error } = await supabase
+    .from('appointment_status_history')
+    .select('id, old_status, new_status, changed_at, changed_by, profiles(full_name)')
+    .eq('appointment_id', appointmentId)
+    .order('changed_at', { ascending: false })
+
+  if (error) return { error: error.message }
+
+  const entries: AppointmentHistoryEntry[] = (data ?? []).map((row: any) => ({
+    id: row.id,
+    old_status: row.old_status,
+    new_status: row.new_status,
+    changed_at: row.changed_at,
+    changed_by_name: row.changed_by ? (row.profiles?.full_name ?? null) : null,
+  }))
+
+  return { entries }
+}
+

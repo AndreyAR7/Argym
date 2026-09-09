@@ -147,6 +147,16 @@ export interface DetailedAppointment {
   notes: string | null
 }
 
+export interface AppointmentGroupRow {
+  group_label: string
+  total: number
+  completed: number
+  cancelled: number
+  no_show: number
+  fill_rate: number
+  cancellation_rate: number
+}
+
 // ─── Combined data type ──────────────────────────────────────────────────────
 export interface AnalyticsData {
   summary: RevenueSummary
@@ -325,6 +335,37 @@ export async function getDetailedDataAction(
   if (error) return { error: error.message }
 
   return { data: (data as any[]) ?? [] }
+}
+
+// ─── Appointments grouped by coach/branch ─────────────────────────────────────
+export async function getAppointmentsByGroupAction(
+  from: string,
+  to: string,
+  groupBy: 'coach' | 'branch' | null,
+): Promise<{ data?: AppointmentGroupRow[]; error?: string }> {
+  const session = await getSessionData()
+  if (!session) return { error: 'No autenticado' }
+  const { supabase, tenantId } = session
+
+  const { data, error } = await supabase.rpc('analytics_appointments_by_group', {
+    p_tenant_id: tenantId,
+    p_from: from,
+    p_to: to,
+    p_group_by: groupBy,
+  })
+  if (error) return { error: error.message }
+
+  return {
+    data: ((data as any[]) ?? []).map(r => ({
+      group_label:       r.group_label ?? '',
+      total:              num(r.total),
+      completed:          num(r.completed),
+      cancelled:          num(r.cancelled),
+      no_show:            num(r.no_show),
+      fill_rate:          num(r.fill_rate),
+      cancellation_rate:  num(r.cancellation_rate),
+    })),
+  }
 }
 
 // ─── Full export action (all tables at once) ─────────────────────────────────

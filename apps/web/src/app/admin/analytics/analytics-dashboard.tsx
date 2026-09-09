@@ -10,8 +10,9 @@ import {
 import type {
   AnalyticsData, DetailTab,
   DetailedClient, DetailedTransaction, DetailedSubscription, DetailedAppointment,
+  AppointmentGroupRow,
 } from './actions'
-import { getDetailedDataAction } from './actions'
+import { getDetailedDataAction, getAppointmentsByGroupAction } from './actions'
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 function fmt(n: number, currency = 'CRC') {
@@ -409,6 +410,40 @@ function AppointmentsTable({ rows }: { rows: DetailedAppointment[] }) {
   )
 }
 
+function GroupedAppointmentsTable({ rows }: { rows: AppointmentGroupRow[] }) {
+  if (!rows.length) return <p className="px-6 py-8 text-sm text-[var(--color-muted-foreground)]">Sin citas para el período seleccionado</p>
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-[var(--color-muted)] border-b border-[var(--color-border)]">
+            <Th>Grupo</Th>
+            <Th>Total</Th>
+            <Th>Completadas</Th>
+            <Th>Canceladas</Th>
+            <Th>No asistió</Th>
+            <Th>% Cumplimiento</Th>
+            <Th>% Cancelación</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className="hover:bg-[var(--color-muted)] transition-colors">
+              <Td><span className="font-medium">{r.group_label}</span></Td>
+              <Td right>{r.total}</Td>
+              <Td right>{r.completed}</Td>
+              <Td right>{r.cancelled}</Td>
+              <Td right>{r.no_show}</Td>
+              <Td right>{r.fill_rate.toFixed(1)}%</Td>
+              <Td right>{r.cancellation_rate.toFixed(1)}%</Td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export function AnalyticsDashboard({ data, period }: { data: AnalyticsData; period: string }) {
   const { summary, kpis, monthlyRevenue, topPlans, topPromotions, topUsers, branches, topVideos, weeklyActivity, currency, from, to } = data
@@ -422,6 +457,12 @@ export function AnalyticsDashboard({ data, period }: { data: AnalyticsData; peri
   const [tabError, setTabError] = useState<string | null>(null)
   const [showDetail, setShowDetail] = useState(false)
 
+  // Appointments-only: optional grouping by coach/branch
+  const [apptGroupBy, setApptGroupBy] = useState<'coach' | 'branch' | null>(null)
+  const [groupedRows, setGroupedRows] = useState<AppointmentGroupRow[] | null>(null)
+  const [groupPending, startGroup] = useTransition()
+  const [groupError, setGroupError] = useState<string | null>(null)
+
   useEffect(() => {
     if (!showDetail) return
     if (cache[activeTab]) return
@@ -433,8 +474,18 @@ export function AnalyticsDashboard({ data, period }: { data: AnalyticsData; peri
     })
   }, [activeTab, showDetail, from, to])
 
+  useEffect(() => {
+    if (!showDetail || activeTab !== 'appointments' || !apptGroupBy) { setGroupedRows(null); return }
+    setGroupError(null)
+    startGroup(async () => {
+      const result = await getAppointmentsByGroupAction(from, to, apptGroupBy)
+      if (result.error) { setGroupError(result.error); return }
+      setGroupedRows(result.data ?? [])
+    })
+  }, [activeTab, showDetail, apptGroupBy, from, to])
+
   // When period changes, clear cache
-  useEffect(() => { setCache({}) }, [from, to])
+  useEffect(() => { setCache({}); setGroupedRows(null) }, [from, to])
 
   function handleExport() {
     startExport(async () => {
@@ -762,9 +813,45 @@ export function AnalyticsDashboard({ data, period }: { data: AnalyticsData; peri
               })}
             </div>
 
+            {/* Group-by selector — appointments tab only */}
+            {activeTab === 'appointments' && (
+              <div className="flex items-center gap-2 px-6 py-3 border-b border-[var(--color-border)]">
+                <span className="text-xs font-medium text-[var(--color-muted-foreground)]">Agrupar por:</span>
+                {([
+                  { key: null,      label: 'Ninguno'   },
+                  { key: 'coach',   label: 'Coach'     },
+                  { key: 'branch',  label: 'Sucursal'  },
+                ] as const).map(opt => (
+                  <button
+                    key={opt.label}
+                    onClick={() => setApptGroupBy(opt.key)}
+                    className={[
+                      'px-3 py-1.5 rounded-full text-xs font-medium transition-colors',
+                      apptGroupBy === opt.key
+                        ? 'bg-[var(--color-admin)] text-[var(--color-primary-foreground)]'
+                        : 'bg-[var(--color-muted)] text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]',
+                    ].join(' ')}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Tab content */}
             <div className="min-h-[200px]">
-              {tabPending ? (
+              {activeTab === 'appointments' && apptGroupBy ? (
+                groupPending ? (
+                  <div className="flex items-center justify-center py-16 gap-2 text-sm text-[var(--color-muted-foreground)]">
+                    <Loader2 size={16} className="animate-spin" />
+                    Cargando datos…
+                  </div>
+                ) : groupError ? (
+                  <p className="px-6 py-8 text-sm text-[var(--color-destructive)]">{groupError}</p>
+                ) : (
+                  <GroupedAppointmentsTable rows={groupedRows ?? []} />
+                )
+              ) : tabPending ? (
                 <div className="flex items-center justify-center py-16 gap-2 text-sm text-[var(--color-muted-foreground)]">
                   <Loader2 size={16} className="animate-spin" />
                   Cargando datos…

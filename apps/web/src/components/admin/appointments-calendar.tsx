@@ -85,6 +85,10 @@ export function AppointmentsCalendar({ appointments, coaches, clients, branches,
   const [editingApt,   setEditingApt]   = useState<Appointment | null>(null)
   const [currentTopPx, setCurrentTopPx] = useState<number | null>(nowTop)
   const [showBlockModal, setShowBlockModal] = useState(false)
+  // Filters the visible timeline by coach — with several coaches sharing
+  // one shared-timeline grid (no per-coach lanes), telling whose session
+  // is whose gets hard fast. Default 'all' keeps today's behavior.
+  const [selectedCoachId, setSelectedCoachId] = useState<string>('all')
 
   // Update current-time line every minute
   useEffect(() => {
@@ -106,8 +110,12 @@ export function AppointmentsCalendar({ appointments, coaches, clients, branches,
   function prevWeek() { const d = new Date(baseDate); d.setDate(d.getDate() - 7); router.push(`?view=calendar&week=${localDateStr(d)}`) }
   function nextWeek() { const d = new Date(baseDate); d.setDate(d.getDate() + 7); router.push(`?view=calendar&week=${localDateStr(d)}`) }
 
+  const visibleAppointments = selectedCoachId === 'all'
+    ? appointments
+    : appointments.filter(a => a.coach_id === selectedCoachId)
+
   const aptsByDate: Record<string, Appointment[]> = {}
-  for (const apt of appointments) {
+  for (const apt of visibleAppointments) {
     const k = isoToLocalDateStr(apt.start_time)
     if (!aptsByDate[k]) aptsByDate[k] = []
     aptsByDate[k].push(apt)
@@ -191,13 +199,25 @@ export function AppointmentsCalendar({ appointments, coaches, clients, branches,
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-[var(--color-foreground)] capitalize">{monthLabel}</span>
           <span className="text-xs text-[var(--color-muted-foreground)]">({weekRangeLabel})</span>
-          {appointments.length > 0 && (
+          {visibleAppointments.length > 0 && (
             <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--color-admin)', color: 'white' }}>
-              {appointments.length}
+              {visibleAppointments.length}
             </span>
           )}
         </div>
         <div className="flex items-center gap-1">
+          {coaches.length > 0 && (
+            <select
+              value={selectedCoachId}
+              onChange={(e) => setSelectedCoachId(e.target.value)}
+              className="text-xs font-medium rounded-md border border-[var(--color-border)] bg-[var(--color-card)] px-2 py-1 text-[var(--color-foreground)] outline-none"
+            >
+              <option value="all">Todos los coaches</option>
+              {coaches.map((c) => (
+                <option key={c.id} value={c.id}>{c.full_name}</option>
+              ))}
+            </select>
+          )}
           <button
             onClick={() => setShowBlockModal(true)}
             className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md text-[var(--color-muted-foreground)] hover:bg-[var(--color-card)] transition-colors"
@@ -236,7 +256,7 @@ export function AppointmentsCalendar({ appointments, coaches, clients, branches,
       </div>
 
       {/* Empty state */}
-      {appointments.length === 0 && (
+      {visibleAppointments.length === 0 && (
         <div className="flex flex-col items-center justify-center py-14 gap-2 text-center">
           <p className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>Sin citas esta semana</p>
           <p className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>Haz clic en cualquier celda del calendario para crear una cita.</p>

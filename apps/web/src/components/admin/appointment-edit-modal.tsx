@@ -2,8 +2,12 @@
 
 import { useState, useTransition, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { MapPin, Video, Phone, AlertCircle, Search, X, Ban, Trash2, Users, ChevronDown, CalendarClock } from 'lucide-react'
-import { updateAppointmentAction, updateAppointmentStatusAction, deleteAppointmentAction } from '@/lib/admin/appointment-actions'
+import { MapPin, Video, Phone, AlertCircle, Search, X, Ban, Trash2, Users, ChevronDown, CalendarClock, History, Loader2 } from 'lucide-react'
+import {
+  updateAppointmentAction, updateAppointmentStatusAction, deleteAppointmentAction,
+  getAppointmentHistoryAction, type AppointmentHistoryEntry,
+} from '@/lib/admin/appointment-actions'
+import { STATUS_LABELS } from './appointment-status-transitions'
 import type { AppointmentStatus } from '@platform/types'
 
 const DELETABLE_STATUSES = new Set(['cancelled', 'completed', 'no_show'])
@@ -171,6 +175,30 @@ export default function AppointmentEditModal({ appointment, coaches, clients, on
   const [error, setError]           = useState<string | null>(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const [showHistory, setShowHistory]   = useState(false)
+  const [historyLoaded, setHistoryLoaded] = useState(false)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState<string | null>(null)
+  const [history, setHistory]           = useState<AppointmentHistoryEntry[]>([])
+
+  function toggleHistory() {
+    setShowHistory(prev => !prev)
+    if (!historyLoaded) {
+      setHistoryLoading(true)
+      getAppointmentHistoryAction(appointment.id)
+        .then(result => {
+          if (result.error) setHistoryError(result.error)
+          else setHistory(result.entries ?? [])
+          setHistoryLoaded(true)
+        })
+        .finally(() => setHistoryLoading(false))
+    }
+  }
+
+  function formatHistoryDate(iso: string): string {
+    return new Date(iso).toLocaleString('es-CR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+  }
 
   const [type, setType]       = useState(appointment.appointment_type)
   const [status, setStatus]   = useState(appointment.status)
@@ -437,6 +465,46 @@ export default function AppointmentEditModal({ appointment, coaches, clients, on
               <textarea name="description" rows={2} placeholder="Observaciones adicionales…"
                 defaultValue={appointment.description ?? ''}
                 className="rounded-lg px-3 py-2 text-sm outline-none resize-none" style={inputStyle} />
+            </div>
+
+            {/* History */}
+            <div className="flex flex-col gap-1">
+              <button type="button" onClick={toggleHistory}
+                className="flex items-center gap-1.5 text-sm font-medium self-start hover:opacity-70 transition-opacity"
+                style={{ color: 'var(--color-muted-foreground)' }}>
+                <History size={13} />
+                Historial de cambios
+                <ChevronDown size={13} style={{ transform: showHistory ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }} />
+              </button>
+              {showHistory && (
+                <div className="rounded-lg mt-1 px-3 py-2 text-sm"
+                  style={{ backgroundColor: 'var(--color-muted)' }}>
+                  {historyLoading ? (
+                    <div className="flex items-center gap-2 py-1" style={{ color: 'var(--color-muted-foreground)' }}>
+                      <Loader2 size={13} className="animate-spin" />
+                      Cargando historial…
+                    </div>
+                  ) : historyError ? (
+                    <p style={{ color: 'var(--color-destructive)' }}>{historyError}</p>
+                  ) : history.length === 0 ? (
+                    <p style={{ color: 'var(--color-muted-foreground)' }}>Sin cambios de estado registrados.</p>
+                  ) : (
+                    <ul className="flex flex-col gap-1.5">
+                      {history.map(h => (
+                        <li key={h.id} className="flex items-baseline justify-between gap-2">
+                          <span style={{ color: 'var(--color-foreground)' }}>
+                            {h.old_status ? `${STATUS_LABELS[h.old_status]} → ${STATUS_LABELS[h.new_status]}` : `Creada (${STATUS_LABELS[h.new_status]})`}
+                            {h.changed_by_name && <span style={{ color: 'var(--color-muted-foreground)' }}> · {h.changed_by_name}</span>}
+                          </span>
+                          <span className="flex-shrink-0 text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
+                            {formatHistoryDate(h.changed_at)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Error */}
