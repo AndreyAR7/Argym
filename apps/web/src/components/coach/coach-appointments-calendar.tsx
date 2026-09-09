@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, ChevronRight, MapPin, Video, Phone, Users, X, FileText, Pencil, Trash2, UserPlus, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, Video, Phone, Users, X, FileText, Pencil, Trash2, UserPlus, Search, Ban } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
 import { MapLinks } from '@/components/shared/map-links'
@@ -35,6 +35,7 @@ interface Appointment {
   max_participants: number | null
   participants: Participant[]
   is_own: boolean
+  cancellation_reason: string | null
 }
 
 interface Client { id: string; full_name: string }
@@ -302,19 +303,27 @@ export function CoachAppointmentsCalendar({ appointments, weekStart, clients, co
                   const nameStr = isGroup
                     ? (apt.max_participants != null ? `${apt.participants.length}/${apt.max_participants} cupos` : `${apt.participants.length} clientes`)
                     : (apt.client_name ?? '—')
+                  const isCancelled = apt.status === 'cancelled'
 
                   return (
                     <div key={apt.id} data-apt="1"
                       className="absolute overflow-hidden px-1 py-0.5 rounded cursor-pointer transition-all hover:brightness-95 hover:shadow-md"
                       style={{
                         top: `${top}px`, height: `${height}px`, left: `${left + 0.5}%`, width: `${width - 1}%`,
-                        backgroundColor: colors.bg, borderLeft: `3px solid ${colors.border}`,
+                        backgroundColor: isCancelled ? 'var(--color-muted)' : colors.bg,
+                        borderLeft: `3px solid ${isCancelled ? 'var(--color-destructive)' : colors.border}`,
+                        opacity: isCancelled ? 0.55 : 1,
                       }}
+                      title={isCancelled && apt.cancellation_reason ? apt.cancellation_reason : undefined}
                       onClick={e => { e.stopPropagation(); setSlotClick(null); setSelectedApt(apt) }}
                     >
-                      <p className="text-[10px] font-semibold truncate leading-tight" style={{ color: colors.text }}>{apt.title}</p>
+                      <p className="text-[10px] font-semibold truncate leading-tight" style={isCancelled ? { color: 'var(--color-muted-foreground)', textDecoration: 'line-through' } : { color: colors.text }}>
+                        {apt.title}
+                      </p>
                       {height > 36 && (
-                        <p className="text-[9px] truncate leading-tight opacity-80" style={{ color: colors.text }}>{timeStr} · {nameStr}</p>
+                        <p className="text-[9px] truncate leading-tight opacity-80" style={{ color: isCancelled ? 'var(--color-destructive)' : colors.text }}>
+                          {isCancelled ? 'Cancelada' : `${timeStr} · ${nameStr}`}
+                        </p>
                       )}
                     </div>
                   )
@@ -563,6 +572,14 @@ function CoachAppointmentDetailModal({
               </div>
             )}
           </div>
+
+          {appointment.status === 'cancelled' && appointment.cancellation_reason && (
+            <div className="flex items-start gap-2 text-sm rounded-lg px-3 py-2"
+              style={{ backgroundColor: 'color-mix(in srgb, var(--color-destructive) 8%, transparent)', color: 'var(--color-destructive)' }}>
+              <Ban size={14} className="flex-shrink-0 mt-0.5" />
+              {appointment.cancellation_reason}
+            </div>
+          )}
 
           {appointment.location && !editing && (
             <div className="flex flex-col gap-2">

@@ -94,6 +94,9 @@ export function AdminAppointmentsTable({ appointments, coaches, clients, statusF
                   <td className="px-4 py-3">
                     <p className="font-medium text-[var(--color-foreground)] line-clamp-1">{apt.title}</p>
                     <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5 tabular-nums">{date} · {time}</p>
+                    {apt.status === 'cancelled' && apt.cancellation_reason && (
+                      <p className="text-xs text-red-500 mt-0.5 line-clamp-1">{apt.cancellation_reason}</p>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     {displayClients.length === 0 ? (

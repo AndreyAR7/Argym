@@ -19,7 +19,7 @@ export async function declineAppointmentAction(id: string) {
   const supabase = await createClient()
   const { error } = await supabase
     .from('appointments')
-    .update({ status: 'cancelled' })
+    .update({ status: 'cancelled', cancellation_reason: 'Cancelada por el cliente.' })
     .eq('id', id)
 
   if (error) return { error: error.message }

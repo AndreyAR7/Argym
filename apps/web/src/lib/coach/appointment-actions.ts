@@ -75,7 +75,7 @@ export async function cancelCoachAppointmentAction(appointmentId: string) {
 
   const { error } = await supabase
     .from('appointments')
-    .update({ status: 'cancelled' })
+    .update({ status: 'cancelled', cancellation_reason: 'Cancelada por el coach.' })
     .eq('id', appointmentId)
 
   if (error) return { error: error.message }

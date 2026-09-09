@@ -368,30 +368,34 @@ export function AppointmentsCalendar({ appointments, coaches, clients, branches,
                   const nameStr  = isGroup
                     ? (apt.max_participants != null ? `${takenCount}/${apt.max_participants} cupos` : `${apt.participants.length} clientes`)
                     : (apt.client?.full_name ?? '—')
+                  const isCancelled = apt.status === 'cancelled'
 
                   return (
                     <div key={apt.id} data-apt="1"
-                      className={`absolute overflow-hidden px-1 py-0.5 rounded cursor-pointer transition-all hover:brightness-95 hover:shadow-md ${isFull ? 'opacity-60' : ''}`}
+                      className={`absolute overflow-hidden px-1 py-0.5 rounded cursor-pointer transition-all hover:brightness-95 hover:shadow-md ${isFull && !isCancelled ? 'opacity-60' : ''}`}
                       style={{
                         top:         `${top}px`,
                         height:      `${height}px`,
                         left:        `${left + 0.5}%`,
                         width:       `${width - 1}%`,
-                        backgroundColor: colors.bg,
-                        borderLeft:  `3px solid ${isFull ? '#ef4444' : colors.border}`,
+                        backgroundColor: isCancelled ? 'var(--color-muted)' : colors.bg,
+                        borderLeft:  `3px solid ${isCancelled ? 'var(--color-destructive)' : isFull ? '#ef4444' : colors.border}`,
+                        opacity:     isCancelled ? 0.55 : undefined,
                       }}
+                      title={isCancelled && apt.cancellation_reason ? apt.cancellation_reason : undefined}
                       onClick={e => {
                         e.stopPropagation()
                         setSlotClick(null)
                         setEditingApt(apt)
                       }}
                     >
-                      <p className="text-[10px] font-semibold truncate leading-tight" style={{ color: colors.text }}>
-                        {apt.title}{isFull ? ' · Lleno' : ''}
+                      <p className="text-[10px] font-semibold truncate leading-tight"
+                        style={isCancelled ? { color: 'var(--color-muted-foreground)', textDecoration: 'line-through' } : { color: colors.text }}>
+                        {apt.title}{isFull && !isCancelled ? ' · Lleno' : ''}
                       </p>
                       {height > 36 && (
-                        <p className="text-[9px] truncate leading-tight opacity-80" style={{ color: colors.text }}>
-                          {timeStr} · {nameStr}
+                        <p className="text-[9px] truncate leading-tight opacity-80" style={{ color: isCancelled ? 'var(--color-destructive)' : colors.text }}>
+                          {isCancelled ? 'Cancelada' : `${timeStr} · ${nameStr}`}
                         </p>
                       )}
                     </div>

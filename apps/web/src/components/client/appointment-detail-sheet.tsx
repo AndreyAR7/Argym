@@ -14,6 +14,7 @@ export interface AppointmentDetail {
   notes: string | null
   location: string | null
   meeting_url: string | null
+  cancellation_reason: string | null
   coach: { full_name: string } | null
 }
 
@@ -167,6 +168,16 @@ export function AppointmentDetailSheet({ appointment, onClose }: Props) {
               </div>
             )}
           </div>
+
+          {/* Cancellation reason */}
+          {appointment.status === 'cancelled' && appointment.cancellation_reason && (
+            <p
+              className="text-xs px-3 py-2 rounded-xl"
+              style={{ color: 'var(--color-destructive)', backgroundColor: 'color-mix(in srgb, var(--color-destructive) 8%, transparent)' }}
+            >
+              {appointment.cancellation_reason}
+            </p>
+          )}
 
           {/* Notes */}
           {appointment.notes && (

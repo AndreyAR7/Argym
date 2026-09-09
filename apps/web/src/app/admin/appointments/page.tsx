@@ -91,6 +91,7 @@ export default async function AppointmentsPage({
     client_id: string | null; client_name: string | null; client_avatar: string | null
     series_id: string | null
     participants: Array<{ id: string; full_name: string; avatar_url: string | null }>
+    cancellation_reason: string | null
   }>
 
   const normalizedApts = rawApts.map(a => ({

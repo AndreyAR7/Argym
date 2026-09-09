@@ -79,7 +79,7 @@ export default async function CoachAppointmentsPage({
     (() => {
       let q = supabase
         .from('appointments')
-        .select('id, title, start_time, end_time, status, appointment_type, location, meeting_url, notes, client_id', { count: 'exact' })
+        .select('id, title, start_time, end_time, status, appointment_type, location, meeting_url, notes, client_id, cancellation_reason', { count: 'exact' })
         .eq('coach_id', user!.id)
         .order('start_time', { ascending: false })
       if (statusFilter !== 'all') q = q.eq('status', statusFilter)
@@ -220,7 +220,9 @@ export default async function CoachAppointmentsPage({
                       <tr key={apt.id} className="hover:bg-[var(--color-muted)] transition-colors">
                         <td className="px-4 py-3">
                           <p className="font-medium text-[var(--color-foreground)]">{apt.title}</p>
-                          {apt.notes && (
+                          {apt.status === 'cancelled' && apt.cancellation_reason ? (
+                            <p className="text-xs text-red-500 mt-0.5 line-clamp-1">{apt.cancellation_reason}</p>
+                          ) : apt.notes && (
                             <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5 line-clamp-1">{apt.notes}</p>
                           )}
                         </td>

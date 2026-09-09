@@ -44,7 +44,7 @@ export default async function ClientAppointmentsPage({
   // For calendar view fetch only the current week; for list view fetch all
   const query = supabase
     .from('appointments')
-    .select('id, title, start_time, end_time, status, appointment_type, notes, location, meeting_url, coach:profiles!appointments_coach_id_fkey(full_name)')
+    .select('id, title, start_time, end_time, status, appointment_type, notes, location, meeting_url, cancellation_reason, coach:profiles!appointments_coach_id_fkey(full_name)')
     .eq('client_id', user.id)
 
   const { data: appointments } = view === 'calendar'

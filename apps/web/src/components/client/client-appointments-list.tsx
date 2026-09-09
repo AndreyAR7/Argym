@@ -59,7 +59,9 @@ function AppointmentCard({ appt, onClick }: { appt: AppointmentDetail; onClick: 
             </span>
           )}
         </div>
-        {appt.notes && <p className="text-xs text-[var(--color-muted-foreground)] mt-1 italic">{appt.notes}</p>}
+        {appt.status === 'cancelled' && appt.cancellation_reason ? (
+          <p className="text-xs text-red-600 mt-1">{appt.cancellation_reason}</p>
+        ) : appt.notes && <p className="text-xs text-[var(--color-muted-foreground)] mt-1 italic">{appt.notes}</p>}
       </div>
       {/* Hint arrow */}
       <span className="self-center text-[var(--color-muted-foreground)] opacity-50 text-lg">›</span>
@@ -98,7 +100,7 @@ export function ClientAppointmentsList({ upcoming, past, userId }: Props) {
           // Fetch the updated/inserted row with coach join
           const { data } = await supabase
             .from('appointments')
-            .select('id, title, start_time, end_time, status, appointment_type, notes, location, meeting_url, coach:profiles!appointments_coach_id_fkey(full_name)')
+            .select('id, title, start_time, end_time, status, appointment_type, notes, location, meeting_url, cancellation_reason, coach:profiles!appointments_coach_id_fkey(full_name)')
             .eq('id', payload.new.id as string)
             .single()
 

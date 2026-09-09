@@ -30,6 +30,7 @@ export interface AppointmentForEdit {
   client_name: string | null
   series_id: string | null
   participants: Array<{ id: string; full_name: string; avatar_url: string | null }>
+  cancellation_reason: string | null
 }
 
 interface Coach  { id: string; full_name: string }
@@ -388,6 +389,20 @@ export default function AppointmentEditModal({ appointment, coaches, clients, on
                   style={{ color: 'var(--color-muted-foreground)' }} />
               </div>
             </div>
+
+            {/* Cancellation reason banner */}
+            {appointment.status === 'cancelled' && appointment.cancellation_reason && (
+              <div className="flex items-start gap-3 rounded-xl px-4 py-3"
+                style={{ backgroundColor: 'color-mix(in srgb, var(--color-destructive) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--color-destructive) 25%, transparent)' }}>
+                <Ban size={16} className="shrink-0 mt-0.5" style={{ color: 'var(--color-destructive)' }} />
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--color-destructive)' }}>Cita cancelada</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted-foreground)' }}>
+                    {appointment.cancellation_reason}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Postpone request banner */}
             {appointment.status === 'postpone_requested' && (

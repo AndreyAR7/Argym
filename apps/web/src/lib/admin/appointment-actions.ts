@@ -25,7 +25,7 @@ export async function updateAppointmentStatusAction(
 
   const { error } = await supabase
     .from('appointments')
-    .update({ status })
+    .update(status === 'cancelled' ? { status, cancellation_reason: 'Cancelada por el administrador.' } : { status })
     .eq('id', appointmentId)
     .eq('tenant_id', tenantId!)
 
@@ -45,7 +45,7 @@ export async function cancelAppointmentSeriesAction(seriesId: string, fromStartT
 
   const { error, count } = await supabase
     .from('appointments')
-    .update({ status: 'cancelled' }, { count: 'exact' })
+    .update({ status: 'cancelled', cancellation_reason: 'Cancelada por el administrador (serie).' }, { count: 'exact' })
     .eq('series_id', seriesId)
     .eq('tenant_id', tenantId!)
     .gte('start_time', fromStartTime)
@@ -137,7 +137,7 @@ export async function updateAppointmentAction(
 
   const { error } = await supabase
     .from('appointments')
-    .update(data)
+    .update(data.status === 'cancelled' ? { ...data, cancellation_reason: 'Cancelada por el administrador.' } : data)
     .eq('id', id)
     .eq('tenant_id', tenantId!)
 
