@@ -15,6 +15,7 @@ interface ClassTemplate {
   end_time: string
   max_participants: number
   is_active: boolean
+  grace_hours_override: number | null
 }
 
 interface Branch { id: string; name: string }

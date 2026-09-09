@@ -16,7 +16,7 @@ export default async function ClassTemplatesPage() {
     supabase.from('tenants').select('default_class_capacity').eq('id', tenantId).single(),
     supabase
       .from('class_templates')
-      .select('id, name, branch_id, coach_id, day_of_week, start_time, end_time, max_participants, is_active')
+      .select('id, name, branch_id, coach_id, day_of_week, start_time, end_time, max_participants, is_active, grace_hours_override')
       .eq('tenant_id', tenantId)
       .order('day_of_week', { ascending: true })
       .order('start_time', { ascending: true }),

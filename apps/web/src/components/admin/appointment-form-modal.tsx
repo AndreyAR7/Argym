@@ -156,6 +156,8 @@ export default function AppointmentFormModal({ coaches, clients, currentUserId, 
   const selfCoach = coaches.find(c => c.id === currentUserId) ?? null
   const [selectedCoach, setSelectedCoach] = useState<{ id: string; full_name: string } | null>(selfCoach)
   const [selectedClients, setSelectedClients] = useState<{ id: string; full_name: string }[]>([])
+  const [repeatWeekly, setRepeatWeekly] = useState(false)
+  const [repeatWeeks, setRepeatWeeks] = useState('4')
 
   const inputStyle: React.CSSProperties = {
     backgroundColor: 'var(--color-input)',
@@ -208,6 +210,11 @@ export default function AppointmentFormModal({ coaches, clients, currentUserId, 
     const startISO = new Date(`${date}T${startTime}`).toISOString()
     const endISO   = new Date(`${date}T${endTime}`).toISOString()
 
+    const weeks = repeatWeekly ? parseInt(repeatWeeks, 10) : 1
+    if (repeatWeekly && (!Number.isInteger(weeks) || weeks < 2 || weeks > 26)) {
+      setError('El número de semanas a repetir debe estar entre 2 y 26.'); return
+    }
+
     startTransition(async () => {
       try {
         const result = await createAppointmentAction({
@@ -221,6 +228,7 @@ export default function AppointmentFormModal({ coaches, clients, currentUserId, 
           meeting_url:      meetingUrl,
           description:      notes,
           participant_ids:  selectedClients.map(c => c.id),
+          repeat_weeks:     weeks,
         })
         if (result?.error) { setError(result.error) }
         else { router.refresh(); onClose() }
@@ -349,6 +357,25 @@ export default function AppointmentFormModal({ coaches, clients, currentUserId, 
                 <input type="time" value={endTime} required onChange={e => setEndTime(e.target.value)}
                   className="rounded-lg px-3 py-2 text-sm outline-none" style={inputStyle} />
               </div>
+            </div>
+
+            {/* Recurrence */}
+            <div className="flex flex-col gap-2 rounded-lg px-3 py-2.5" style={{ backgroundColor: 'var(--color-muted)' }}>
+              <label className="flex items-center gap-2 text-sm font-medium cursor-pointer" style={{ color: 'var(--color-foreground)' }}>
+                <input type="checkbox" checked={repeatWeekly} onChange={e => setRepeatWeekly(e.target.checked)} />
+                Repetir semanalmente
+              </label>
+              {repeatWeekly && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>Número de semanas:</span>
+                  <input type="number" min={2} max={26} value={repeatWeeks}
+                    onChange={e => setRepeatWeeks(e.target.value)}
+                    className="w-20 rounded-lg px-2 py-1 text-sm outline-none" style={inputStyle} />
+                  <span className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
+                    (crea {Number(repeatWeeks) || 0} citas, mismo día/hora, una por semana)
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Conditional */}

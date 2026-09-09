@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { friendlyAppointmentError } from './appointment-error'
 import type { AppointmentStatus } from '@platform/types'
+import { computeWeeklyOccurrences } from '@platform/types'
 
 async function getCallerTenantId(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user } } = await supabase.auth.getUser()
@@ -34,6 +35,28 @@ export async function updateAppointmentStatusAction(
   return { success: true }
 }
 
+// Cancels every future, still-active occurrence of a recurring series
+// (this one included) — used by the "cancelar esta y las futuras" choice
+// in the edit modal. Past/terminal occurrences are left untouched.
+export async function cancelAppointmentSeriesAction(seriesId: string, fromStartTime: string) {
+  const supabase = await createClient()
+  const { error: authErr, tenantId } = await getCallerTenantId(supabase)
+  if (authErr) return { error: authErr }
+
+  const { error, count } = await supabase
+    .from('appointments')
+    .update({ status: 'cancelled' }, { count: 'exact' })
+    .eq('series_id', seriesId)
+    .eq('tenant_id', tenantId!)
+    .gte('start_time', fromStartTime)
+    .not('status', 'in', '(cancelled,completed,no_show)')
+
+  if (error) return { error: error.message }
+  revalidatePath('/admin/appointments')
+  revalidatePath('/coach/appointments')
+  return { success: true, cancelledCount: count ?? 0 }
+}
+
 export async function createAppointmentAction(data: {
   client_id: string
   coach_id: string | null
@@ -45,6 +68,7 @@ export async function createAppointmentAction(data: {
   location: string | null
   meeting_url: string | null
   participant_ids?: string[]
+  repeat_weeks?: number
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -54,27 +78,39 @@ export async function createAppointmentAction(data: {
     return { error: 'No se puede crear una cita en un horario que ya pasó.' }
   }
 
-  const { data: newId, error } = await supabase.rpc('create_appointment', {
-    p_title:            data.title,
-    p_client_id:        data.client_id,
-    p_coach_id:         data.coach_id || null,
-    p_start_time:       data.start_time,
-    p_end_time:         data.end_time,
-    p_status:           'pending_confirmation',
-    p_appointment_type: data.appointment_type,
-    p_location:         data.location,
-    p_meeting_url:      data.meeting_url,
-    p_description:      data.description,
-    p_group_mode:       data.participant_ids && data.participant_ids.length > 1 ? 'group' : 'individual',
-    p_participant_ids:  data.participant_ids ?? null,
-  })
+  const occurrences = computeWeeklyOccurrences(data.start_time, data.end_time, data.repeat_weeks ?? 1)
+  const seriesId = occurrences.length > 1 ? crypto.randomUUID() : null
 
-  if (error) {
-    console.error('[createAppointmentAction] RPC error:', error)
-    return { error: friendlyAppointmentError(error) }
+  let createdCount = 0
+  for (const occ of occurrences) {
+    const { data: newId, error } = await supabase.rpc('create_appointment', {
+      p_title:            data.title,
+      p_client_id:        data.client_id,
+      p_coach_id:         data.coach_id || null,
+      p_start_time:       occ.start_time,
+      p_end_time:         occ.end_time,
+      p_status:           'pending_confirmation',
+      p_appointment_type: data.appointment_type,
+      p_location:         data.location,
+      p_meeting_url:      data.meeting_url,
+      p_description:      data.description,
+      p_group_mode:       data.participant_ids && data.participant_ids.length > 1 ? 'group' : 'individual',
+      p_participant_ids:  data.participant_ids ?? null,
+      p_series_id:        seriesId,
+    })
+
+    if (error) {
+      console.error('[createAppointmentAction] RPC error:', error)
+      if (createdCount > 0) {
+        return { error: `${friendlyAppointmentError(error)} Se crearon ${createdCount} de ${occurrences.length} citas de la serie antes del error.` }
+      }
+      return { error: friendlyAppointmentError(error) }
+    }
+
+    console.log('[createAppointmentAction] Created appointment:', newId)
+    createdCount++
   }
 
-  console.log('[createAppointmentAction] Created appointment:', newId)
   revalidatePath('/admin/appointments')
   revalidatePath('/coach/appointments')
   return { success: true }

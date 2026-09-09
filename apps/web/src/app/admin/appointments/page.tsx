@@ -89,6 +89,7 @@ export default async function AppointmentsPage({
     appointment_type: string; location: string | null; meeting_url: string | null
     group_mode: string; coach_id: string | null; coach_name: string | null
     client_id: string | null; client_name: string | null; client_avatar: string | null
+    series_id: string | null
     participants: Array<{ id: string; full_name: string; avatar_url: string | null }>
   }>
 

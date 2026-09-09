@@ -11,6 +11,7 @@ interface ClassTemplateInput {
   start_time: string
   end_time: string
   max_participants: number
+  grace_hours_override: number | null
 }
 
 export async function createClassTemplateAction(data: ClassTemplateInput) {
@@ -35,6 +36,7 @@ export async function createClassTemplateAction(data: ClassTemplateInput) {
       start_time: data.start_time,
       end_time: data.end_time,
       max_participants: data.max_participants,
+      grace_hours_override: data.grace_hours_override,
     })
 
   if (error) return { error: error.message }
@@ -55,6 +57,7 @@ export async function updateClassTemplateAction(templateId: string, data: ClassT
       start_time: data.start_time,
       end_time: data.end_time,
       max_participants: data.max_participants,
+      grace_hours_override: data.grace_hours_override,
     })
     .eq('id', templateId)
 

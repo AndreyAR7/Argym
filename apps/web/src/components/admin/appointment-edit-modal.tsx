@@ -6,6 +6,7 @@ import { MapPin, Video, Phone, AlertCircle, Search, X, Ban, Trash2, Users, Chevr
 import {
   updateAppointmentAction, updateAppointmentStatusAction, deleteAppointmentAction,
   getAppointmentHistoryAction, type AppointmentHistoryEntry,
+  cancelAppointmentSeriesAction,
 } from '@/lib/admin/appointment-actions'
 import { STATUS_LABELS } from './appointment-status-transitions'
 import type { AppointmentStatus } from '@platform/types'
@@ -27,6 +28,7 @@ export interface AppointmentForEdit {
   coach_name: string | null
   client_id: string | null
   client_name: string | null
+  series_id: string | null
   participants: Array<{ id: string; full_name: string; avatar_url: string | null }>
 }
 
@@ -175,6 +177,7 @@ export default function AppointmentEditModal({ appointment, coaches, clients, on
   const [error, setError]           = useState<string | null>(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [cancelScope, setCancelScope] = useState<'this' | 'series'>('this')
 
   const [showHistory, setShowHistory]   = useState(false)
   const [historyLoaded, setHistoryLoaded] = useState(false)
@@ -279,7 +282,9 @@ export default function AppointmentEditModal({ appointment, coaches, clients, on
   function handleCancelAppointment() {
     startTransition(async () => {
       try {
-        const result = await updateAppointmentStatusAction(appointment.id, 'cancelled')
+        const result = cancelScope === 'series' && appointment.series_id
+          ? await cancelAppointmentSeriesAction(appointment.series_id, appointment.start_time)
+          : await updateAppointmentStatusAction(appointment.id, 'cancelled')
         if (result?.error) { setError(result.error) }
         else { setConfirmCancel(false); router.refresh(); onClose() }
       } catch (err: unknown) {
@@ -574,6 +579,18 @@ export default function AppointmentEditModal({ appointment, coaches, clients, on
                 </p>
               </div>
             </div>
+            {appointment.series_id && (
+              <div className="flex flex-col gap-1.5 rounded-lg px-3 py-2.5" style={{ backgroundColor: 'var(--color-muted)' }}>
+                <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--color-foreground)' }}>
+                  <input type="radio" name="cancelScope" checked={cancelScope === 'this'} onChange={() => setCancelScope('this')} />
+                  Solo esta cita
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--color-foreground)' }}>
+                  <input type="radio" name="cancelScope" checked={cancelScope === 'series'} onChange={() => setCancelScope('series')} />
+                  Esta y todas las futuras de la serie
+                </label>
+              </div>
+            )}
             {error && (
               <div className="flex items-start gap-2 rounded-lg px-3 py-2 text-xs"
                 style={{ backgroundColor: 'color-mix(in srgb, var(--color-destructive) 8%, transparent)', color: 'var(--color-destructive)' }}>

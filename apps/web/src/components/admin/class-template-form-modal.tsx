@@ -13,6 +13,7 @@ interface ClassTemplate {
   start_time: string
   end_time: string
   max_participants: number
+  grace_hours_override: number | null
 }
 
 interface Branch { id: string; name: string }
@@ -38,6 +39,7 @@ export function ClassTemplateFormModal({
   const [startTime, setStartTime] = useState(template?.start_time?.slice(0, 5) ?? '06:00')
   const [endTime, setEndTime] = useState(template?.end_time?.slice(0, 5) ?? '07:00')
   const [maxParticipants, setMaxParticipants] = useState(String(template?.max_participants ?? defaultCapacity))
+  const [graceOverride, setGraceOverride] = useState(template?.grace_hours_override != null ? String(template.grace_hours_override) : '')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -47,6 +49,10 @@ export function ClassTemplateFormModal({
     if (startTime >= endTime) { setError('La hora de fin debe ser después de la de inicio'); return }
     const capacity = parseInt(maxParticipants, 10)
     if (!Number.isInteger(capacity) || capacity <= 0) { setError('El cupo debe ser un número entero mayor a 0'); return }
+    const graceValue = graceOverride.trim() === '' ? null : parseFloat(graceOverride)
+    if (graceValue !== null && (!Number.isFinite(graceValue) || graceValue <= 0)) {
+      setError('El período de gracia debe ser un número mayor a 0'); return
+    }
     setError(null)
 
     startTransition(async () => {
@@ -58,6 +64,7 @@ export function ClassTemplateFormModal({
         start_time: startTime,
         end_time: endTime,
         max_participants: capacity,
+        grace_hours_override: graceValue,
       }
 
       const result = template
@@ -189,6 +196,25 @@ export function ClassTemplateFormModal({
               onChange={(e) => setMaxParticipants(e.target.value)}
               className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-[var(--color-input)] bg-[var(--color-muted)] text-[var(--color-foreground)] outline-none focus:border-[var(--color-admin)] focus:ring-2 focus:ring-[var(--color-admin)]/15 transition-all"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-[var(--color-foreground)] mb-1.5">
+              Período de gracia (horas)
+              <span className="text-[var(--color-muted-foreground)] font-normal ml-1">(opcional)</span>
+            </label>
+            <input
+              type="number"
+              min={0.1}
+              step={0.5}
+              placeholder={`Usa el default del gimnasio si se deja vacío`}
+              value={graceOverride}
+              onChange={(e) => setGraceOverride(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-[var(--color-input)] bg-[var(--color-muted)] text-[var(--color-foreground)] outline-none focus:border-[var(--color-admin)] focus:ring-2 focus:ring-[var(--color-admin)]/15 transition-all"
+            />
+            <p className="text-[11px] text-[var(--color-muted-foreground)] mt-1">
+              Cuántas horas antes de la clase se cancelan automáticamente las reservas sin confirmar. Déjalo vacío para usar el valor general del gimnasio.
+            </p>
           </div>
         </div>
 

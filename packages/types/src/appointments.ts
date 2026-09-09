@@ -36,3 +36,28 @@ export function isActiveAppointmentStatus(status: AppointmentStatus): boolean {
   return status === 'pending_confirmation' || status === 'scheduled'
     || status === 'confirmed' || status === 'postpone_requested';
 }
+
+export interface AppointmentOccurrence {
+  start_time: string;
+  end_time: string;
+}
+
+// Generates the N weekly occurrences of a recurring 1:1 appointment
+// (including the first one, at startISO/endISO unchanged) — plain instant
+// arithmetic, not calendar-aware, matching how the rest of this schema
+// already treats appointment times as absolute TIMESTAMPTZ instants.
+export function computeWeeklyOccurrences(
+  startISO: string,
+  endISO: string,
+  occurrences: number,
+): AppointmentOccurrence[] {
+  const count = Math.max(1, Math.floor(occurrences));
+  const start = new Date(startISO).getTime();
+  const end = new Date(endISO).getTime();
+  const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+  return Array.from({ length: count }, (_, i) => ({
+    start_time: new Date(start + i * WEEK_MS).toISOString(),
+    end_time: new Date(end + i * WEEK_MS).toISOString(),
+  }));
+}
