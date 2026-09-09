@@ -466,6 +466,8 @@ export default function ProfileScreen() {
           <SettingRow icon="🔔" label={t('client.profile.notifications')} onPress={() => setShowNotifs(true)} />
           <View style={[styles.divider, { backgroundColor: T.border }]} />
           <SettingRow icon="📅" label={t('client.profile.calendarSync')} onPress={() => setShowCalendarSync(true)} />
+          <View style={[styles.divider, { backgroundColor: T.border }]} />
+          <SettingRow icon="🩺" label={t('client.profile.medicalData')} onPress={() => router.push('/(client)/datos-medicos')} />
         </View>
 
         {/* Support */}

@@ -456,7 +456,8 @@
         "planLabel": "💳 Plan",
         "promoLabel": "🎁 Promo",
         "deactivateButton": "⛔ Deactivate client",
-        "activateButton": "✅ Activate client"
+        "activateButton": "✅ Activate client",
+        "medicalData": "Medical record"
       },
       "form": {
         "fullNameLabel": "Full name",
@@ -1252,6 +1253,7 @@
       "calendarSyncLoading": "Generating link…",
       "calendarSyncShare": "Share link",
       "calendarSyncRotate": "Generate a new link (invalidates the old one)",
+      "medicalData": "Medical record",
       "support": "Support",
       "helpAndSupport": "Help and support",
       "termsAndPrivacy": "Terms and privacy",
@@ -1423,7 +1425,8 @@
         "qrInvalid": "Invalid QR. Try again.",
         "checkinFailed": "Could not register the check-in.",
         "connectionError": "Connection error. Check your internet and try again.",
-        "noActiveMembership": "You need an active membership to check in at the gym."
+        "noActiveMembership": "You need an active membership to check in at the gym.",
+        "weeklyLimitReached": "You've already used {{used}} of {{limit}} check-ins this week under your plan. Upgrade your plan to train more days."
       },
       "permission": {
         "title": "Camera permission",
@@ -1457,7 +1460,36 @@
       "error": {
         "title": "Registration error",
         "retry": "Try again"
-      }
+      },
+      "upgradeButton": "View plans"
+    },
+    "medicalData": {
+      "title": "Medical record",
+      "intro": "This information helps your coach train you safely and is needed to protect the gym legally in emergencies. Only you, your coach, and the admin can see it.",
+      "bloodType": "Blood type",
+      "bloodTypeNone": "Not specified",
+      "medicalClearance": "Has medical clearance to exercise",
+      "conditions": "Conditions / chronic illnesses",
+      "conditionsPlaceholder": "E.g. hypertension, diabetes, asthma… or \"none\"",
+      "injuries": "Injuries or disabilities (current or past)",
+      "injuriesPlaceholder": "E.g. knee injury, herniated disc… or \"none\"",
+      "allergies": "Allergies",
+      "medications": "Current medications",
+      "limitations": "Physical limitations relevant for training",
+      "emergencyContact": "Emergency contact",
+      "emergencyName": "Name",
+      "emergencyPhone": "Phone",
+      "emergencyRelationship": "Relationship",
+      "acknowledgement": "I declare that the information provided is true and complete, and I release the gym from liability for undisclosed health conditions.",
+      "acknowledgementHint": "Without checking this declaration, the record is saved as \"Pending\".",
+      "statusPending": "Pending",
+      "statusCompleted": "Complete",
+      "save": "Save record",
+      "saving": "Saving…",
+      "saved": "Record saved successfully.",
+      "saveError": "Could not save the medical record.",
+      "lastUpdated": "Last updated: {{date}}",
+      "updatedByStaff": " · completed by gym staff"
     },
     "plans": {
       "level": {

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useRouter } from 'expo-router';
 import {
   View, Text, FlatList, StyleSheet, StatusBar, TouchableOpacity,
   Modal, TextInput, ScrollView, ActivityIndicator, Alert,
@@ -387,6 +388,7 @@ function EditClientModal({ clientId, client, visible, onClose, onSaved }: {
 }) {
   const T = useTheme();
   const { t } = useTranslation();
+  const router = useRouter();
   const updateMutation = useUpdateProfile('client');
   const toggleMutation = useToggleProfileActive('client');
   const [fullName, setFullName] = useState('');
@@ -491,6 +493,18 @@ function EditClientModal({ clientId, client, visible, onClose, onSaved }: {
                   );
                 })}
               </View>
+
+              <TouchableOpacity
+                onPress={() => {
+                  if (!clientId) return;
+                  onClose();
+                  router.push({ pathname: '/(admin)/client-medical', params: { clientId, clientName: fullName } });
+                }}
+                style={[modalStyles.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderColor: T.border, backgroundColor: T.bg }]}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '600', color: T.text }}>🩺 {t('admin.clients.edit.medicalData')}</Text>
+                <Text style={{ color: T.textMuted, fontSize: 18 }}>›</Text>
+              </TouchableOpacity>
 
               <View style={modalStyles.actions}>
                 <TouchableOpacity onPress={onClose} style={[modalStyles.btn, { borderColor: T.border, borderWidth: 1 }]}>

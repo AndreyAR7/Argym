@@ -6,7 +6,7 @@ import { ClientFilters } from '@/components/admin/client-filters'
 import { ClientRowActions } from '@/components/admin/client-row-actions'
 import { PageHeader } from '@/components/shared/page-header'
 import { formatDate } from '@/lib/utils'
-import { UserPlus, Users } from 'lucide-react'
+import { UserPlus, Users, HeartPulse } from 'lucide-react'
 
 export const metadata = { title: 'Clientes' }
 
@@ -21,13 +21,14 @@ const PAGE_SIZE = 20
 export default async function ClientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; level?: string; status?: string; page?: string; branch?: string }>
+  searchParams: Promise<{ search?: string; level?: string; status?: string; page?: string; branch?: string; medical?: string }>
 }) {
   const params = await searchParams
   const search  = params.search  ?? ''
   const level   = params.level   ?? 'all'
   const status  = params.status  ?? 'approved'
   const branch  = params.branch  ?? 'all'
+  const medicalPendingOnly = params.medical === 'pending'
   const page    = Math.max(1, parseInt(params.page ?? '1'))
   const offset  = (page - 1) * PAGE_SIZE
 
@@ -51,10 +52,20 @@ export default async function ClientsPage({
     supabase.rpc('get_profiles_by_role', { role_name: 'client' }),
     supabase.from('profiles').select('id').eq('tenant_id', tenantId).eq('requested_role', 'client'),
   ])
-  const clientIds = Array.from(new Set([
+  let clientIds = Array.from(new Set([
     ...(clientProfiles ?? []).map((p: any) => p.id as string),
     ...(selfRegisteredClients ?? []).map((p: any) => p.id as string),
   ]))
+
+  const { data: medicalRecords } = await supabase
+    .from('client_medical_records')
+    .select('client_id, status')
+    .eq('tenant_id', tenantId)
+  const medicalStatusMap = new Map((medicalRecords ?? []).map((m: any) => [m.client_id as string, m.status as string]))
+
+  if (medicalPendingOnly) {
+    clientIds = clientIds.filter((id) => medicalStatusMap.get(id) !== 'completed')
+  }
 
   // ── Build client query ──
   let clientQuery = supabase
@@ -108,7 +119,7 @@ export default async function ClientsPage({
       </PageHeader>
 
       {/* ── Filters ── */}
-      <div className="mt-6">
+      <div className="mt-6 flex flex-wrap items-center gap-3">
         <ClientFilters
           defaultSearch={search}
           defaultLevel={level}
@@ -116,6 +127,17 @@ export default async function ClientsPage({
           defaultBranch={branch}
           branches={branches ?? []}
         />
+        <Link
+          href={buildUrl(params, { medical: medicalPendingOnly ? '' : 'pending' })}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium border transition-colors ${
+            medicalPendingOnly
+              ? 'bg-amber-500/10 border-amber-500/30 text-amber-700'
+              : 'border-[var(--color-border)] text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)]'
+          }`}
+        >
+          <HeartPulse size={13} />
+          Ficha médica pendiente
+        </Link>
       </div>
 
       {/* ── Table ── */}
@@ -164,8 +186,11 @@ export default async function ClientsPage({
                       <div className="flex items-center gap-3">
                         <Avatar name={client.full_name ?? '?'} src={client.avatar_url} size="sm" />
                         <div>
-                          <p className="font-medium text-[var(--color-foreground)]">
+                          <p className="font-medium text-[var(--color-foreground)] flex items-center gap-1.5">
                             {client.full_name ?? '—'}
+                            {medicalStatusMap.get(client.id) !== 'completed' && (
+                              <HeartPulse size={12} className="text-amber-500" aria-label="Ficha médica pendiente" />
+                            )}
                           </p>
                           {client.phone && (
                             <p className="text-xs text-[var(--color-muted-foreground)]">

@@ -41,6 +41,7 @@ export default function EditPlanScreen() {
   const [isActive, setIsActive] = useState(true);
   const [expiryDate, setExpiryDate] = useState('');
   const [grantsPhysicalAccess, setGrantsPhysicalAccess] = useState(false);
+  const [checkinsPerWeek, setCheckinsPerWeek] = useState('');
   const [videoIds, setVideoIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(!plan);
@@ -70,6 +71,7 @@ export default function EditPlanScreen() {
     setIsActive(p.is_active);
     setExpiryDate(p.expiry_date ? p.expiry_date.slice(0, 10) : '');
     setGrantsPhysicalAccess(p.grants_physical_access ?? false);
+    setCheckinsPerWeek(p.checkins_per_week != null ? String(p.checkins_per_week) : '');
     setLoading(false);
   }
 
@@ -97,6 +99,7 @@ export default function EditPlanScreen() {
           is_active: isActive,
           expiry_date: expiryDate || null,
           grants_physical_access: grantsPhysicalAccess,
+          checkins_per_week: grantsPhysicalAccess && checkinsPerWeek.trim() ? parseInt(checkinsPerWeek, 10) : null,
         } as any),
         setPlanVideos(id, videoIds),
       ]);
@@ -235,6 +238,25 @@ export default function EditPlanScreen() {
           </View>
           <Switch value={grantsPhysicalAccess} onValueChange={setGrantsPhysicalAccess} trackColor={{ true: T.accent }} />
         </View>
+
+        {grantsPhysicalAccess && (
+          <>
+            <Text style={{ fontSize: 13, fontWeight: '500', color: T.textSecondary, marginBottom: 6 }}>
+              Check-ins permitidos por semana
+            </Text>
+            <TextInput
+              style={input}
+              value={checkinsPerWeek}
+              onChangeText={setCheckinsPerWeek}
+              placeholder="Ilimitado"
+              placeholderTextColor={T.textMuted}
+              keyboardType="number-pad"
+            />
+            <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 16, marginTop: 4 }}>
+              Deja vacío para check-ins ilimitados. Si se supera, el cliente ve un aviso sugiriendo subir de plan.
+            </Text>
+          </>
+        )}
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <Text style={{ fontSize: 13, fontWeight: '500', color: T.textSecondary }}>Características</Text>

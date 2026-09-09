@@ -19,6 +19,8 @@ interface CheckinResultData {
   new_badges: CheckinBadge[]
   new_level: number
   error?: string
+  weekly_checkins_used?: number | null
+  weekly_checkin_limit?: number | null
 }
 
 interface Props {
@@ -103,7 +105,33 @@ export function CheckinResult({ result }: Props) {
   const alreadyIn = result?.already_checked_in
   const wrongGym = !result?.success && result?.error === 'branch_not_in_tenant'
   const noMembership = !result?.success && result?.error === 'no_active_membership'
+  const weeklyLimitReached = !result?.success && result?.error === 'weekly_limit_reached'
   const confettiRef = useConfetti(isNew)
+
+  if (weeklyLimitReached) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-background)] p-4">
+        <div className="w-full max-w-sm text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto">
+            <span className="text-3xl">⚠️</span>
+          </div>
+          <h1 className="text-xl font-semibold text-[var(--color-foreground)]">Límite semanal alcanzado</h1>
+          <p className="text-sm text-[var(--color-muted-foreground)]">
+            {result.weekly_checkin_limit != null
+              ? `Ya usaste ${result.weekly_checkins_used} de ${result.weekly_checkin_limit} check-ins de esta semana según tu plan.`
+              : 'Ya usaste todos los check-ins de esta semana según tu plan.'}
+            {' '}Sube de plan para poder entrenar más días por semana.
+          </p>
+          <Link
+            href="/client/planes"
+            className="inline-block rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90 transition-opacity"
+          >
+            Ver planes
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   if (noMembership) {
     return (

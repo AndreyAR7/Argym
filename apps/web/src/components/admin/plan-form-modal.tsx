@@ -17,6 +17,7 @@ interface Plan {
   plan_tier?: string | null
   branch_id?: string | null
   grants_physical_access?: boolean
+  checkins_per_week?: number | null
 }
 
 interface Branch {
@@ -56,6 +57,9 @@ export function PlanFormModal({ plan, branches = [], onClose }: PlanFormModalPro
   const [grantsPhysicalAccess, setGrantsPhysicalAccess] = useState<boolean>(
     plan?.grants_physical_access ?? false
   )
+  const [checkinsPerWeek, setCheckinsPerWeek] = useState<string>(
+    plan?.checkins_per_week != null ? String(plan.checkins_per_week) : ''
+  )
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -89,6 +93,7 @@ export function PlanFormModal({ plan, branches = [], onClose }: PlanFormModalPro
         plan_tier: planTier === 'all' ? null : planTier,
         branch_id: branchId || null,
         grants_physical_access: grantsPhysicalAccess,
+        checkins_per_week: grantsPhysicalAccess && checkinsPerWeek.trim() ? parseInt(checkinsPerWeek, 10) : null,
       }
 
       const result = plan
@@ -287,6 +292,25 @@ export function PlanFormModal({ plan, branches = [], onClose }: PlanFormModalPro
               />
             </button>
           </div>
+
+          {grantsPhysicalAccess && (
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-foreground)] mb-1.5">
+                Check-ins permitidos por semana
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={checkinsPerWeek}
+                onChange={(e) => setCheckinsPerWeek(e.target.value)}
+                placeholder="Ilimitado"
+                className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-input)] px-3 py-2 text-sm text-[var(--color-foreground)] outline-none"
+              />
+              <p className="text-[10px] text-[var(--color-muted-foreground)] mt-1">
+                Deja vacío para check-ins ilimitados. Si se supera, el cliente ve un aviso sugiriendo subir de plan.
+              </p>
+            </div>
+          )}
 
           {/* Expiry date */}
           <div>

@@ -20,6 +20,7 @@ export interface Plan {
   sort_order: number;
   expiry_date: string | null;
   grants_physical_access: boolean;
+  checkins_per_week: number | null;
   created_at: string;
 }
 

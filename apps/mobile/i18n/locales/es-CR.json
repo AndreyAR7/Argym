@@ -456,7 +456,8 @@
         "planLabel": "💳 Plan",
         "promoLabel": "🎁 Promo",
         "deactivateButton": "⛔ Desactivar cliente",
-        "activateButton": "✅ Activar cliente"
+        "activateButton": "✅ Activar cliente",
+        "medicalData": "Ficha médica"
       },
       "form": {
         "fullNameLabel": "Nombre completo",
@@ -1252,6 +1253,7 @@
       "calendarSyncLoading": "Generando enlace…",
       "calendarSyncShare": "Compartir enlace",
       "calendarSyncRotate": "Generar un enlace nuevo (invalida el anterior)",
+      "medicalData": "Ficha médica",
       "support": "Soporte",
       "helpAndSupport": "Ayuda y soporte",
       "termsAndPrivacy": "Términos y privacidad",
@@ -1423,7 +1425,8 @@
         "qrInvalid": "QR inválido. Intenta de nuevo.",
         "checkinFailed": "No se pudo registrar el check-in.",
         "connectionError": "Error de conexión. Verifica tu internet e intenta de nuevo.",
-        "noActiveMembership": "Necesitás una membresía activa para hacer check-in presencial."
+        "noActiveMembership": "Necesitás una membresía activa para hacer check-in presencial.",
+        "weeklyLimitReached": "Ya usaste tus {{used}} de {{limit}} check-ins de esta semana según tu plan. Aumenta tu plan para entrenar más días."
       },
       "permission": {
         "title": "Permiso de cámara",
@@ -1457,7 +1460,36 @@
       "error": {
         "title": "Error al registrar",
         "retry": "Intentar de nuevo"
-      }
+      },
+      "upgradeButton": "Ver planes"
+    },
+    "medicalData": {
+      "title": "Ficha médica",
+      "intro": "Esta información ayuda a tu coach a entrenarte de forma segura y es necesaria para la protección legal del gimnasio ante emergencias. Solo tú, tu coach y el administrador pueden verla.",
+      "bloodType": "Tipo de sangre",
+      "bloodTypeNone": "No especifica",
+      "medicalClearance": "Cuenta con autorización médica para ejercitarse",
+      "conditions": "Padecimientos / enfermedades crónicas",
+      "conditionsPlaceholder": "Ej. hipertensión, diabetes, asma… o \"ninguno\"",
+      "injuries": "Lesiones o incapacidades (actuales o pasadas)",
+      "injuriesPlaceholder": "Ej. lesión de rodilla, hernia lumbar… o \"ninguna\"",
+      "allergies": "Alergias",
+      "medications": "Medicamentos actuales",
+      "limitations": "Limitaciones físicas relevantes para entrenar",
+      "emergencyContact": "Contacto de emergencia",
+      "emergencyName": "Nombre",
+      "emergencyPhone": "Teléfono",
+      "emergencyRelationship": "Parentesco / relación",
+      "acknowledgement": "Declaro que la información suministrada es verídica y completa, y exonero al gimnasio de responsabilidad por condiciones de salud no informadas.",
+      "acknowledgementHint": "Sin marcar esta declaración, la ficha se guarda como \"Pendiente\".",
+      "statusPending": "Pendiente",
+      "statusCompleted": "Completa",
+      "save": "Guardar ficha",
+      "saving": "Guardando…",
+      "saved": "Ficha guardada correctamente.",
+      "saveError": "No se pudo guardar la ficha médica.",
+      "lastUpdated": "Última actualización: {{date}}",
+      "updatedByStaff": " · completada por el equipo del gimnasio"
     },
     "plans": {
       "level": {

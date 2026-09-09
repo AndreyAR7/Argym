@@ -39,6 +39,7 @@ export default function CreatePlanScreen() {
   const [expiryDate, setExpiryDate] = useState('');
   const [features, setFeatures] = useState<PlanFeature[]>([{ name: '', value: 'true' }]);
   const [grantsPhysicalAccess, setGrantsPhysicalAccess] = useState(false);
+  const [checkinsPerWeek, setCheckinsPerWeek] = useState('');
   const [videoIds, setVideoIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -67,6 +68,7 @@ export default function CreatePlanScreen() {
         sort_order: 0,
         expiry_date: expiryDate || null,
         grants_physical_access: grantsPhysicalAccess,
+        checkins_per_week: grantsPhysicalAccess && checkinsPerWeek.trim() ? parseInt(checkinsPerWeek, 10) : null,
         updated_at: new Date().toISOString(),
       } as any);
       if (videoIds.length > 0) await setPlanVideos(newPlan.id, videoIds);
@@ -160,6 +162,25 @@ export default function CreatePlanScreen() {
           </View>
           <Switch value={grantsPhysicalAccess} onValueChange={setGrantsPhysicalAccess} trackColor={{ true: T.accent }} />
         </View>
+
+        {grantsPhysicalAccess && (
+          <>
+            <Text style={{ fontSize: 13, fontWeight: '500', color: T.textSecondary, marginBottom: 6 }}>
+              Check-ins permitidos por semana
+            </Text>
+            <TextInput
+              style={input}
+              value={checkinsPerWeek}
+              onChangeText={setCheckinsPerWeek}
+              placeholder="Ilimitado"
+              placeholderTextColor={T.textMuted}
+              keyboardType="number-pad"
+            />
+            <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 16, marginTop: 4 }}>
+              Deja vacío para check-ins ilimitados. Si se supera, el cliente ve un aviso sugiriendo subir de plan.
+            </Text>
+          </>
+        )}
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <Text style={{ fontSize: 13, fontWeight: '500', color: T.textSecondary }}>Características</Text>

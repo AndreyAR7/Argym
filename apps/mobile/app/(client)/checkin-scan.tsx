@@ -28,6 +28,8 @@ interface CheckinData {
   xp_earned: number;
   new_streak: number;
   new_badges: CheckinBadge[];
+  weekly_checkins_used?: number | null;
+  weekly_checkin_limit?: number | null;
 }
 
 export default function CheckinScanScreen() {
@@ -39,6 +41,7 @@ export default function CheckinScanScreen() {
   const [scanned, setScanned] = useState(false);
   const [status, setStatus] = useState<Status>('scanning');
   const [message, setMessage] = useState('');
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [checkinData, setCheckinData] = useState<CheckinData | null>(null);
 
   const handleBarcode = async ({ data }: { data: string }) => {
@@ -87,6 +90,13 @@ export default function CheckinScanScreen() {
       } else if (r?.error === 'no_active_membership') {
         setStatus('error');
         setMessage(t('client.checkinScan.errors.noActiveMembership'));
+      } else if (r?.error === 'weekly_limit_reached') {
+        setStatus('error');
+        setErrorCode('weekly_limit_reached');
+        setMessage(t('client.checkinScan.errors.weeklyLimitReached', {
+          used: r.weekly_checkins_used ?? 0,
+          limit: r.weekly_checkin_limit ?? 0,
+        }));
       } else {
         setStatus('error');
         setMessage(t('client.checkinScan.errors.checkinFailed'));
@@ -101,6 +111,7 @@ export default function CheckinScanScreen() {
     setScanned(false);
     setStatus('scanning');
     setMessage('');
+    setErrorCode(null);
     setCheckinData(null);
   };
 
@@ -237,9 +248,15 @@ export default function CheckinScanScreen() {
             <Text style={{ fontSize: 56, marginBottom: 12 }}>❌</Text>
             <Text style={[styles.title, { color: T.text }]}>{t('client.checkinScan.error.title')}</Text>
             <Text style={[styles.subtitle, { color: T.textSecondary }]}>{message}</Text>
-            <TouchableOpacity onPress={retry} style={[styles.btn, { backgroundColor: T.accent, marginTop: 20 }]}>
-              <Text style={styles.btnText}>{t('client.checkinScan.error.retry')}</Text>
-            </TouchableOpacity>
+            {errorCode === 'weekly_limit_reached' ? (
+              <TouchableOpacity onPress={() => router.push('/(client)/plans')} style={[styles.btn, { backgroundColor: T.accent, marginTop: 20 }]}>
+                <Text style={styles.btnText}>{t('client.checkinScan.upgradeButton')}</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={retry} style={[styles.btn, { backgroundColor: T.accent, marginTop: 20 }]}>
+                <Text style={styles.btnText}>{t('client.checkinScan.error.retry')}</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 14 }}>
               <Text style={{ color: T.textMuted, fontSize: 14 }}>{t('common.cancel')}</Text>
             </TouchableOpacity>

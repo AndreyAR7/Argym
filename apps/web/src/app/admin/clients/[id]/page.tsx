@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/shared/page-header'
 import { ClientEditForm } from '@/components/admin/client-edit-form'
 import { SubscriptionHistory } from '@/components/admin/subscription-history'
 import { MeasurementsSummary } from '@/components/shared/measurements-summary'
+import { ClientMedicalCard } from '@/components/admin/client-medical-card'
 import { formatDate } from '@/lib/utils'
 
 export const metadata = { title: 'Perfil de cliente' }
@@ -28,7 +29,7 @@ export default async function ClientDetailPage({
   const session = await getSessionData()
   const { supabase, tenantId } = session!
 
-  const [profileResult, subscriptionsResult, nutritionResult, measurementsResult, appointmentStatsResult] = await Promise.all([
+  const [profileResult, subscriptionsResult, nutritionResult, measurementsResult, appointmentStatsResult, medicalResult] = await Promise.all([
     supabase
       .from('profiles')
       .select('id, full_name, avatar_url, phone, client_level, is_active, approval_status, created_at')
@@ -57,6 +58,13 @@ export default async function ClientDetailPage({
       .limit(12),
 
     supabase.rpc('get_client_appointment_stats', { p_client_id: clientId }),
+
+    supabase
+      .from('client_medical_records')
+      .select('*')
+      .eq('client_id', clientId)
+      .eq('tenant_id', tenantId)
+      .maybeSingle(),
   ])
 
   const profile = profileResult.data
@@ -201,9 +209,12 @@ export default async function ClientDetailPage({
       </div>
 
       {/* Measurements section */}
-      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6">
+      <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 mb-6">
         <MeasurementsSummary measurements={measurements} />
       </div>
+
+      {/* Medical record */}
+      <ClientMedicalCard clientId={clientId} record={medicalResult.data as any} />
     </div>
   )
 }

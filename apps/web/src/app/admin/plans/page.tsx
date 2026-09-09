@@ -29,7 +29,7 @@ export default async function PlansPage({
     (() => {
       let q2 = supabase
         .from('plans')
-        .select('id, name, description, price, currency, billing_cycle, features, is_active, sort_order, expiry_date, plan_tier, branch_id, grants_physical_access')
+        .select('id, name, description, price, currency, billing_cycle, features, is_active, sort_order, expiry_date, plan_tier, branch_id, grants_physical_access, checkins_per_week')
         .eq('tenant_id', tenantId)
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true })

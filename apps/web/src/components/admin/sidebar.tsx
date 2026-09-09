@@ -70,6 +70,7 @@ const NAV: NavSection[] = [
     items: [
       { label: 'Sucursales', href: '/admin/branches', icon: Building2 },
       { label: 'QR Check-in', href: '/admin/branches/qr', icon: QrCode },
+      { label: 'Asistencia (QR)', href: '/admin/checkins', icon: QrCode },
       { label: 'Clientes', href: '/admin/clients', icon: Users },
       { label: 'Coaches', href: '/admin/coaches', icon: Users },
       { label: 'Aprobaciones', href: '/admin/approvals', icon: UserCheck },

@@ -235,6 +235,7 @@ export async function createPlanAction(data: {
   plan_tier?: string | null
   branch_id?: string | null
   grants_physical_access?: boolean
+  checkins_per_week?: number | null
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -264,6 +265,7 @@ export async function createPlanAction(data: {
       plan_tier: data.plan_tier || null,
       branch_id: data.branch_id || null,
       grants_physical_access: data.grants_physical_access ?? false,
+      checkins_per_week: data.checkins_per_week ?? null,
     })
 
   if (error) return { error: error.message }
@@ -282,6 +284,7 @@ export async function updatePlanAction(planId: string, data: {
   plan_tier?: string | null
   branch_id?: string | null
   grants_physical_access?: boolean
+  checkins_per_week?: number | null
 }) {
   const supabase = await createClient()
 
@@ -302,6 +305,7 @@ export async function updatePlanAction(planId: string, data: {
       plan_tier: data.plan_tier || null,
       branch_id: data.branch_id || null,
       grants_physical_access: data.grants_physical_access ?? false,
+      checkins_per_week: data.checkins_per_week ?? null,
     })
     .eq('id', planId)
 
