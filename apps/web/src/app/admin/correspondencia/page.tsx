@@ -10,6 +10,11 @@ export default async function CorrespondenciaPage() {
   if (!session) redirect('/login')
   const { supabase, tenantId } = session
 
+  const { data: canManage } = await supabase.rpc('has_permission', {
+    permission_code: 'tenant.manage_correspondence',
+  })
+  if (!canManage) redirect('/admin/dashboard')
+
   const [rulesResult, templatesResult, smtpResult] = await Promise.all([
     supabase
       .from('communication_rules')

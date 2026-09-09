@@ -1,7 +1,13 @@
 'use server'
 
 import { getSessionData } from '@/lib/auth/session'
+import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/server-admin'
+
+async function canManageCorrespondence(supabase: Awaited<ReturnType<typeof createClient>>): Promise<boolean> {
+  const { data } = await supabase.rpc('has_permission', { permission_code: 'tenant.manage_correspondence' })
+  return !!data
+}
 
 // ── Shared HTML helpers ────────────────────────────────────────
 
@@ -234,6 +240,7 @@ export async function seedDefaultTemplatesAction(): Promise<{ inserted: number; 
   const session = await getSessionData()
   if (!session) return { inserted: 0, error: 'No autenticado' }
   const { supabase, tenantId } = session
+  if (!(await canManageCorrespondence(supabase))) return { inserted: 0, error: 'No autorizado' }
 
   const rows = DEFAULT_TEMPLATES.map(t => ({ ...t, tenant_id: tenantId }))
   const { data, error } = await supabase
@@ -261,6 +268,7 @@ export async function seedDefaultRulesAction(): Promise<{ created: number; skipp
   const session = await getSessionData()
   if (!session) return { created: 0, skipped: 0, error: 'No autenticado' }
   const { supabase, tenantId } = session
+  if (!(await canManageCorrespondence(supabase))) return { created: 0, skipped: 0, error: 'No autorizado' }
 
   // Fetch all templates for this tenant
   const { data: templates, error: tmplErr } = await supabase
@@ -305,6 +313,7 @@ export async function updateTemplateAction(
   const session = await getSessionData()
   if (!session) return { error: 'No autenticado' }
   const { supabase } = session
+  if (!(await canManageCorrespondence(supabase))) return { error: 'No autorizado' }
   const { error } = await supabase.from('email_templates').update(payload).eq('id', id)
   if (error) return { error: error.message }
   return {}
@@ -314,6 +323,7 @@ export async function deleteTemplateAction(id: string): Promise<{ error?: string
   const session = await getSessionData()
   if (!session) return { error: 'No autenticado' }
   const { supabase } = session
+  if (!(await canManageCorrespondence(supabase))) return { error: 'No autorizado' }
   const { error } = await supabase.from('email_templates').delete().eq('id', id)
   if (error) return { error: error.message }
   return {}
@@ -331,6 +341,7 @@ export async function saveSmtpAction(payload: {
   const session = await getSessionData()
   if (!session) return { ok: false, error: 'No autenticado' }
   const { supabase, tenantId } = session
+  if (!(await canManageCorrespondence(supabase))) return { ok: false, error: 'No autorizado' }
 
   // Warn if another tenant is already sending from this exact same account —
   // RLS scopes the regular client to our own tenant, so this cross-tenant
@@ -396,6 +407,7 @@ export async function getEmailLogsAction(limit = 100): Promise<{ logs?: EmailLog
   const session = await getSessionData()
   if (!session) return { error: 'No autenticado' }
   const { supabase } = session
+  if (!(await canManageCorrespondence(supabase))) return { error: 'No autorizado' }
 
   const { data, error } = await supabase
     .from('email_logs')
@@ -418,6 +430,7 @@ export async function retryEmailAction(logId: string): Promise<{ ok: boolean; er
   const session = await getSessionData()
   if (!session) return { ok: false, error: 'No autenticado' }
   const { supabase, tenantId } = session
+  if (!(await canManageCorrespondence(supabase))) return { ok: false, error: 'No autorizado' }
 
   const { data, error } = await supabase.functions.invoke('test-smtp', {
     body: { tenant_id: tenantId, mode: 'resend', log_id: logId },
@@ -431,6 +444,7 @@ export async function bulkRetryFailedAction(): Promise<{ ok: boolean; sent: numb
   const session = await getSessionData()
   if (!session) return { ok: false, sent: 0, failed: 0, error: 'No autenticado' }
   const { supabase, tenantId } = session
+  if (!(await canManageCorrespondence(supabase))) return { ok: false, sent: 0, failed: 0, error: 'No autorizado' }
 
   const { data, error } = await supabase.functions.invoke('test-smtp', {
     body: { tenant_id: tenantId, mode: 'bulk_resend' },
@@ -444,6 +458,7 @@ export async function testSmtpAction(toEmail: string): Promise<{ ok: boolean; me
   const session = await getSessionData()
   if (!session) return { ok: false, message: 'No autenticado' }
   const { supabase, tenantId } = session
+  if (!(await canManageCorrespondence(supabase))) return { ok: false, message: 'No autorizado' }
 
   const { data, error } = await supabase.functions.invoke('test-smtp', {
     body: { tenant_id: tenantId, mode: 'test', to_email: toEmail },

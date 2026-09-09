@@ -43,12 +43,14 @@ interface SidebarProps {
   tenants?: TenantOption[]
   currentTenantId?: string
   homeTenantId?: string | null
+  canManageCorrespondence?: boolean
 }
 
 interface NavItem {
   label: string
   href: string
   icon: React.ElementType
+  requiresCorrespondencePermission?: boolean
 }
 
 interface NavSection {
@@ -106,7 +108,7 @@ const NAV: NavSection[] = [
   {
     title: 'Comunicación',
     items: [
-      { label: 'Correspondencia', href: '/admin/correspondencia', icon: Mail },
+      { label: 'Correspondencia', href: '/admin/correspondencia', icon: Mail, requiresCorrespondencePermission: true },
     ],
   },
   {
@@ -120,6 +122,7 @@ const NAV: NavSection[] = [
 
 export function AdminSidebar({
   userName, userEmail, avatarUrl, onClose, isPlatformAdmin, tenants, currentTenantId, homeTenantId,
+  canManageCorrespondence,
 }: SidebarProps) {
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
@@ -129,6 +132,15 @@ export function AdminSidebar({
       await logoutAction()
     })
   }
+
+  const visibleNav = NAV
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) =>
+        !item.requiresCorrespondencePermission || canManageCorrespondence,
+      ),
+    }))
+    .filter((section) => section.items.length > 0)
 
   return (
     <aside className="w-[240px] flex-shrink-0 flex flex-col h-full bg-[var(--color-sidebar)] border-r border-[var(--color-sidebar-border)]">
@@ -146,7 +158,7 @@ export function AdminSidebar({
             </button>
           </div>
         )}
-        {NAV.map((section) => (
+        {visibleNav.map((section) => (
           <div key={section.title}>
             <p className="px-2 mb-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-sidebar-muted)]">
               {section.title}

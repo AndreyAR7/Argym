@@ -23,11 +23,13 @@ interface AdminShellProps {
   currentTenantName?: string
   currentTenantLogoUrl?: string | null
   homeTenantId?: string | null
+  canManageCorrespondence?: boolean
 }
 
 export function AdminShell({
   children, userName, userEmail, avatarUrl, userId, isPlatformAdmin,
   tenants, currentTenantId, currentTenantName, currentTenantLogoUrl, homeTenantId,
+  canManageCorrespondence,
 }: AdminShellProps) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
@@ -89,6 +91,7 @@ export function AdminShell({
             tenants={tenants}
             currentTenantId={currentTenantId}
             homeTenantId={homeTenantId}
+            canManageCorrespondence={canManageCorrespondence}
           />
         </div>
 

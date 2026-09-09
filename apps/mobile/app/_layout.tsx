@@ -129,8 +129,9 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     if (approvalStatus === 'approved' && user?.primaryRole) {
       const role = user.primaryRole;
 
+      const isAdminRole = role === 'admin' || role === 'full_access';
       const correctSection =
-        (role === 'admin'  && inAdmin)  ||
+        (isAdminRole       && inAdmin)  ||
         (role === 'coach'  && inCoach)  ||
         (role === 'client' && inClient);
 
@@ -138,7 +139,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       if (correctSection) return;
 
       // On root (/) or wrong section → redirect to role home
-      if (role === 'admin')  { redirect('/(admin)/dashboard');          return; }
+      if (isAdminRole)       { redirect('/(admin)/dashboard');          return; }
       if (role === 'coach')  { redirect('/(coach)/coach-appointments');  return; }
       if (role === 'client') { redirect('/(client)/inicio');             return; }
     }

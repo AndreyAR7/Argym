@@ -15,13 +15,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const session = await getSessionData()
   if (!session) redirect('/login')
 
-  const { user, profile, role, isPlatformAdmin, tenantId } = session
+  const { user, profile, role, isPlatformAdmin, tenantId, supabase } = session
 
   // Platform admins are a trusted identity independent of any single
   // tenant's approval workflow — never gate them on approval_status/role.
   if (!isPlatformAdmin) {
     if (!profile || profile.approval_status !== 'approved') redirect('/pending-approval')
-    if (role !== 'admin') redirect('/pending-approval')
+    if (role !== 'admin' && role !== 'full_access') redirect('/pending-approval')
     if (profile.is_active === false) redirect('/account-suspended')
   }
 
@@ -49,6 +49,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     currentTenantLogoUrl = tenant?.logo_url
   }
 
+  const { data: canManageCorrespondence } = await supabase.rpc('has_permission', {
+    permission_code: 'tenant.manage_correspondence',
+  })
+
   return (
     <AdminShell
       userName={profile?.full_name ?? user.email ?? ''}
@@ -61,6 +65,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       currentTenantName={currentTenantName}
       currentTenantLogoUrl={currentTenantLogoUrl}
       homeTenantId={homeTenantId}
+      canManageCorrespondence={!!canManageCorrespondence}
     >
       {children}
     </AdminShell>

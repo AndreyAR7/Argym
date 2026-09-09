@@ -477,18 +477,17 @@ Deno.serve(async (req: Request) => {
       r.recipients === 'admin' || r.recipients === 'all',
     )
     if (needsAdmin) {
-      const { data: adminRole } = await supabase
+      const { data: adminRoles } = await supabase
         .from('roles')
         .select('id')
-        .eq('name', 'admin')
-        .single()
+        .in('name', ['admin', 'full_access'])
 
-      if (adminRole) {
+      if (adminRoles?.length) {
         const { data: adminUserRoles } = await supabase
           .from('user_roles')
           .select('user_id')
           .eq('tenant_id', tenant_id)
-          .eq('role_id', adminRole.id)
+          .in('role_id', adminRoles.map((r) => r.id))
 
         adminEmails = (
           await Promise.all(
@@ -512,13 +511,13 @@ Deno.serve(async (req: Request) => {
 
     const needsAdmin = rules.some((r) => r.recipients === 'admin' || r.recipients === 'all')
     if (needsAdmin) {
-      const { data: adminRole } = await supabase
-        .from('roles').select('id').eq('name', 'admin').single()
+      const { data: adminRoles } = await supabase
+        .from('roles').select('id').in('name', ['admin', 'full_access'])
 
-      if (adminRole) {
+      if (adminRoles?.length) {
         const { data: adminUserRoles } = await supabase
           .from('user_roles').select('user_id')
-          .eq('tenant_id', tenant_id).eq('role_id', adminRole.id)
+          .eq('tenant_id', tenant_id).in('role_id', adminRoles.map((r) => r.id))
 
         adminEmails = (
           await Promise.all(

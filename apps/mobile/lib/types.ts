@@ -27,7 +27,7 @@ export interface TenantModule {
 // ─── User ─────────────────────────────────────────────────────────────────────
 
 export type UserTheme = 'system' | 'light' | 'dark';
-export type PrimaryRole = 'admin' | 'coach' | 'client';
+export type PrimaryRole = 'admin' | 'full_access' | 'coach' | 'client';
 export type FitnessLevel = 'beginner' | 'intermediate' | 'advanced';
 export type Gender = 'male' | 'female' | 'other';
 

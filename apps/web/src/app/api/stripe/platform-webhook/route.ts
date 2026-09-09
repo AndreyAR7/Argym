@@ -15,17 +15,17 @@ async function notifyTenantAdminsTrialEnding(
   trialEnd: number | null,
 ) {
   try {
-    const [{ data: tenant }, { data: adminRole }] = await Promise.all([
+    const [{ data: tenant }, { data: adminRoles }] = await Promise.all([
       supabase.from('tenants').select('name').eq('id', tenantId).single(),
-      supabase.from('roles').select('id').eq('name', 'admin').single(),
+      supabase.from('roles').select('id').in('name', ['admin', 'full_access']),
     ])
-    if (!tenant || !adminRole) return
+    if (!tenant || !adminRoles?.length) return
 
     const { data: adminUserRoles } = await supabase
       .from('user_roles')
       .select('user_id')
       .eq('tenant_id', tenantId)
-      .eq('role_id', adminRole.id)
+      .in('role_id', adminRoles.map((r) => r.id))
 
     const adminIds = (adminUserRoles ?? []).map((r) => r.user_id as string)
     if (adminIds.length === 0) return
