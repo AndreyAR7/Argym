@@ -2,35 +2,16 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { Appointment } from '@/types/appointments';
+import {
+  HOURS, MINUTES, DURATIONS, formatDateLabel, buildStartISO, buildEndISO,
+  PREVIEW_DAY_START_HOUR, PREVIEW_TOTAL_MIN, PREVIEW_HOUR_MARKS, minutesSinceDayStart,
+  computeSlotConflicts, type SlotConflictResult,
+} from '@/lib/appointmentSlots';
 
-export const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-export const MINUTES = ['00', '15', '30', '45'];
-export const DURATIONS = [
-  { labelKey: 'admin.appointments.durations.min30', minutes: 30 },
-  { labelKey: 'admin.appointments.durations.min45', minutes: 45 },
-  { labelKey: 'admin.appointments.durations.hour1', minutes: 60 },
-  { labelKey: 'admin.appointments.durations.hour1_30', minutes: 90 },
-  { labelKey: 'admin.appointments.durations.hour2', minutes: 120 },
-  { labelKey: 'admin.appointments.durations.hour3', minutes: 180 },
-  { labelKey: 'admin.appointments.durations.hour4', minutes: 240 },
-  { labelKey: 'admin.appointments.durations.hour5', minutes: 300 },
-];
-
-export function formatDateLabel(d: Date) {
-  return d.toLocaleDateString('es-CR', { weekday: 'long', day: 'numeric', month: 'long' });
-}
-
-export function buildStartISO(date: Date, hour: string, minute: string) {
-  const d = new Date(date);
-  d.setHours(parseInt(hour, 10), parseInt(minute, 10), 0, 0);
-  return d.toISOString();
-}
-
-export function buildEndISO(startISO: string, durationMinutes: number) {
-  const d = new Date(startISO);
-  d.setMinutes(d.getMinutes() + durationMinutes);
-  return d.toISOString();
-}
+export {
+  HOURS, MINUTES, DURATIONS, formatDateLabel, buildStartISO, buildEndISO,
+  computeSlotConflicts, type SlotConflictResult,
+};
 
 // ─── Date strip (14 days) ─────────────────────────────────────
 export function DateStrip({ selected, onChange, T }: { selected: Date; onChange: (d: Date) => void; T: any }) {
@@ -119,42 +100,7 @@ const styles = StyleSheet.create({
 // client(s) or coach, using the same client, coach and time overlap
 // rules as checkAppointmentConflicts (the authoritative check run again
 // server-side on submit).
-const PREVIEW_DAY_START_HOUR = 6;
-const PREVIEW_DAY_END_HOUR = 22;
-const PREVIEW_TOTAL_MIN = (PREVIEW_DAY_END_HOUR - PREVIEW_DAY_START_HOUR) * 60;
 const PREVIEW_HEIGHT = 130;
-const PREVIEW_HOUR_MARKS = [6, 10, 14, 18, 22];
-
-function minutesSinceDayStart(iso: string) {
-  const d = new Date(iso);
-  return (d.getHours() - PREVIEW_DAY_START_HOUR) * 60 + d.getMinutes();
-}
-
-export interface SlotConflictResult {
-  hasConflicts: boolean;
-  conflictTitles: string[];
-}
-
-export function computeSlotConflicts(
-  appointments: Appointment[],
-  startISO: string,
-  endISO: string,
-  clientIds: string[],
-  coachId: string | null | undefined
-): SlotConflictResult {
-  const s = new Date(startISO).getTime();
-  const e = new Date(endISO).getTime();
-  const overlapping = appointments.filter((a) => {
-    if (a.status === 'cancelled') return false;
-    const aStart = new Date(a.start_time).getTime();
-    const aEnd = new Date(a.end_time).getTime();
-    return s < aEnd && e > aStart;
-  });
-  const conflicts = overlapping.filter((a) =>
-    (!!coachId && a.coach_id === coachId) || clientIds.includes(a.client_id)
-  );
-  return { hasConflicts: conflicts.length > 0, conflictTitles: conflicts.map((a) => a.title) };
-}
 
 export function DayPreviewStrip({
   appointments, date, startISO, endISO, hasConflicts, T, t,
