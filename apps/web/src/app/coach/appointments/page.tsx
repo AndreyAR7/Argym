@@ -4,7 +4,8 @@ import { Avatar } from '@/components/ui/avatar'
 import { SearchInput } from '@/components/shared/search-input'
 import { Pagination } from '@/components/shared/pagination'
 import { CoachNewAppointmentButton } from '@/components/coach/coach-new-appointment-button'
-import { CalendarDays, MapPin, Video, Phone } from 'lucide-react'
+import { CoachAppointmentsCalendar } from '@/components/coach/coach-appointments-calendar'
+import { CalendarDays, LayoutList, MapPin, Video, Phone } from 'lucide-react'
 import Link from 'next/link'
 
 export const metadata = { title: 'Mis Citas' }
@@ -38,21 +39,43 @@ function formatDateTime(iso: string) {
   }
 }
 
+function getWeekStart(weekParam?: string): Date {
+  if (weekParam) {
+    const d = new Date(`${weekParam}T00:00:00`)
+    if (!isNaN(d.getTime())) return d
+  }
+  const d = new Date()
+  const day = d.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  d.setDate(d.getDate() + diff)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function localDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export default async function CoachAppointmentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string; page?: string }>
+  searchParams: Promise<{ status?: string; q?: string; page?: string; view?: string; week?: string }>
 }) {
   const params = await searchParams
   const statusFilter = params.status ?? 'all'
-  const q    = params.q ?? ''
-  const page = Math.max(1, parseInt(params.page ?? '1'))
+  const q     = params.q ?? ''
+  const page  = Math.max(1, parseInt(params.page ?? '1'))
+  const view  = params.view ?? 'list'
   const PAGE_SIZE = 20
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [appointmentsResult, profileResult, clientsResult] = await Promise.all([
+  const weekStart = getWeekStart(params.week)
+  const weekEnd   = new Date(weekStart)
+  weekEnd.setDate(weekStart.getDate() + 7)
+
+  const [appointmentsResult, profileResult, clientsResult, calendarResult] = await Promise.all([
     (() => {
       let q = supabase
         .from('appointments')
@@ -64,11 +87,18 @@ export default async function CoachAppointmentsPage({
     })(),
     supabase.from('profiles').select('full_name').eq('id', user!.id).single(),
     supabase.rpc('get_profiles_by_role', { role_name: 'client' }),
+    view === 'calendar'
+      ? supabase.rpc('list_appointments', { p_start_time: weekStart.toISOString(), p_end_time: weekEnd.toISOString() })
+      : Promise.resolve({ data: null, error: null }),
   ])
 
   const { data: appointments, count } = appointmentsResult
   const coachName = profileResult.data?.full_name ?? ''
   const clientList = (clientsResult.data ?? []) as { id: string; full_name: string }[]
+  // list_appointments already scopes to the caller (coach_id/client_id/
+  // participant match) — for a coach that's exactly their own appointments,
+  // same as the table query, just calendar-shaped and week-bounded.
+  const calendarAppointments = (calendarResult.data ?? []) as any[]
 
   // Fetch client profiles for display in the table
   const clientIds = [...new Set((appointments ?? []).map((a: any) => a.client_id).filter(Boolean))]
@@ -102,106 +132,134 @@ export default async function CoachAppointmentsPage({
             Mis Citas
           </h1>
           <p className="mt-0.5 text-sm text-[var(--color-muted-foreground)]">
-            {count ?? 0} cita{count !== 1 ? 's' : ''}
+            {view === 'calendar' ? `Semana del ${localDateStr(weekStart)}` : `${count ?? 0} cita${count !== 1 ? 's' : ''}`}
           </p>
         </div>
-        <CoachNewAppointmentButton
-          clients={clientList}
-          coachId={user!.id}
-          coachName={coachName}
+        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+          {/* View toggle */}
+          <div className="flex items-center gap-0 rounded-lg border border-[var(--color-border)] overflow-hidden">
+            <Link href="/coach/appointments"
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
+                view !== 'calendar' ? 'bg-[var(--color-coach)] text-white' : 'text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]'
+              }`}
+            >
+              <LayoutList size={13} />Lista
+            </Link>
+            <Link href="/coach/appointments?view=calendar"
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
+                view === 'calendar' ? 'bg-[var(--color-coach)] text-white' : 'text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]'
+              }`}
+            >
+              <CalendarDays size={13} />Calendario
+            </Link>
+          </div>
+          <CoachNewAppointmentButton
+            clients={clientList}
+            coachId={user!.id}
+            coachName={coachName}
+          />
+        </div>
+      </div>
+
+      {view === 'calendar' ? (
+        <CoachAppointmentsCalendar
+          appointments={calendarAppointments}
+          weekStart={localDateStr(weekStart)}
         />
-      </div>
+      ) : (
+        <>
+          {/* Search */}
+          <div className="mt-4 mb-4">
+            <SearchInput placeholder="Buscar por título o cliente..." className="max-w-xs" />
+          </div>
 
-      {/* Search */}
-      <div className="mt-4 mb-4">
-        <SearchInput placeholder="Buscar por título o cliente..." className="max-w-xs" />
-      </div>
+          {/* Status tabs */}
+          <div className="flex items-center gap-1 bg-[var(--color-muted)] rounded-lg p-1 overflow-x-auto">
+            {STATUS_TABS.map((tab) => (
+              <Link
+                key={tab.value}
+                href={tab.value === 'all' ? '/coach/appointments' : `/coach/appointments?status=${tab.value}`}
+                className={`px-3.5 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
+                  statusFilter === tab.value
+                    ? 'bg-[var(--color-card)] text-[var(--color-foreground)] shadow-sm'
+                    : 'text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]'
+                }`}
+              >
+                {tab.label}
+              </Link>
+            ))}
+          </div>
 
-      {/* Status tabs */}
-      <div className="flex items-center gap-1 bg-[var(--color-muted)] rounded-lg p-1 overflow-x-auto">
-        {STATUS_TABS.map((tab) => (
-          <Link
-            key={tab.value}
-            href={tab.value === 'all' ? '/coach/appointments' : `/coach/appointments?status=${tab.value}`}
-            className={`px-3.5 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
-              statusFilter === tab.value
-                ? 'bg-[var(--color-card)] text-[var(--color-foreground)] shadow-sm'
-                : 'text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]'
-            }`}
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </div>
-
-      {/* Table */}
-      <div className="mt-4 rounded-xl border border-[var(--color-border)] overflow-hidden overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-[var(--color-border)] bg-[var(--color-muted)]">
-              <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Cita</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider hidden md:table-cell">Cliente</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Fecha</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider hidden lg:table-cell">Tipo</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Estado</th>
-            </tr>
-          </thead>
-          <tbody className="bg-[var(--color-card)] divide-y divide-[var(--color-border)]">
-            {paginated.length > 0 ? (
-              paginated.map((apt: any) => {
-                const client = clientMap.get(apt.client_id)
-                const { date, time } = formatDateTime(apt.start_time)
-                return (
-                  <tr key={apt.id} className="hover:bg-[var(--color-muted)] transition-colors">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-[var(--color-foreground)]">{apt.title}</p>
-                      {apt.notes && (
-                        <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5 line-clamp-1">{apt.notes}</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      {client ? (
-                        <div className="flex items-center gap-2">
-                          <Avatar name={client.full_name} src={client.avatar_url} size="sm" className="bg-[var(--color-client-light)]" />
-                          <span className="text-sm text-[var(--color-foreground)]">{client.full_name}</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-[var(--color-muted-foreground)]">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="text-sm text-[var(--color-foreground)] capitalize">{date}</p>
-                      <p className="text-xs text-[var(--color-muted-foreground)]">{time}</p>
-                    </td>
-                    <td className="px-4 py-3 hidden lg:table-cell">
-                      <div className="flex items-center gap-1.5 text-xs text-[var(--color-muted-foreground)]">
-                        {TYPE_ICON[apt.appointment_type]}
-                        {TYPE_LABEL[apt.appointment_type] ?? apt.appointment_type}
+          {/* Table */}
+          <div className="mt-4 rounded-xl border border-[var(--color-border)] overflow-hidden overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--color-border)] bg-[var(--color-muted)]">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Cita</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider hidden md:table-cell">Cliente</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Fecha</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider hidden lg:table-cell">Tipo</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Estado</th>
+                </tr>
+              </thead>
+              <tbody className="bg-[var(--color-card)] divide-y divide-[var(--color-border)]">
+                {paginated.length > 0 ? (
+                  paginated.map((apt: any) => {
+                    const client = clientMap.get(apt.client_id)
+                    const { date, time } = formatDateTime(apt.start_time)
+                    return (
+                      <tr key={apt.id} className="hover:bg-[var(--color-muted)] transition-colors">
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-[var(--color-foreground)]">{apt.title}</p>
+                          {apt.notes && (
+                            <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5 line-clamp-1">{apt.notes}</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 hidden md:table-cell">
+                          {client ? (
+                            <div className="flex items-center gap-2">
+                              <Avatar name={client.full_name} src={client.avatar_url} size="sm" className="bg-[var(--color-client-light)]" />
+                              <span className="text-sm text-[var(--color-foreground)]">{client.full_name}</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-[var(--color-muted-foreground)]">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="text-sm text-[var(--color-foreground)] capitalize">{date}</p>
+                          <p className="text-xs text-[var(--color-muted-foreground)]">{time}</p>
+                        </td>
+                        <td className="px-4 py-3 hidden lg:table-cell">
+                          <div className="flex items-center gap-1.5 text-xs text-[var(--color-muted-foreground)]">
+                            {TYPE_ICON[apt.appointment_type]}
+                            {TYPE_LABEL[apt.appointment_type] ?? apt.appointment_type}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge value={apt.status} />
+                        </td>
+                      </tr>
+                    )
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="py-16 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <CalendarDays size={32} className="text-[var(--color-border)]" />
+                        <p className="text-sm text-[var(--color-muted-foreground)]">
+                          {q ? `Sin resultados para "${q}"` : statusFilter !== 'all' ? 'Sin citas con ese estado' : 'Aún no tienes citas programadas'}
+                        </p>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <Badge value={apt.status} />
-                    </td>
                   </tr>
-                )
-              })
-            ) : (
-              <tr>
-                <td colSpan={5} className="py-16 text-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <CalendarDays size={32} className="text-[var(--color-border)]" />
-                    <p className="text-sm text-[var(--color-muted-foreground)]">
-                      {q ? `Sin resultados para "${q}"` : statusFilter !== 'all' ? 'Sin citas con ese estado' : 'Aún no tienes citas programadas'}
-                    </p>
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                )}
+              </tbody>
+            </table>
+          </div>
 
-      <Pagination total={filtered.length} pageSize={PAGE_SIZE} currentPage={page} />
+          <Pagination total={filtered.length} pageSize={PAGE_SIZE} currentPage={page} />
+        </>
+      )}
     </div>
   )
 }
