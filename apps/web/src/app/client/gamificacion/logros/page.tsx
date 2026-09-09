@@ -13,7 +13,7 @@ interface BadgeDefinition {
   id: string
   name: string
   description: string | null
-  icon_emoji: string | null
+  icon: string | null
   rarity: Rarity
   xp_reward: number
   condition_type: string | null
@@ -78,16 +78,26 @@ function conditionHint(badge: BadgeDefinition): string {
   if (!badge.condition_type || badge.condition_value == null) return ''
   const val = badge.condition_value
   switch (badge.condition_type) {
-    case 'checkins':
-      return `Completa ${val} check-in${val !== 1 ? 's' : ''}`
+    case 'checkin_count':
+      return `Completa ${val} check-in${val !== 1 ? 's' : ''} en el gimnasio`
     case 'streak':
       return `Mantén una racha de ${val} día${val !== 1 ? 's' : ''}`
-    case 'challenges_won':
+    case 'challenge_wins':
       return `Gana ${val} desafío${val !== 1 ? 's' : ''}`
+    case 'challenge_completed':
+      return `Completa ${val} desafío${val !== 1 ? 's' : ''}`
     case 'xp_total':
       return `Acumula ${val.toLocaleString('es-CR')} XP`
     case 'level':
       return `Alcanza el nivel ${val}`
+    case 'app_checkin_count':
+      return `Completa ${val} check-in${val !== 1 ? 's' : ''} desde la app`
+    case 'app_streak':
+      return `Mantén una racha de ${val} día${val !== 1 ? 's' : ''} en la app`
+    case 'appointments_completed':
+      return `Completa ${val} cita${val !== 1 ? 's' : ''}`
+    case 'measurements_logged':
+      return `Registra ${val} medición${val !== 1 ? 'es' : ''} corporal${val !== 1 ? 'es' : ''}`
     default:
       return `${badge.condition_type}: ${val}`
   }
@@ -108,7 +118,7 @@ function EarnedBadgeCard({ badge }: { badge: EarnedBadge }) {
       ].join(' ')}
     >
       {/* Icon */}
-      <div className="text-4xl leading-none">{badge.icon_emoji ?? '🏅'}</div>
+      <div className="text-4xl leading-none">{badge.icon ?? '🏅'}</div>
 
       {/* Rarity chip */}
       <span
@@ -158,7 +168,7 @@ function LockedBadgeCard({ badge }: { badge: BadgeDefinition }) {
       ].join(' ')}
     >
       {/* Icon */}
-      <div className="text-4xl leading-none">{badge.icon_emoji ?? '🏅'}</div>
+      <div className="text-4xl leading-none">{badge.icon ?? '🏅'}</div>
 
       {/* Rarity chip (gray) */}
       <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
