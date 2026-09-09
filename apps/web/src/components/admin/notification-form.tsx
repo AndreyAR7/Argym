@@ -32,20 +32,20 @@ export function NotificationForm() {
   const [body, setBody] = useState('')
   const [target, setTarget] = useState<Target>('all')
   const [error, setError] = useState<string | null>(null)
-  const [sent, setSent] = useState(false)
+  const [sentCount, setSentCount] = useState<number | null>(null)
   const [isPending, startTransition] = useTransition()
 
   function handleSend() {
     if (!title.trim()) { setError('El título es obligatorio'); return }
     if (!body.trim()) { setError('El mensaje es obligatorio'); return }
     setError(null)
-    setSent(false)
+    setSentCount(null)
 
     startTransition(async () => {
       const result = await sendPushNotificationAction({ title: title.trim(), body: body.trim(), target_role: target })
       if (result?.error) setError(result.error)
       else {
-        setSent(true)
+        setSentCount(result?.recipientCount ?? 0)
         setTitle('')
         setBody('')
       }
@@ -59,7 +59,7 @@ export function NotificationForm() {
         <div className="px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-muted)]">
           <h3 className="text-sm font-semibold text-[var(--color-foreground)]">Redactar notificación</h3>
           <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
-            La notificación se enviará a los dispositivos móviles registrados.
+            Se encola y se envía a los dispositivos móviles registrados en los próximos minutos.
           </p>
         </div>
         <div className="p-6 space-y-4">
@@ -158,10 +158,10 @@ export function NotificationForm() {
           {error}
         </p>
       )}
-      {sent && (
+      {sentCount !== null && (
         <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5">
           <CheckCircle size={15} />
-          Notificación enviada correctamente
+          Notificación encolada para {sentCount} destinatario{sentCount !== 1 ? 's' : ''} — se enviará en los próximos minutos.
         </div>
       )}
 
