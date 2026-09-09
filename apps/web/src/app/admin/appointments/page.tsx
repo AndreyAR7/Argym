@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/shared/page-header'
 import { NewAppointmentButton } from '@/components/admin/new-appointment-button'
 import { AppointmentsCalendar } from '@/components/admin/appointments-calendar'
 import { AdminAppointmentsTable } from '@/components/admin/admin-appointments-table'
-import { CalendarDays, LayoutList } from 'lucide-react'
+import { CalendarDays, LayoutList, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 
 export const metadata = { title: 'Citas' }
@@ -73,8 +73,9 @@ export default async function AppointmentsPage({
       : Promise.resolve({ data: [], error: null }),
   ])
 
-  if (appointmentsResult.error) {
-    console.error('[APPTS PAGE] list_appointments error:', appointmentsResult.error)
+  const loadError = appointmentsResult.error
+  if (loadError) {
+    console.error('[APPTS PAGE] list_appointments error:', loadError)
   }
 
   const coachList  = coachResult.data  ?? []
@@ -118,6 +119,13 @@ export default async function AppointmentsPage({
 
   return (
     <div className="p-4 md:p-8">
+      {loadError && (
+        <div className="mb-4 flex items-start gap-2.5 rounded-lg px-4 py-3 text-sm"
+          style={{ backgroundColor: 'color-mix(in srgb, var(--color-destructive) 8%, transparent)', color: 'var(--color-destructive)', border: '1px solid color-mix(in srgb, var(--color-destructive) 25%, transparent)' }}>
+          <AlertTriangle size={15} className="flex-shrink-0 mt-0.5" />
+          No se pudieron cargar las citas ({loadError.message}). Es posible que tu rol no tenga el permiso necesario — contacta al administrador de la plataforma.
+        </div>
+      )}
       <PageHeader
         title="Citas"
         subtitle={view === 'calendar'

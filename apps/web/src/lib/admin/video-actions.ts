@@ -18,7 +18,7 @@ export async function updateVideoMetadataAction(
 ): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createClient()
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('videos')
     .update({
       title: data.title,
@@ -31,8 +31,10 @@ export async function updateVideoMetadataAction(
       allowed_levels: data.allowed_levels ?? [],
     })
     .eq('id', videoId)
+    .select('id')
 
   if (error) return { error: error.message }
+  if (!updated || updated.length === 0) return { error: 'No tienes permiso para editar este video.' }
   revalidatePath('/admin/videos')
   return { success: true }
 }
@@ -57,8 +59,9 @@ export async function updateVideoFileAction(
   }
   if (existing?.status === 'draft') updates.status = 'published'
 
-  const { error } = await supabase.from('videos').update(updates).eq('id', videoId)
+  const { data: updated, error } = await supabase.from('videos').update(updates).eq('id', videoId).select('id')
   if (error) return { error: error.message }
+  if (!updated || updated.length === 0) return { error: 'No tienes permiso para editar este video.' }
 
   if (data.previous_path && data.previous_path !== data.storage_path) {
     await supabase.storage.from(data.storage_bucket).remove([data.previous_path])
@@ -76,14 +79,16 @@ export async function updateVideoThumbnailAction(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('videos')
     .update({
       thumbnail_storage_path: data.storage_path,
       thumbnail_bucket: data.storage_bucket,
     })
     .eq('id', videoId)
+    .select('id')
   if (error) return { error: error.message }
+  if (!updated || updated.length === 0) return { error: 'No tienes permiso para editar este video.' }
 
   if (data.previous_path && data.previous_path !== data.storage_path) {
     await supabase.storage.from(data.storage_bucket).remove([data.previous_path])

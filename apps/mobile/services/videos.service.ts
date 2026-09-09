@@ -49,11 +49,13 @@ export async function createVideo(
 }
 
 export async function updateVideo(id: string, updates: Partial<Omit<Video, 'category'>>): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('videos')
     .update(updates)
-    .eq('id', id);
+    .eq('id', id)
+    .select('id');
   if (error) throw error;
+  if (!data || data.length === 0) throw new Error('No tienes permiso para editar este video.');
 }
 
 export async function setVideoStatus(id: string, status: VideoStatus, userId: string): Promise<void> {

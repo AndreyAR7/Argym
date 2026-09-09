@@ -4,6 +4,19 @@ import type { Appointment, CreateAppointmentInput, UpdateAppointmentInput, Confl
 
 const REAL_COLUMNS = 'id, tenant_id, client_id, coach_id, title, description, start_time, end_time, status, appointment_type, location, meeting_url, notes, created_at, updated_at';
 
+// coach_name/client_name are UI-only — never persisted, only populated
+// here via a join for screens that display them (home dashboard,
+// appointment lists/detail). Web already does this; mobile never did,
+// so it always rendered without a coach/client name.
+const COLUMNS_WITH_NAMES = `${REAL_COLUMNS}, coach:profiles!appointments_coach_id_fkey(full_name), client:profiles!appointments_client_id_fkey(full_name)`;
+
+function flattenNames(row: any): Appointment {
+  const coach = Array.isArray(row.coach) ? row.coach[0] : row.coach;
+  const client = Array.isArray(row.client) ? row.client[0] : row.client;
+  const { coach: _coach, client: _client, ...rest } = row;
+  return { ...rest, coach_name: coach?.full_name ?? null, client_name: client?.full_name ?? null };
+}
+
 export async function getAppointmentsByTenant(tenantId: string): Promise<Appointment[]> {
   const { data, error } = await supabase
     .from('appointments')
@@ -18,23 +31,23 @@ export async function getAppointmentsByTenant(tenantId: string): Promise<Appoint
 export async function getAppointmentsByClient(userId: string): Promise<Appointment[]> {
   const { data, error } = await supabase
     .from('appointments')
-    .select(REAL_COLUMNS)
+    .select(COLUMNS_WITH_NAMES)
     .eq('client_id', userId)
     .order('start_time', { ascending: true });
 
   if (error) throw error;
-  return (data ?? []) as Appointment[];
+  return ((data ?? []) as any[]).map(flattenNames);
 }
 
 export async function getAppointmentsByCoach(userId: string): Promise<Appointment[]> {
   const { data, error } = await supabase
     .from('appointments')
-    .select(REAL_COLUMNS)
+    .select(COLUMNS_WITH_NAMES)
     .eq('coach_id', userId)
     .order('start_time', { ascending: true });
 
   if (error) throw error;
-  return (data ?? []) as Appointment[];
+  return ((data ?? []) as any[]).map(flattenNames);
 }
 
 export async function createAppointment(input: CreateAppointmentInput): Promise<Appointment> {
@@ -65,12 +78,12 @@ export async function createAppointment(input: CreateAppointmentInput): Promise<
 export async function getAppointmentById(id: string): Promise<Appointment> {
   const { data, error } = await supabase
     .from('appointments')
-    .select(REAL_COLUMNS)
+    .select(COLUMNS_WITH_NAMES)
     .eq('id', id)
     .single();
 
   if (error) throw error;
-  return data as Appointment;
+  return flattenNames(data);
 }
 
 export async function updateAppointment(id: string, input: UpdateAppointmentInput): Promise<Appointment> {

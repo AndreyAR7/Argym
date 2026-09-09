@@ -1426,6 +1426,7 @@
         "checkinFailed": "No se pudo registrar el check-in.",
         "connectionError": "Error de conexión. Verifica tu internet e intenta de nuevo.",
         "noActiveMembership": "Necesitás una membresía activa para hacer check-in presencial.",
+        "qrExpired": "Este código QR ya no es válido. Escanea el QR actual que se muestra en la entrada del gimnasio — se renueva cada 5 minutos para evitar fraudes.",
         "weeklyLimitReached": "Ya usaste tus {{used}} de {{limit}} check-ins de esta semana según tu plan. Aumenta tu plan para entrenar más días."
       },
       "permission": {
@@ -1631,6 +1632,18 @@
     }
   },
   "coach": {
+    "sidebar": {
+      "dashboard": "Inicio",
+      "appointments": "Mis Citas",
+      "clients": "Mis Clientes",
+      "routines": "Rutinas",
+      "nutrition": "Nutrición",
+      "videos": "Videos",
+      "notifications": "Notificaciones",
+      "roleLabel": "Coach",
+      "defaultName": "Coach",
+      "signOut": "Cerrar sesión"
+    },
     "clients": {
       "title": "Mis Clientes",
       "searchPlaceholder": "Buscar cliente...",

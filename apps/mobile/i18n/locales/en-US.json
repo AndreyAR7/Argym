@@ -1426,6 +1426,7 @@
         "checkinFailed": "Could not register the check-in.",
         "connectionError": "Connection error. Check your internet and try again.",
         "noActiveMembership": "You need an active membership to check in at the gym.",
+        "qrExpired": "This QR code is no longer valid. Scan the current QR shown at the gym entrance — it refreshes every 5 minutes to prevent fraud.",
         "weeklyLimitReached": "You've already used {{used}} of {{limit}} check-ins this week under your plan. Upgrade your plan to train more days."
       },
       "permission": {
@@ -1631,6 +1632,18 @@
     }
   },
   "coach": {
+    "sidebar": {
+      "dashboard": "Home",
+      "appointments": "My Appointments",
+      "clients": "My Clients",
+      "routines": "Routines",
+      "nutrition": "Nutrition",
+      "videos": "Videos",
+      "notifications": "Notifications",
+      "roleLabel": "Coach",
+      "defaultName": "Coach",
+      "signOut": "Sign out"
+    },
     "clients": {
       "title": "My Clients",
       "searchPlaceholder": "Search client...",

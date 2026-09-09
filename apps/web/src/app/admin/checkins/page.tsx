@@ -56,7 +56,7 @@ export default async function CheckinsReportPage({
   if (params.branch) query = query.eq('branch_id', params.branch)
   query = query.order('created_at', { ascending: false }).range(offset, offset + PAGE_SIZE - 1)
 
-  const [{ data: attempts, count }, { count: successCount }, { count: blockedCount }, { data: blockedRows }] = await Promise.all([
+  const [{ data: attempts, count, error: loadError }, { count: successCount }, { count: blockedCount }, { data: blockedRows }] = await Promise.all([
     query,
     supabase.from('checkin_attempts').select('id', { count: 'exact', head: true })
       .eq('tenant_id', tenantId).eq('result', 'success')
@@ -98,6 +98,13 @@ export default async function CheckinsReportPage({
 
   return (
     <div className="p-4 md:p-8">
+      {loadError && (
+        <div className="mb-4 flex items-start gap-2.5 rounded-lg px-4 py-3 text-sm"
+          style={{ backgroundColor: 'color-mix(in srgb, var(--color-destructive) 8%, transparent)', color: 'var(--color-destructive)', border: '1px solid color-mix(in srgb, var(--color-destructive) 25%, transparent)' }}>
+          <AlertTriangle size={15} className="flex-shrink-0 mt-0.5" />
+          No se pudieron cargar los intentos de check-in ({loadError.message}). Es posible que tu rol no tenga el permiso necesario.
+        </div>
+      )}
       <PageHeader title="Asistencia (QR)" subtitle={`${count ?? 0} intentos de check-in en el rango seleccionado`}>
         <a
           href={`/api/admin/checkins/export?${exportQs}`}

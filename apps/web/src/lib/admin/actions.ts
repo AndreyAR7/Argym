@@ -292,7 +292,7 @@ export async function updatePlanAction(planId: string, data: {
     .filter((f: string) => f.trim())
     .map((name: string) => ({ name, value: 'true' }))
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('plans')
     .update({
       name: data.name,
@@ -308,8 +308,10 @@ export async function updatePlanAction(planId: string, data: {
       checkins_per_week: data.checkins_per_week ?? null,
     })
     .eq('id', planId)
+    .select('id')
 
   if (error) return { error: error.message }
+  if (!updated || updated.length === 0) return { error: 'No tienes permiso para editar este plan.' }
   revalidatePath('/admin/plans')
   return { success: true }
 }
@@ -317,12 +319,14 @@ export async function updatePlanAction(planId: string, data: {
 export async function togglePlanActiveAction(planId: string, isActive: boolean) {
   const supabase = await createClient()
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('plans')
     .update({ is_active: isActive })
     .eq('id', planId)
+    .select('id')
 
   if (error) return { error: error.message }
+  if (!updated || updated.length === 0) return { error: 'No tienes permiso para modificar este plan.' }
   revalidatePath('/admin/plans')
   revalidatePath('/admin/clients')
   return { success: true }

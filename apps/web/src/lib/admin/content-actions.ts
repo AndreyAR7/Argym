@@ -22,13 +22,15 @@ export async function updateVideoStatusAction(
   const { error: authErr, tenantId } = await getCallerTenantId(supabase)
   if (authErr) return { error: authErr }
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('videos')
     .update({ status })
     .eq('id', videoId)
     .eq('tenant_id', tenantId!)
+    .select('id')
 
   if (error) return { error: error.message }
+  if (!updated || updated.length === 0) return { error: 'No tienes permiso para editar este video.' }
   return { success: true }
 }
 
@@ -39,13 +41,15 @@ export async function toggleRoutineActiveAction(routineId: string, isActive: boo
   const { error: authErr, tenantId } = await getCallerTenantId(supabase)
   if (authErr) return { error: authErr }
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('routines')
     .update({ is_active: isActive })
     .eq('id', routineId)
     .eq('tenant_id', tenantId!)
+    .select('id')
 
   if (error) return { error: error.message }
+  if (!updated || updated.length === 0) return { error: 'No tienes permiso para editar esta rutina.' }
   return { success: true }
 }
 
@@ -59,13 +63,15 @@ export async function updateNutritionStatusAction(
   const { error: authErr, tenantId } = await getCallerTenantId(supabase)
   if (authErr) return { error: authErr }
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('nutrition_plans')
     .update({ status })
     .eq('id', planId)
     .eq('tenant_id', tenantId!)
+    .select('id')
 
   if (error) return { error: error.message }
+  if (!updated || updated.length === 0) return { error: 'No tienes permiso para editar este plan nutricional.' }
   return { success: true }
 }
 

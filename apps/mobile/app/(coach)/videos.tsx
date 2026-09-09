@@ -9,6 +9,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useAdminVideos } from '@/hooks/useVideos';
 import { useAuthStore } from '@/store/auth.store';
 import { formatDuration, VIDEO_STATUS_LABELS } from '@/types/videos';
+import { useCoachSidebarStore } from '@/store/coachSidebar.store';
 import type { Video, VideoLevel } from '@/types/videos';
 
 const LEVEL_COLORS: Record<VideoLevel, string> = {
@@ -23,6 +24,7 @@ export default function CoachVideosScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
   const { videos, isLoading } = useAdminVideos();
+  const { open: openSidebar } = useCoachSidebarStore();
   const [activeLevel, setActiveLevel] = useState<VideoLevel | 'all'>('all');
 
   const LEVELS: Array<{ key: VideoLevel | 'all'; label: string }> = [
@@ -49,7 +51,10 @@ export default function CoachVideosScreen() {
       activeOpacity={0.8}
       onPress={() => {
         if (item.external_url) Linking.openURL(item.external_url);
-        else router.push({ pathname: '/(coach)/video-player', params: { videoId: item.id } });
+        // Coach videos share the same store slice as admin's (both use
+        // useAdminVideos()) — there's no separate /(coach)/video-player
+        // screen, reuse admin's, which reads the "id" param, not "videoId".
+        else router.push({ pathname: '/(admin)/video-player', params: { id: item.id } });
       }}
     >
       {/* Thumbnail block */}
@@ -84,7 +89,12 @@ export default function CoachVideosScreen() {
 
       {/* Header */}
       <View style={[s.header, { borderBottomColor: T.border }]}>
-        <View>
+        <TouchableOpacity onPress={openSidebar} style={[s.menuBtn, { backgroundColor: T.bgCard, borderColor: T.border }]} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <View style={[s.menuLine, { backgroundColor: T.textSecondary }]} />
+          <View style={[s.menuLine, { width: 14, backgroundColor: T.textSecondary }]} />
+          <View style={[s.menuLine, { backgroundColor: T.textSecondary }]} />
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
           <Text style={[s.screenTitle, { color: T.text }]}>{t('coach.videos.title')}</Text>
           <Text style={[s.screenSubtitle, { color: T.textSecondary }]}>{t('coach.videos.subtitle')}</Text>
         </View>
@@ -141,10 +151,12 @@ export default function CoachVideosScreen() {
 const s = StyleSheet.create({
   safe:           { flex: 1 },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: 16, paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  menuBtn: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', gap: 4, borderWidth: 1 },
+  menuLine: { width: 18, height: 2, borderRadius: 1 },
   screenTitle:    { fontSize: 22, fontWeight: '800' },
   screenSubtitle: { fontSize: 13, marginTop: 1 },
   filterRow: {

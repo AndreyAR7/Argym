@@ -83,15 +83,18 @@ export async function deleteBranchAction(id: string) {
 }
 
 export async function assignProfileBranchAction(profileId: string, branchId: string | null) {
-  const { supabase, error: authError } = await getAdminContext()
+  const { supabase, tenantId, error: authError } = await getAdminContext()
   if (authError) return { error: authError }
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('profiles')
     .update({ branch_id: branchId })
     .eq('id', profileId)
+    .eq('tenant_id', tenantId!)
+    .select('id')
 
   if (error) return { error: error.message }
+  if (!updated || updated.length === 0) return { error: 'No tienes permiso para editar este usuario.' }
   revalidatePath('/admin/branches')
   revalidatePath('/admin/clients')
   return { success: true }

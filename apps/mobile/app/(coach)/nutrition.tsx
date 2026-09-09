@@ -8,6 +8,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useNutritionStore } from '@/store/nutrition.store';
 import { useAuthStore } from '@/store/auth.store';
 import { NUTRITION_STATUS_LABELS } from '@/types/nutrition';
+import { useCoachSidebarStore } from '@/store/coachSidebar.store';
 import type { NutritionPlan, NutritionStatus } from '@/types/nutrition';
 
 const STATUS_COLORS: Record<NutritionStatus, string> = {
@@ -19,6 +20,7 @@ const STATUS_COLORS: Record<NutritionStatus, string> = {
 export default function CoachNutritionScreen() {
   const { t } = useTranslation();
   const T = useTheme();
+  const { open: openSidebar } = useCoachSidebarStore();
   const { user } = useAuthStore();
   const { adminPlans, isLoading, loadAdminPlans } = useNutritionStore();
   const [refreshing, setRefreshing] = useState(false);
@@ -79,7 +81,12 @@ export default function CoachNutritionScreen() {
 
       {/* Header */}
       <View style={[s.header, { borderBottomColor: T.border }]}>
-        <View>
+        <TouchableOpacity onPress={openSidebar} style={[s.menuBtn, { backgroundColor: T.bgCard, borderColor: T.border }]} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <View style={[s.menuLine, { backgroundColor: T.textSecondary }]} />
+          <View style={[s.menuLine, { width: 14, backgroundColor: T.textSecondary }]} />
+          <View style={[s.menuLine, { backgroundColor: T.textSecondary }]} />
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
           <Text style={[s.screenTitle, { color: T.text }]}>{t('navigation.nutrition')}</Text>
           <Text style={[s.screenSubtitle, { color: T.textSecondary }]}>{t('coach.nutrition.subtitle')}</Text>
         </View>
@@ -122,10 +129,12 @@ export default function CoachNutritionScreen() {
 const s = StyleSheet.create({
   safe:           { flex: 1 },
   header: {
-    flexDirection: 'row', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: 16, paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  menuBtn: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', gap: 4, borderWidth: 1 },
+  menuLine: { width: 18, height: 2, borderRadius: 1 },
   screenTitle:    { fontSize: 22, fontWeight: '800' },
   screenSubtitle: { fontSize: 13, marginTop: 1 },
   card: {

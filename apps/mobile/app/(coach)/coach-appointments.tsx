@@ -20,6 +20,7 @@ import { StatusBadge } from '@/components/admin/StatusBadge';
 import { ToastManager } from '@/components/shared/Toast';
 import { CalendarDayView } from '@/components/admin/CalendarDayView';
 import { DateStrip, HourPicker, DurationPicker, DayPreviewStrip, computeSlotConflicts, formatDateLabel, buildStartISO, buildEndISO } from '@/components/shared/AppointmentFormPickers';
+import { useCoachSidebarStore } from '@/store/coachSidebar.store';
 import type { Appointment } from '@/types/appointments';
 
 function formatDateTime(iso: string, t: (key: string) => string) {
@@ -36,6 +37,7 @@ export default function CoachAppointments() {
   const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuthStore();
+  const { open: openSidebar } = useCoachSidebarStore();
   const qc = useQueryClient();
   const { data: appointments = [], isLoading, error, refetch } = useAppointmentsCoach(user?.id);
 
@@ -219,6 +221,11 @@ export default function CoachAppointments() {
 
       {/* Header */}
       <View style={[s.header, { borderBottomColor: T.border }]}>
+        <TouchableOpacity onPress={openSidebar} style={[s.menuBtn, { backgroundColor: T.bgCard, borderColor: T.border }]} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <View style={[s.menuLine, { backgroundColor: T.textSecondary }]} />
+          <View style={[s.menuLine, { width: 14, backgroundColor: T.textSecondary }]} />
+          <View style={[s.menuLine, { backgroundColor: T.textSecondary }]} />
+        </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={[s.title, { color: T.text }]}>{t('coach.appointments.title')}</Text>
           {!isLoading && !error && (
@@ -530,7 +537,9 @@ export default function CoachAppointments() {
 
 const s = StyleSheet.create({
   safe: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
+  menuBtn: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', gap: 4, borderWidth: 1 },
+  menuLine: { width: 18, height: 2, borderRadius: 1 },
   title: { fontSize: 22, fontWeight: '800' },
   subtitle: { fontSize: 13, marginTop: 2 },
   newBtn: { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 9 },

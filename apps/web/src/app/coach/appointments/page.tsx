@@ -86,7 +86,13 @@ export default async function CoachAppointmentsPage({
       return q
     })(),
     supabase.from('profiles').select('full_name').eq('id', user!.id).single(),
-    supabase.rpc('get_profiles_by_role', { role_name: 'client' }),
+    // Scoped to this coach's assigned clients only — get_profiles_by_role
+    // would return every client in the tenant, letting a coach schedule
+    // appointments with clients that aren't theirs.
+    supabase
+      .from('coach_client_assignments')
+      .select('profiles!coach_client_assignments_client_id_fkey(id, full_name)')
+      .eq('coach_id', user!.id),
     view === 'calendar'
       ? supabase.rpc('list_appointments', {
           p_start_time: weekStart.toISOString(),
@@ -98,7 +104,9 @@ export default async function CoachAppointmentsPage({
 
   const { data: appointments, count } = appointmentsResult
   const coachName = profileResult.data?.full_name ?? ''
-  const clientList = (clientsResult.data ?? []) as { id: string; full_name: string }[]
+  const clientList = ((clientsResult.data ?? []) as any[])
+    .map((row) => (Array.isArray(row.profiles) ? row.profiles[0] : row.profiles))
+    .filter(Boolean) as { id: string; full_name: string }[]
   // list_appointments scopes to the caller (coach_id/client_id/participant
   // match) plus, with p_include_other_coaches, other coaches' appointments
   // in the tenant — those come back with client-identifying fields

@@ -164,6 +164,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
 function NotificationSetup() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const notifRef = useRef<NotificationListener | null>(null);
   const responseRef = useRef<ResponseListener | null>(null);
 
@@ -174,10 +175,14 @@ function NotificationSetup() {
         // (configured in setNotificationHandler inside pushNotifications.ts)
       },
       (response) => {
-        // User tapped the notification — navigate to notifications screen
+        // User tapped the notification — navigate to notifications screen.
+        // The queue-driven push payload doesn't actually carry a role
+        // today (process_notification_queue() never sets one), so fall
+        // back to the signed-in user's own role — also covers full_access,
+        // which the payload-role branch never accounted for either.
         const data = response.notification.request.content.data as Record<string, unknown>;
-        const role = data?.role as string | undefined;
-        if (role === 'admin')  router.push('/(admin)/notifications' as any);
+        const role = (data?.role as string | undefined) ?? user?.primaryRole;
+        if (role === 'admin' || role === 'full_access') router.push('/(admin)/notifications' as any);
         else if (role === 'coach') router.push('/(coach)/notifications' as any);
         else router.push('/(client)/notifications' as any);
       }

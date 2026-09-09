@@ -50,11 +50,13 @@ export default function CheckinScanScreen() {
     setStatus('loading');
 
     let branchId: string | null = null;
+    let qrToken: string | null = null;
     try {
       const url = new URL(data);
       // Accept only URLs with /checkin path
       if (!url.pathname.includes('/checkin')) throw new Error('Not a checkin QR');
       branchId = url.searchParams.get('branch');
+      qrToken = url.searchParams.get('t');
     } catch {
       setStatus('error');
       setMessage(t('client.checkinScan.errors.qrNotRecognized'));
@@ -64,6 +66,31 @@ export default function CheckinScanScreen() {
     if (!branchId || !user?.id || !user?.tenant_id) {
       setStatus('error');
       setMessage(t('client.checkinScan.errors.qrInvalid'));
+      return;
+    }
+
+    try {
+      // Validate the rotating 5-minute anti-fraud token server-side before
+      // granting anything — mobile has no access to QR_SECRET to do this
+      // itself, and skipping it would let a stale/shared QR photo check in
+      // unconditionally (the web scanner already rejects those as expired).
+      const siteUrl = process.env.EXPO_PUBLIC_SITE_URL;
+      if (siteUrl) {
+        const verifyRes = await fetch(`${siteUrl}/api/checkin/validate-qr`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ branch: branchId, t: qrToken }),
+        });
+        const verifyData = await verifyRes.json().catch(() => ({ valid: false }));
+        if (!verifyData.valid) {
+          setStatus('error');
+          setMessage(t('client.checkinScan.errors.qrExpired'));
+          return;
+        }
+      }
+    } catch {
+      setStatus('error');
+      setMessage(t('client.checkinScan.errors.connectionError'));
       return;
     }
 

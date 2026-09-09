@@ -10,6 +10,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useAppointmentsCoach } from '@/hooks/useAppointments';
 import { SkeletonCard } from '@/components/shared/SkeletonLoader';
 import { StatusBadge } from '@/components/admin/StatusBadge';
+import { useCoachSidebarStore } from '@/store/coachSidebar.store';
 import type { Appointment } from '@/types/appointments';
 
 type TFunc = ReturnType<typeof useTranslation>['t'];
@@ -38,6 +39,7 @@ export default function CoachDashboard() {
   const router = useRouter();
   const { user } = useAuthStore();
   const T = useTheme();
+  const { open } = useCoachSidebarStore();
   const [refreshing, setRefreshing] = useState(false);
 
   const { data: appointments = [], isLoading, refetch } = useAppointmentsCoach(user?.id);
@@ -79,10 +81,17 @@ export default function CoachDashboard() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={T.accent} />}
       >
         {/* Header */}
-        <View style={{ marginBottom: 24 }}>
-          <Text style={{ fontSize: 14, color: T.textSecondary, fontWeight: '500' }}>{getGreeting(t)},</Text>
-          <Text style={{ fontSize: 26, fontWeight: '800', color: T.text }}>{firstName} 👋</Text>
-          <Text style={{ fontSize: 13, color: T.textMuted, marginTop: 2 }}>{t('dashboard.coach.title')}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, color: T.textSecondary, fontWeight: '500' }}>{getGreeting(t)},</Text>
+            <Text style={{ fontSize: 26, fontWeight: '800', color: T.text }}>{firstName} 👋</Text>
+            <Text style={{ fontSize: 13, color: T.textMuted, marginTop: 2 }}>{t('dashboard.coach.title')}</Text>
+          </View>
+          <TouchableOpacity onPress={open} style={[s.menuBtn, { backgroundColor: T.bgCard, borderColor: T.border }]} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <View style={[s.menuLine, { backgroundColor: T.textSecondary }]} />
+            <View style={[s.menuLine, { width: 14, backgroundColor: T.textSecondary }]} />
+            <View style={[s.menuLine, { backgroundColor: T.textSecondary }]} />
+          </TouchableOpacity>
         </View>
 
         {/* Metrics */}
@@ -179,4 +188,6 @@ const s = StyleSheet.create({
   listCard: { borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
   aptRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
   timeChip: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, minWidth: 80, alignItems: 'center' },
+  menuBtn: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', gap: 4, borderWidth: 1 },
+  menuLine: { width: 18, height: 2, borderRadius: 1 },
 });

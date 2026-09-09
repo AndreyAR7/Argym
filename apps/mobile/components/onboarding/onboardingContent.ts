@@ -53,13 +53,13 @@ const ADMIN_SLIDES: OnboardingSlide[] = [
 ];
 
 export function getOnboardingSlides(role: PrimaryRole | undefined): OnboardingSlide[] {
-  if (role === 'admin') return ADMIN_SLIDES;
+  if (role === 'admin' || role === 'full_access') return ADMIN_SLIDES;
   if (role === 'coach') return COACH_SLIDES;
   return CLIENT_SLIDES;
 }
 
 export function roleHomeRoute(role: PrimaryRole | undefined): string {
-  if (role === 'admin') return '/(admin)/dashboard';
+  if (role === 'admin' || role === 'full_access') return '/(admin)/dashboard';
   if (role === 'coach') return '/(coach)/coach-appointments';
   return '/(client)/inicio';
 }

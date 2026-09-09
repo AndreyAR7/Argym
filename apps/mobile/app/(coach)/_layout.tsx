@@ -2,6 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
+import { CoachSidebar } from '@/components/coach/CoachSidebar';
 
 export default function CoachLayout() {
   const T = useTheme();
@@ -18,7 +19,12 @@ export default function CoachLayout() {
         <Stack.Screen name="clients" />
         <Stack.Screen name="coach-appointments" />
         <Stack.Screen name="routines" />
+        <Stack.Screen name="nutrition" />
+        <Stack.Screen name="videos" />
+        <Stack.Screen name="notifications" />
+        <Stack.Screen name="select-clients" />
       </Stack>
+      <CoachSidebar />
     </View>
   );
 }

@@ -9,6 +9,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useRoutinesStore } from '@/store/routines.store';
 import { useAuthStore } from '@/store/auth.store';
 import { SkeletonCard } from '@/components/shared/SkeletonLoader';
+import { useCoachSidebarStore } from '@/store/coachSidebar.store';
 import type { Routine } from '@/types/routines';
 
 const LEVEL_CONFIG: Record<string, { color: string }> = {
@@ -66,6 +67,7 @@ function RoutineRow({ item, T }: { item: Routine; T: ReturnType<typeof useTheme>
 export default function CoachRoutines() {
   const T = useTheme();
   const { t } = useTranslation();
+  const { open: openSidebar } = useCoachSidebarStore();
   const { user } = useAuthStore();
   const { adminRoutines, isLoadingAdmin, loadAdminRoutines } = useRoutinesStore();
   const [search, setSearch] = useState('');
@@ -107,7 +109,12 @@ export default function CoachRoutines() {
 
       {/* Header */}
       <View style={[s.header, { borderBottomColor: T.border }]}>
-        <Text style={{ fontSize: 20, fontWeight: '800', color: T.text }}>{t('navigation.routines')}</Text>
+        <TouchableOpacity onPress={openSidebar} style={[s.menuBtn, { backgroundColor: T.bgCard, borderColor: T.border }]} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <View style={[s.menuLine, { backgroundColor: T.textSecondary }]} />
+          <View style={[s.menuLine, { width: 14, backgroundColor: T.textSecondary }]} />
+          <View style={[s.menuLine, { backgroundColor: T.textSecondary }]} />
+        </TouchableOpacity>
+        <Text style={{ flex: 1, fontSize: 20, fontWeight: '800', color: T.text }}>{t('navigation.routines')}</Text>
         <View style={[s.countBadge, { backgroundColor: T.accent + '22' }]}>
           <Text style={{ color: T.accent, fontSize: 13, fontWeight: '700' }}>{filtered.length}</Text>
         </View>
@@ -179,6 +186,8 @@ export default function CoachRoutines() {
 const s = StyleSheet.create({
   safe:        { flex: 1 },
   header:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 1 },
+  menuBtn:     { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', gap: 4, borderWidth: 1 },
+  menuLine:    { width: 18, height: 2, borderRadius: 1 },
   countBadge:  { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   searchWrap:  { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 12, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
   searchInput: { flex: 1, fontSize: 14 },
