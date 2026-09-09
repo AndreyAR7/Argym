@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { throwFriendlyAppointmentError } from '@/lib/appointmentErrors';
 import type { Appointment, CreateAppointmentInput, UpdateAppointmentInput, ConflictCheckInput, ConflictResult } from '@/types/appointments';
 
 const REAL_COLUMNS = 'id, tenant_id, client_id, coach_id, title, description, start_time, end_time, status, appointment_type, location, meeting_url, notes, created_at, updated_at';
@@ -57,7 +58,7 @@ export async function createAppointment(input: CreateAppointmentInput): Promise<
     .select(REAL_COLUMNS)
     .single();
 
-  if (error) throw error;
+  if (error) throwFriendlyAppointmentError(error);
   return data as Appointment;
 }
 
@@ -80,7 +81,7 @@ export async function updateAppointment(id: string, input: UpdateAppointmentInpu
     .select(REAL_COLUMNS)
     .single();
 
-  if (error) throw error;
+  if (error) throwFriendlyAppointmentError(error);
   return data as Appointment;
 }
 

@@ -4,6 +4,7 @@ import { useState, useTransition, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { MapPin, Video, Phone, AlertCircle, Search, X, Ban, Trash2, Users, ChevronDown, CalendarClock } from 'lucide-react'
 import { updateAppointmentAction, updateAppointmentStatusAction, deleteAppointmentAction } from '@/lib/admin/appointment-actions'
+import type { AppointmentStatus } from '@platform/types'
 
 const DELETABLE_STATUSES = new Set(['cancelled', 'completed', 'no_show'])
 
@@ -13,7 +14,7 @@ export interface AppointmentForEdit {
   description: string | null
   start_time: string
   end_time: string
-  status: 'pending_confirmation' | 'scheduled' | 'confirmed' | 'completed' | 'no_show' | 'cancelled' | 'postpone_requested'
+  status: AppointmentStatus
   appointment_type: 'in_person' | 'virtual' | 'phone'
   location: string | null
   meeting_url: string | null

@@ -1,5 +1,25 @@
 import { computeSlotConflicts, buildStartISO, buildEndISO } from './appointmentSlots';
+import { isActiveAppointmentStatus } from '@/types/appointments';
 import type { Appointment } from '@/types/appointments';
+
+// Exercises a real (non type-only) import through @/types/appointments,
+// which now re-exports from the @platform/types workspace package — a
+// runtime require(), unlike the `import type` above (erased at compile
+// time), proving the pnpm workspace symlink actually resolves under Jest.
+describe('isActiveAppointmentStatus (re-exported from @platform/types)', () => {
+  it('treats pending_confirmation, scheduled, confirmed and postpone_requested as active', () => {
+    expect(isActiveAppointmentStatus('pending_confirmation')).toBe(true);
+    expect(isActiveAppointmentStatus('scheduled')).toBe(true);
+    expect(isActiveAppointmentStatus('confirmed')).toBe(true);
+    expect(isActiveAppointmentStatus('postpone_requested')).toBe(true);
+  });
+
+  it('treats completed, no_show and cancelled as not active', () => {
+    expect(isActiveAppointmentStatus('completed')).toBe(false);
+    expect(isActiveAppointmentStatus('no_show')).toBe(false);
+    expect(isActiveAppointmentStatus('cancelled')).toBe(false);
+  });
+});
 
 function apt(overrides: Partial<Appointment>): Appointment {
   return {

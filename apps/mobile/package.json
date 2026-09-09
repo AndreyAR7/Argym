@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "~3.10.0",
+    "@platform/types": "workspace:*",
     "@react-native-async-storage/async-storage": "~2.2.0",
     "@react-native-community/datetimepicker": "^8.4.4",
     "@react-native-community/netinfo": "~11.4.1",

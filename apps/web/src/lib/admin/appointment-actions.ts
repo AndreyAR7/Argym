@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { friendlyAppointmentError } from './appointment-error'
+import type { AppointmentStatus } from '@platform/types'
 
 async function getCallerTenantId(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user } } = await supabase.auth.getUser()
@@ -14,7 +16,7 @@ async function getCallerTenantId(supabase: Awaited<ReturnType<typeof createClien
 
 export async function updateAppointmentStatusAction(
   appointmentId: string,
-  status: 'pending_confirmation' | 'scheduled' | 'confirmed' | 'completed' | 'no_show' | 'cancelled' | 'postpone_requested',
+  status: AppointmentStatus,
 ) {
   const supabase = await createClient()
   const { error: authErr, tenantId } = await getCallerTenantId(supabase)
@@ -69,7 +71,7 @@ export async function createAppointmentAction(data: {
 
   if (error) {
     console.error('[createAppointmentAction] RPC error:', error)
-    return { error: error.message }
+    return { error: friendlyAppointmentError(error) }
   }
 
   console.log('[createAppointmentAction] Created appointment:', newId)
@@ -84,7 +86,7 @@ export async function updateAppointmentAction(
     title: string
     start_time: string
     end_time: string
-    status: 'pending_confirmation' | 'scheduled' | 'confirmed' | 'completed' | 'no_show' | 'cancelled' | 'postpone_requested'
+    status: AppointmentStatus
     appointment_type: 'in_person' | 'virtual' | 'phone'
     coach_id: string | null
     client_id: string | null
@@ -103,7 +105,7 @@ export async function updateAppointmentAction(
     .eq('id', id)
     .eq('tenant_id', tenantId!)
 
-  if (error) return { error: error.message }
+  if (error) return { error: friendlyAppointmentError(error) }
   revalidatePath('/admin/appointments')
   return { success: true }
 }

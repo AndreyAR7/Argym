@@ -12,6 +12,7 @@ export const metadata = { title: 'Mis Citas' }
 const STATUS_TABS = [
   { value: 'all',                  label: 'Todas'       },
   { value: 'pending_confirmation', label: 'Pendientes'  },
+  { value: 'scheduled',            label: 'Programadas' },
   { value: 'confirmed',            label: 'Confirmadas' },
   { value: 'completed',            label: 'Completadas' },
   { value: 'cancelled',            label: 'Canceladas'  },

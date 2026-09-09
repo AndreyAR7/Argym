@@ -1,4 +1,10 @@
-export type AppointmentStatus = 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+// Re-exported from the shared package so the two apps can't drift apart
+// again (this union used to be redefined locally here, missing
+// 'pending_confirmation' and 'postpone_requested' — every 1:1 appointment
+// created via the app actually starts in one of those two states).
+import type { AppointmentStatus } from '@platform/types';
+export type { AppointmentStatus };
+export { isActiveAppointmentStatus } from '@platform/types';
 export type AppointmentType = 'in_person' | 'virtual';
 export type GroupMode = 'individual' | 'group';
 
