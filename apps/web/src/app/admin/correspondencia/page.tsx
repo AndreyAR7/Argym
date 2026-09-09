@@ -15,10 +15,10 @@ export default async function CorrespondenciaPage() {
   })
   if (!canManage) redirect('/admin/dashboard')
 
-  const [rulesResult, templatesResult, smtpResult] = await Promise.all([
+  const [rulesResult, templatesResult, smtpResult, whatsappTemplatesResult] = await Promise.all([
     supabase
       .from('communication_rules')
-      .select('id, name, event_type, recipients, delay_minutes, is_active, template_id, email_templates(name)')
+      .select('id, name, event_type, recipients, delay_minutes, is_active, channel, template_id, email_templates(name), whatsapp_template_id, whatsapp_templates(name)')
       .order('created_at', { ascending: false }),
     supabase
       .from('email_templates')
@@ -28,6 +28,10 @@ export default async function CorrespondenciaPage() {
       .from('smtp_configs')
       .select('*')
       .maybeSingle(),
+    supabase
+      .from('whatsapp_templates')
+      .select('id, name, body_text, variables, created_at')
+      .order('created_at', { ascending: false }),
   ])
 
   return (
@@ -39,6 +43,7 @@ export default async function CorrespondenciaPage() {
       <CorrespondenciaClient
         rules={rulesResult.data ?? []}
         templates={templatesResult.data ?? []}
+        whatsappTemplates={whatsappTemplatesResult.data ?? []}
         smtpConfig={smtpResult.data ?? null}
         tenantId={tenantId}
       />

@@ -271,11 +271,11 @@ Deno.serve(async (req: Request) => {
   // ── 1. Matching active rules ────────────────────────────────────
   const { data: rules, error: rulesErr } = await supabase
     .from('communication_rules')
-    .select('id, recipients, delay_minutes, email_templates(id, subject, body_html)')
+    .select('id, recipients, delay_minutes, channel, email_templates(id, subject, body_html), whatsapp_templates(id, body_text)')
     .eq('tenant_id', tenant_id)
     .eq('event_type', event_type)
     .eq('is_active', true)
-    .not('template_id', 'is', null)
+    .or('template_id.not.is.null,whatsapp_template_id.not.is.null')
 
   if (rulesErr || !rules?.length) {
     return new Response(
@@ -283,6 +283,9 @@ Deno.serve(async (req: Request) => {
       { status: 200 },
     )
   }
+
+  const emailRules    = rules.filter((r) => (r.channel ?? 'email') === 'email')
+  const whatsappRules = rules.filter((r) => r.channel === 'whatsapp')
 
   // ── 2. SMTP config + Resend fallback ───────────────────────────
   const { data: smtp } = await supabase
@@ -296,11 +299,40 @@ Deno.serve(async (req: Request) => {
   const hasSmtp       = !!(smtp?.host && smtp.username && smtp.password)
   const hasResend     = !!resendApiKey
 
-  if (!hasSmtp && !hasResend) {
+  // Only bail out entirely if there's nothing at all to process — email
+  // rules with no email transport AND no WhatsApp rules to fall back to.
+  if (!hasSmtp && !hasResend && emailRules.length > 0 && whatsappRules.length === 0) {
     return new Response(
       JSON.stringify({ processed: 0, reason: 'no smtp config and no resend fallback' }),
       { status: 200 },
     )
+  }
+
+  // ── WhatsApp (Meta Cloud API) — gated behind these two secrets. Until
+  // both are set, every whatsapp-channel rule logs 'not_configured' per
+  // attempt instead of silently doing nothing.
+  const whatsappAccessToken = Deno.env.get('WHATSAPP_ACCESS_TOKEN')
+  const whatsappPhoneId     = Deno.env.get('WHATSAPP_PHONE_NUMBER_ID')
+  const hasWhatsApp = !!(whatsappAccessToken && whatsappPhoneId)
+
+  async function sendWhatsApp(to: string, message: string): Promise<void> {
+    const res = await fetch(`https://graph.facebook.com/v18.0/${whatsappPhoneId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${whatsappAccessToken}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to,
+        type: 'text',
+        text: { body: message },
+      }),
+    })
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      throw new Error(`WhatsApp API error ${res.status}: ${body}`)
+    }
   }
 
   // ── 3. Tenant ───────────────────────────────────────────────────
@@ -319,6 +351,11 @@ Deno.serve(async (req: Request) => {
     return data?.user?.email ?? ''
   }
 
+  const getPhone = async (userId: string): Promise<string> => {
+    const { data } = await supabase.from('profiles').select('phone').eq('id', userId).single()
+    return data?.phone ?? ''
+  }
+
   // ── 4. Context data + template vars ────────────────────────────
   // brand_color resolves per-tenant from that gym's own primary_color, never
   // a hardcoded value — this is what keeps one gym's brand out of another's
@@ -327,7 +364,10 @@ Deno.serve(async (req: Request) => {
   let templateVars: Record<string, string> = { gym_name: gymName, login_url: loginUrl, brand_color: brandColor }
   let clientEmail = ''
   let coachEmail  = ''
+  let clientPhone = ''
+  let coachPhone  = ''
   let adminEmails: string[] = []
+  let adminPhones: string[] = []
   let attachments: Attachment[] = []
 
   if (event_type.startsWith('appointment.') && payload.appointment_id) {
@@ -358,6 +398,10 @@ Deno.serve(async (req: Request) => {
     ;[clientEmail, coachEmail] = await Promise.all([
       appt.client_id ? getEmail(appt.client_id) : Promise.resolve(''),
       appt.coach_id  ? getEmail(appt.coach_id)  : Promise.resolve(''),
+    ])
+    ;[clientPhone, coachPhone] = await Promise.all([
+      appt.client_id ? getPhone(appt.client_id) : Promise.resolve(''),
+      appt.coach_id  ? getPhone(appt.coach_id)  : Promise.resolve(''),
     ])
 
     const startTime = new Date(appt.start_time)
@@ -427,11 +471,13 @@ Deno.serve(async (req: Request) => {
       .maybeSingle()
 
     // Client profile + email
-    const [{ data: clientProfile }, clientEmailResult] = await Promise.all([
-      supabase.from('profiles').select('full_name').eq('id', sub.user_id).single(),
+    const [{ data: clientProfile }, clientEmailResult, clientPhoneResult] = await Promise.all([
+      supabase.from('profiles').select('full_name, phone').eq('id', sub.user_id).single(),
       getEmail(sub.user_id),
+      getPhone(sub.user_id),
     ])
     clientEmail = clientEmailResult
+    clientPhone = clientPhoneResult
 
     const clientName = clientProfile?.full_name ?? 'Cliente'
     const planName   = plan?.name ?? 'Plan'
@@ -494,15 +540,22 @@ Deno.serve(async (req: Request) => {
             (adminUserRoles ?? []).map((ur: { user_id: string }) => getEmail(ur.user_id)),
           )
         ).filter(Boolean)
+        adminPhones = (
+          await Promise.all(
+            (adminUserRoles ?? []).map((ur: { user_id: string }) => getPhone(ur.user_id)),
+          )
+        ).filter(Boolean)
       }
     }
   } else if (event_type.startsWith('client.') && payload.user_id) {
     // ── Client account events (approved, welcome) ─────────────────
-    const [{ data: profile }, userEmail] = await Promise.all([
+    const [{ data: profile }, userEmail, userPhone] = await Promise.all([
       supabase.from('profiles').select('full_name').eq('id', payload.user_id).single(),
       getEmail(payload.user_id),
+      getPhone(payload.user_id),
     ])
     clientEmail = userEmail
+    clientPhone = userPhone
 
     templateVars = {
       ...templateVars,
@@ -522,6 +575,11 @@ Deno.serve(async (req: Request) => {
         adminEmails = (
           await Promise.all(
             (adminUserRoles ?? []).map((ur: { user_id: string }) => getEmail(ur.user_id)),
+          )
+        ).filter(Boolean)
+        adminPhones = (
+          await Promise.all(
+            (adminUserRoles ?? []).map((ur: { user_id: string }) => getPhone(ur.user_id)),
           )
         ).filter(Boolean)
       }
@@ -587,10 +645,10 @@ Deno.serve(async (req: Request) => {
     ? `"${smtp.from_name}" <${smtp.from_email}>`
     : resendFrom
 
-  // ── 7. Send per rule ────────────────────────────────────────────
+  // ── 7. Send per rule (email) ─────────────────────────────────────
   let processed = 0
 
-  for (const rule of rules) {
+  for (const rule of emailRules) {
     const tpl = rule.email_templates as
       | { id: string; subject: string; body_html: string }
       | null
@@ -643,7 +701,65 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  return new Response(JSON.stringify({ processed }), {
+  // ── 8. Send per rule (WhatsApp) ──────────────────────────────────
+  // Every attempt gets a whatsapp_logs row regardless of outcome — an
+  // admin looking at Correspondencia sees exactly why nothing went out
+  // (not_configured vs. a real API failure), never silence.
+  let whatsappProcessed = 0
+  let whatsappSkippedReason: string | null = null
+
+  for (const rule of whatsappRules) {
+    const tpl = rule.whatsapp_templates as { id: string; body_text: string } | null
+    if (!tpl) continue
+
+    const message = render(tpl.body_text)
+
+    const toPhones: string[] = []
+    if (['client', 'client_and_coach', 'all'].includes(rule.recipients) && clientPhone) {
+      toPhones.push(clientPhone)
+    }
+    if (['coach', 'client_and_coach', 'all'].includes(rule.recipients) && coachPhone) {
+      toPhones.push(coachPhone)
+    }
+    if (['admin', 'all'].includes(rule.recipients)) {
+      toPhones.push(...adminPhones)
+    }
+
+    for (const toPhone of toPhones) {
+      let status: 'sent' | 'failed' | 'not_configured' = 'sent'
+      let errorMsg: string | null = null
+
+      if (!hasWhatsApp) {
+        status = 'not_configured'
+        errorMsg = 'WhatsApp no configurado (falta WHATSAPP_ACCESS_TOKEN / WHATSAPP_PHONE_NUMBER_ID)'
+        whatsappSkippedReason = 'whatsapp not configured'
+      } else {
+        try {
+          await sendWhatsApp(toPhone, message)
+          whatsappProcessed++
+        } catch (err) {
+          status = 'failed'
+          errorMsg = err instanceof Error ? err.message : String(err)
+        }
+      }
+
+      await supabase.from('whatsapp_logs').insert({
+        tenant_id,
+        rule_id:     rule.id,
+        template_id: tpl.id,
+        to_phone:    toPhone,
+        message,
+        status,
+        error_msg:   errorMsg,
+        sent_at:     status === 'sent' ? new Date().toISOString() : null,
+      })
+    }
+  }
+
+  return new Response(JSON.stringify({
+    processed,
+    whatsapp: { processed: whatsappProcessed, reason: whatsappSkippedReason },
+  }), {
     headers: { 'Content-Type': 'application/json' },
     status: 200,
   })

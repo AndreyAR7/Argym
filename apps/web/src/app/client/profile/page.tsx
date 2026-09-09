@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/shared/page-header'
 import { ProfileForm } from '@/components/admin/profile-form'
+import { CalendarSyncCard } from '@/components/shared/calendar-sync-card'
 
 export const metadata = { title: 'Mi Perfil' }
 
@@ -32,6 +33,9 @@ export default async function ClientProfilePage() {
           createdAt={profile?.created_at ?? null}
           gender={profile?.gender ?? null}
         />
+      </div>
+      <div className="mt-6">
+        <CalendarSyncCard />
       </div>
     </div>
   )

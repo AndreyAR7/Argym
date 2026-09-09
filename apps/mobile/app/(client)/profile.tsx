@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar,
-  Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Linking,
+  Alert, Modal, TextInput, KeyboardAvoidingView, Platform, Linking, Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -251,6 +251,65 @@ function NotificationsModal({ visible, onClose }: { visible: boolean; onClose: (
   );
 }
 
+// ─── Calendar Sync Modal ───────────────────────────────────────
+function CalendarSyncModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const T = useTheme();
+  const { t } = useTranslation();
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const buildUrl = (token: string) => `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/ical-feed/${token}`;
+
+  useEffect(() => {
+    if (!visible) return;
+    setLoading(true);
+    supabase.rpc('get_or_create_ical_token').then(({ data, error }) => {
+      if (!error && data) setUrl(buildUrl(data as string));
+      setLoading(false);
+    });
+  }, [visible]);
+
+  const handleShare = () => { if (url) Share.share({ message: url }); };
+
+  const handleRotate = () => {
+    setLoading(true);
+    supabase.rpc('rotate_ical_token').then(({ data, error }) => {
+      if (!error && data) setUrl(buildUrl(data as string));
+      setLoading(false);
+    });
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
+          <View style={styles.handle} />
+          <Text style={[styles.sheetTitle, { color: T.text }]}>{t('client.profile.calendarSyncTitle')}</Text>
+          <Text style={{ color: T.textSecondary, fontSize: 13, lineHeight: 19, marginBottom: 16 }}>
+            {t('client.profile.calendarSyncBody')}
+          </Text>
+          <View style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, minHeight: 44, justifyContent: 'center' }]}>
+            <Text selectable style={{ color: T.text, fontSize: 12 }}>
+              {loading && !url ? t('client.profile.calendarSyncLoading') : url ?? ''}
+            </Text>
+          </View>
+          <View style={styles.modalActions}>
+            <TouchableOpacity onPress={onClose} style={[styles.modalBtn, { borderColor: T.border, borderWidth: 1 }]}>
+              <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleShare} disabled={!url} style={[styles.modalBtn, { backgroundColor: T.accent }]}>
+              <Text style={{ color: '#fff', fontWeight: '700' }}>{t('client.profile.calendarSyncShare')}</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity onPress={handleRotate} disabled={loading} style={{ marginTop: 14, alignSelf: 'center' }}>
+            <Text style={{ color: T.textMuted, fontSize: 12 }}>{t('client.profile.calendarSyncRotate')}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // ─── Help Modal ───────────────────────────────────────────────
 function HelpModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const T = useTheme();
@@ -337,6 +396,7 @@ export default function ProfileScreen() {
   const [showNotifs, setShowNotifs] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
+  const [showCalendarSync, setShowCalendarSync] = useState(false);
 
   const name = user?.full_name ?? t('client.profile.defaultName');
 
@@ -404,6 +464,8 @@ export default function ProfileScreen() {
           <SettingRow icon="🔒" label={t('client.profile.changePassword')} onPress={() => setShowPassword(true)} />
           <View style={[styles.divider, { backgroundColor: T.border }]} />
           <SettingRow icon="🔔" label={t('client.profile.notifications')} onPress={() => setShowNotifs(true)} />
+          <View style={[styles.divider, { backgroundColor: T.border }]} />
+          <SettingRow icon="📅" label={t('client.profile.calendarSync')} onPress={() => setShowCalendarSync(true)} />
         </View>
 
         {/* Support */}
@@ -428,6 +490,7 @@ export default function ProfileScreen() {
       <NotificationsModal visible={showNotifs} onClose={() => setShowNotifs(false)} />
       <HelpModal visible={showHelp} onClose={() => setShowHelp(false)} />
       <TermsModal visible={showTerms} onClose={() => setShowTerms(false)} />
+      <CalendarSyncModal visible={showCalendarSync} onClose={() => setShowCalendarSync(false)} />
     </SafeAreaView>
   );
 }

@@ -454,6 +454,46 @@ export async function bulkRetryFailedAction(): Promise<{ ok: boolean; sent: numb
   return { ok: true, sent: data.sent ?? 0, failed: data.failed ?? 0 }
 }
 
+// ── WhatsApp Logs ─────────────────────────────────────────────────
+
+export interface WhatsAppLog {
+  id: string
+  to_phone: string
+  message: string
+  status: 'pending' | 'sent' | 'failed' | 'not_configured'
+  error_msg: string | null
+  created_at: string
+  sent_at: string | null
+  rule_id: string | null
+  template_id: string | null
+}
+
+export async function getWhatsAppLogsAction(limit = 100): Promise<{ logs?: WhatsAppLog[]; error?: string }> {
+  const session = await getSessionData()
+  if (!session) return { error: 'No autenticado' }
+  const { supabase } = session
+  if (!(await canManageCorrespondence(supabase))) return { error: 'No autorizado' }
+
+  const { data, error } = await supabase
+    .from('whatsapp_logs')
+    .select('id, to_phone, message, status, error_msg, created_at, sent_at, rule_id, template_id')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) return { error: error.message }
+  return { logs: (data ?? []) as WhatsAppLog[] }
+}
+
+export async function deleteWhatsAppTemplateAction(id: string): Promise<{ error?: string }> {
+  const session = await getSessionData()
+  if (!session) return { error: 'No autenticado' }
+  const { supabase } = session
+  if (!(await canManageCorrespondence(supabase))) return { error: 'No autorizado' }
+  const { error } = await supabase.from('whatsapp_templates').delete().eq('id', id)
+  if (error) return { error: error.message }
+  return {}
+}
+
 export async function testSmtpAction(toEmail: string): Promise<{ ok: boolean; message: string }> {
   const session = await getSessionData()
   if (!session) return { ok: false, message: 'No autenticado' }

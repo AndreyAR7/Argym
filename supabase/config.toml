@@ -88,3 +88,6 @@ verify_jwt = false
 
 [functions.expire-plan-subscriptions]
 verify_jwt = false
+
+[functions.ical-feed]
+verify_jwt = false

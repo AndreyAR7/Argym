@@ -2,20 +2,24 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Mail, Zap, FileText, Plus, ToggleLeft, ToggleRight, Trash2, Edit3, Send, CheckCircle2, Eye, EyeOff, Server, FlaskConical, AlertCircle, Download, Loader2, RefreshCw, Inbox, RotateCcw } from 'lucide-react'
+import { Mail, Zap, FileText, Plus, ToggleLeft, ToggleRight, Trash2, Edit3, Send, CheckCircle2, Eye, EyeOff, Server, FlaskConical, AlertCircle, Download, Loader2, RefreshCw, Inbox, RotateCcw, MessageCircle } from 'lucide-react'
 import { useConfirm } from '@/context/confirm-context'
 import { useToast } from '@/context/toast-context'
 import { createClient } from '@/lib/supabase/client'
-import { testSmtpAction, seedDefaultTemplatesAction, seedDefaultRulesAction, updateTemplateAction, deleteTemplateAction, saveSmtpAction, getEmailLogsAction, retryEmailAction, bulkRetryFailedAction } from '@/app/admin/correspondencia/actions'
-import type { EmailLog } from '@/app/admin/correspondencia/actions'
+import { testSmtpAction, seedDefaultTemplatesAction, seedDefaultRulesAction, updateTemplateAction, deleteTemplateAction, saveSmtpAction, getEmailLogsAction, retryEmailAction, bulkRetryFailedAction, getWhatsAppLogsAction, deleteWhatsAppTemplateAction } from '@/app/admin/correspondencia/actions'
+import type { EmailLog, WhatsAppLog } from '@/app/admin/correspondencia/actions'
 
 // ── Types ──────────────────────────────────────────────────────
 interface Rule {
   id: string; name: string; event_type: string; recipients: string
   delay_minutes: number; is_active: boolean; template_id: string | null
   email_templates: { name: string }[] | { name: string } | null
+  channel: 'email' | 'whatsapp'
+  whatsapp_template_id: string | null
+  whatsapp_templates: { name: string }[] | { name: string } | null
 }
 interface Template { id: string; name: string; subject: string; body_html: string; variables: string[]; created_at: string }
+interface WhatsAppTemplate { id: string; name: string; body_text: string; variables: string[]; created_at: string }
 interface SmtpConfig {
   id?: string; host: string; port: number; username: string; password: string
   from_email: string; from_name: string; use_tls: boolean; is_active: boolean
@@ -56,15 +60,19 @@ const EVENT_COLORS: Record<string, string> = {
 }
 
 // ── Main Component ──────────────────────────────────────────────
-export function CorrespondenciaClient({ rules: initialRules, templates: initialTemplates, smtpConfig: initialSmtp, tenantId }: {
-  rules: Rule[]; templates: Template[]; smtpConfig: SmtpConfig | null; tenantId: string
+export function CorrespondenciaClient({ rules: initialRules, templates: initialTemplates, whatsappTemplates: initialWhatsAppTemplates, smtpConfig: initialSmtp, tenantId }: {
+  rules: Rule[]; templates: Template[]; whatsappTemplates: WhatsAppTemplate[]; smtpConfig: SmtpConfig | null; tenantId: string
 }) {
   const router = useRouter()
-  const [tab, setTab] = useState<'rules' | 'templates' | 'smtp' | 'logs'>('rules')
+  const [tab, setTab] = useState<'rules' | 'templates' | 'whatsapp' | 'smtp' | 'logs'>('rules')
   const [emailLogs, setEmailLogs] = useState<EmailLog[] | null>(null)
+  const [whatsappLogs, setWhatsAppLogs] = useState<WhatsAppLog[] | null>(null)
+  const [logsChannel, setLogsChannel] = useState<'email' | 'whatsapp'>('email')
   const [logsLoading, setLogsLoading] = useState(false)
   const [rules, setRules]         = useState<Rule[]>(initialRules)
   const [templates, setTemplates] = useState<Template[]>(initialTemplates)
+  const [whatsappTemplates, setWhatsAppTemplates] = useState<WhatsAppTemplate[]>(initialWhatsAppTemplates)
+  const [showWhatsAppTemplateModal, setShowWhatsAppTemplateModal] = useState(false)
   const [smtp, setSmtp]       = useState<SmtpConfig>(initialSmtp ?? {
     host: '', port: 587, username: '', password: '',
     from_email: '', from_name: '', use_tls: true, is_active: false,
@@ -191,10 +199,43 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
     setLogsLoading(false)
   }
 
-  async function handleTabChange(id: 'rules' | 'templates' | 'smtp' | 'logs') {
+  async function loadWhatsAppLogs() {
+    setLogsLoading(true)
+    const res = await getWhatsAppLogsAction(100)
+    setWhatsAppLogs(res.logs ?? [])
+    setLogsLoading(false)
+  }
+
+  async function handleTabChange(id: 'rules' | 'templates' | 'whatsapp' | 'smtp' | 'logs') {
     setTab(id)
     if (id === 'logs' && emailLogs === null) {
       await loadEmailLogs()
+    }
+  }
+
+  async function handleLogsChannelChange(channel: 'email' | 'whatsapp') {
+    setLogsChannel(channel)
+    if (channel === 'whatsapp' && whatsappLogs === null) {
+      await loadWhatsAppLogs()
+    } else if (channel === 'email' && emailLogs === null) {
+      await loadEmailLogs()
+    }
+  }
+
+  async function handleDeleteWhatsAppTemplate(id: string) {
+    const ok = await confirm({
+      title: 'Eliminar plantilla',
+      message: '¿Eliminar esta plantilla de WhatsApp? Las reglas que la usan quedarán sin plantilla.',
+      confirmLabel: 'Eliminar',
+      variant: 'danger',
+    })
+    if (!ok) return
+    const res = await deleteWhatsAppTemplateAction(id)
+    if (!res.error) {
+      setWhatsAppTemplates(prev => prev.filter(t => t.id !== id))
+      showToast('success', 'Plantilla eliminada')
+    } else {
+      showToast('error', res.error)
     }
   }
 
@@ -230,10 +271,11 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
   }
 
   const tabs = [
-    { id: 'rules'     as const, label: 'Reglas',    Icon: Zap      },
-    { id: 'templates' as const, label: 'Plantillas', Icon: FileText },
-    { id: 'smtp'      as const, label: 'SMTP',       Icon: Server   },
-    { id: 'logs'      as const, label: 'Historial',  Icon: Inbox    },
+    { id: 'rules'     as const, label: 'Reglas',     Icon: Zap           },
+    { id: 'templates' as const, label: 'Plantillas', Icon: FileText      },
+    { id: 'whatsapp'  as const, label: 'WhatsApp',   Icon: MessageCircle },
+    { id: 'smtp'      as const, label: 'SMTP',       Icon: Server        },
+    { id: 'logs'      as const, label: 'Historial',  Icon: Inbox         },
   ]
 
   return (
@@ -304,7 +346,7 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b" style={{ backgroundColor: 'var(--color-muted)', borderColor: 'var(--color-border)' }}>
-                    {['Regla', 'Evento', 'Plantilla', 'Destinatarios', 'Estado', ''].map(h => (
+                    {['Regla', 'Evento', 'Canal', 'Plantilla', 'Destinatarios', 'Estado', ''].map(h => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider"
                         style={{ color: 'var(--color-muted-foreground)' }}>{h}</th>
                     ))}
@@ -320,8 +362,16 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
                           {EVENT_LABELS[rule.event_type] ?? rule.event_type}
                         </span>
                       </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-1 text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
+                          {rule.channel === 'whatsapp' ? <MessageCircle size={12} /> : <Mail size={12} />}
+                          {rule.channel === 'whatsapp' ? 'WhatsApp' : 'Email'}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
-                        {(Array.isArray(rule.email_templates) ? rule.email_templates[0]?.name : rule.email_templates?.name) ?? <span className="italic">Sin plantilla</span>}
+                        {rule.channel === 'whatsapp'
+                          ? (Array.isArray(rule.whatsapp_templates) ? rule.whatsapp_templates[0]?.name : rule.whatsapp_templates?.name) ?? <span className="italic">Sin plantilla</span>
+                          : (Array.isArray(rule.email_templates) ? rule.email_templates[0]?.name : rule.email_templates?.name) ?? <span className="italic">Sin plantilla</span>}
                       </td>
                       <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
                         {RECIPIENT_LABELS[rule.recipients] ?? rule.recipients}
@@ -439,6 +489,74 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
         </div>
       )}
 
+      {/* ── WHATSAPP TAB ──────────────────────────────────────── */}
+      {tab === 'whatsapp' && (
+        <div>
+          <div className="mb-4 flex items-start gap-2.5 rounded-lg px-4 py-3 text-sm"
+            style={{ backgroundColor: 'color-mix(in srgb, #f59e0b 8%, transparent)', color: '#92400e', border: '1px solid color-mix(in srgb, #f59e0b 25%, transparent)' }}>
+            <AlertCircle size={15} className="flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">El envío por WhatsApp aún no está activo</p>
+              <p className="text-xs mt-0.5 opacity-90">
+                Puedes crear plantillas y reglas ahora mismo — quedan listas para funcionar en cuanto se conecte una cuenta de Meta Business (WhatsApp Cloud API).
+                Mientras tanto, cada intento de envío queda registrado en el Historial con el estado &ldquo;No configurado&rdquo;, nunca de forma silenciosa.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
+              Diseña los mensajes enviados por reglas con canal WhatsApp. Usa {'{{variable}}'} para campos dinámicos.
+            </p>
+            <button onClick={() => setShowWhatsAppTemplateModal(true)}
+              className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium shrink-0"
+              style={{ backgroundColor: 'var(--color-admin)', color: 'white' }}>
+              <Plus size={15} />Nueva
+            </button>
+          </div>
+
+          {whatsappTemplates.length === 0 ? (
+            <EmptyState
+              Icon={MessageCircle}
+              title="Sin plantillas de WhatsApp"
+              desc="Crea una plantilla de texto para usarla en una regla con canal WhatsApp."
+              action="Nueva plantilla"
+              onAction={() => setShowWhatsAppTemplateModal(true)}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {whatsappTemplates.map(t => (
+                <div key={t.id} className="rounded-xl border p-4 hover:shadow-sm transition-shadow"
+                  style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold" style={{ color: 'var(--color-foreground)' }}>{t.name}</p>
+                      <p className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--color-muted-foreground)' }}>{t.body_text}</p>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteWhatsAppTemplate(t.id)}
+                      className="p-1.5 rounded hover:bg-[var(--color-destructive)]/10 transition-colors shrink-0"
+                      style={{ color: 'var(--color-destructive)' }}>
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                  {t.variables.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2.5">
+                      {t.variables.map(v => (
+                        <code key={v} className="text-[10px] px-1.5 py-0.5 rounded"
+                          style={{ backgroundColor: 'var(--color-muted)', color: 'var(--color-muted-foreground)' }}>
+                          {`{{${v}}}`}
+                        </code>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── SMTP TAB ──────────────────────────────────────────── */}
       {tab === 'smtp' && (
         <div className="max-w-xl">
@@ -536,13 +654,27 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
       {/* ── LOGS TAB ──────────────────────────────────────────── */}
       {tab === 'logs' && (
         <div>
+          <div className="flex gap-1 p-1 rounded-lg w-fit mb-4" style={{ backgroundColor: 'var(--color-muted)' }}>
+            {([{ id: 'email' as const, label: 'Email', Icon: Mail }, { id: 'whatsapp' as const, label: 'WhatsApp', Icon: MessageCircle }]).map(({ id, label, Icon }) => (
+              <button key={id} onClick={() => handleLogsChannelChange(id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all"
+                style={logsChannel === id
+                  ? { backgroundColor: 'var(--color-card)', color: 'var(--color-foreground)', boxShadow: '0 1px 3px rgba(0,0,0,.1)' }
+                  : { color: 'var(--color-muted-foreground)' }}>
+                <Icon size={12} />{label}
+              </button>
+            ))}
+          </div>
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
-              Historial de emails enviados por las reglas automáticas. Los emails nuevos almacenan el cuerpo para reenvío.
+              {logsChannel === 'email'
+                ? 'Historial de emails enviados por las reglas automáticas. Los emails nuevos almacenan el cuerpo para reenvío.'
+                : 'Historial de intentos de envío por WhatsApp. Mientras el canal no esté configurado, cada intento queda registrado como "No configurado".'}
             </p>
             <div className="flex gap-2 shrink-0">
               <button
-                onClick={loadEmailLogs}
+                onClick={logsChannel === 'email' ? loadEmailLogs : loadWhatsAppLogs}
                 disabled={logsLoading}
                 className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium border disabled:opacity-60 transition-colors"
                 style={{ borderColor: 'var(--color-border)', color: 'var(--color-foreground)', backgroundColor: 'var(--color-muted)' }}
@@ -550,19 +682,79 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
                 {logsLoading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
                 Actualizar
               </button>
-              <button
-                onClick={handleBulkRetry}
-                disabled={isPending || logsLoading}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium border disabled:opacity-60 transition-colors"
-                style={{ borderColor: 'var(--color-border)', color: 'var(--color-foreground)', backgroundColor: 'var(--color-muted)' }}
-              >
-                <RotateCcw size={13} />
-                Reenviar fallidos
-              </button>
+              {logsChannel === 'email' && (
+                <button
+                  onClick={handleBulkRetry}
+                  disabled={isPending || logsLoading}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium border disabled:opacity-60 transition-colors"
+                  style={{ borderColor: 'var(--color-border)', color: 'var(--color-foreground)', backgroundColor: 'var(--color-muted)' }}
+                >
+                  <RotateCcw size={13} />
+                  Reenviar fallidos
+                </button>
+              )}
             </div>
           </div>
 
-          {logsLoading ? (
+          {logsChannel === 'whatsapp' ? (
+            logsLoading ? (
+              <div className="flex items-center justify-center py-16 gap-2 text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
+                <Loader2 size={16} className="animate-spin" />Cargando historial…
+              </div>
+            ) : !whatsappLogs || whatsappLogs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3 rounded-xl border"
+                style={{ borderColor: 'var(--color-border)', borderStyle: 'dashed' }}>
+                <MessageCircle size={24} style={{ color: 'var(--color-muted-foreground)' }} />
+                <p className="text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
+                  Sin registros de WhatsApp todavía. Se registran cuando una regla con canal WhatsApp se dispara.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b" style={{ backgroundColor: 'var(--color-muted)', borderColor: 'var(--color-border)' }}>
+                      {['Fecha', 'Destinatario', 'Mensaje', 'Estado'].map(h => (
+                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider"
+                          style={{ color: 'var(--color-muted-foreground)' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y" style={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)' }}>
+                    {whatsappLogs.map(log => {
+                      const statusColor = log.status === 'sent'
+                        ? 'var(--color-coach)'
+                        : log.status === 'failed'
+                          ? 'var(--color-destructive)'
+                          : '#f59e0b'
+                      const statusLabel = { sent: 'Enviado', failed: 'Fallido', not_configured: 'No configurado', pending: 'Pendiente' }[log.status] ?? log.status
+
+                      return (
+                        <tr key={log.id} className="hover:bg-[var(--color-muted)] transition-colors">
+                          <td className="px-4 py-3 text-xs tabular-nums" style={{ color: 'var(--color-muted-foreground)', whiteSpace: 'nowrap' }}>
+                            {new Date(log.created_at).toLocaleString('es-CR', { dateStyle: 'short', timeStyle: 'short' })}
+                          </td>
+                          <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-foreground)' }}>{log.to_phone}</td>
+                          <td className="px-4 py-3 text-xs max-w-[220px] truncate" style={{ color: 'var(--color-foreground)' }}>{log.message}</td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                              style={{ backgroundColor: `color-mix(in srgb, ${statusColor} 12%, transparent)`, color: statusColor }}>
+                              {statusLabel}
+                            </span>
+                            {log.error_msg && (
+                              <p className="text-[10px] mt-0.5 max-w-[220px] truncate" style={{ color: 'var(--color-muted-foreground)' }} title={log.error_msg}>
+                                {log.error_msg}
+                              </p>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )
+          ) : logsLoading ? (
             <div className="flex items-center justify-center py-16 gap-2 text-sm" style={{ color: 'var(--color-muted-foreground)' }}>
               <Loader2 size={16} className="animate-spin" />Cargando historial…
             </div>
@@ -650,9 +842,19 @@ export function CorrespondenciaClient({ rules: initialRules, templates: initialT
       {showRuleModal && (
         <RuleModal
           templates={templates}
+          whatsappTemplates={whatsappTemplates}
           tenantId={tenantId}
           onClose={() => setShowRuleModal(false)}
           onSaved={(r) => { setRules(prev => [r as Rule, ...prev]); setShowRuleModal(false) }}
+        />
+      )}
+
+      {/* ── WhatsApp template modal ───────────────────────────── */}
+      {showWhatsAppTemplateModal && (
+        <WhatsAppTemplateModal
+          tenantId={tenantId}
+          onClose={() => setShowWhatsAppTemplateModal(false)}
+          onSaved={(t) => { setWhatsAppTemplates(prev => [t, ...prev]); setShowWhatsAppTemplateModal(false) }}
         />
       )}
 
@@ -704,28 +906,31 @@ function EmptyState({ Icon, title, desc, action, onAction }: {
 }
 
 // ── Rule Modal ──────────────────────────────────────────────────
-function RuleModal({ templates, tenantId, onClose, onSaved }: {
-  templates: Template[]; tenantId: string; onClose: () => void; onSaved: (rule: Partial<Rule>) => void
+function RuleModal({ templates, whatsappTemplates, tenantId, onClose, onSaved }: {
+  templates: Template[]; whatsappTemplates: WhatsAppTemplate[]; tenantId: string; onClose: () => void; onSaved: (rule: Partial<Rule>) => void
 }) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState('')
+  const [channel, setChannel] = useState<'email' | 'whatsapp'>('email')
   const supabase = createClient()
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
     const payload = {
-      tenant_id:     tenantId,
-      name:          fd.get('name') as string,
-      event_type:    fd.get('event_type') as string,
-      template_id:   (fd.get('template_id') as string) || null,
-      recipients:    fd.get('recipients') as string,
-      delay_minutes: parseInt(fd.get('delay_minutes') as string) || 0,
-      is_active:     true,
+      tenant_id:            tenantId,
+      name:                 fd.get('name') as string,
+      event_type:           fd.get('event_type') as string,
+      channel,
+      template_id:          channel === 'email'    ? ((fd.get('template_id') as string) || null) : null,
+      whatsapp_template_id: channel === 'whatsapp' ? ((fd.get('whatsapp_template_id') as string) || null) : null,
+      recipients:           fd.get('recipients') as string,
+      delay_minutes:        parseInt(fd.get('delay_minutes') as string) || 0,
+      is_active:            true,
     }
 
     startTransition(async () => {
-      const { data, error } = await supabase.from('communication_rules').insert(payload).select(`*, email_templates(name)`).single()
+      const { data, error } = await supabase.from('communication_rules').insert(payload).select(`*, email_templates(name), whatsapp_templates(name)`).single()
       if (error) { setError(error.message) }
       else        { onSaved(data) }
     })
@@ -751,12 +956,35 @@ function RuleModal({ templates, tenantId, onClose, onSaved }: {
               {Object.entries(EVENT_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </Field>
-          <Field label="Plantilla de email">
-            <select name="template_id" className="rounded-lg px-3 py-2 text-sm outline-none w-full" style={inputStyle} defaultValue="">
-              <option value="">Sin plantilla (solo registro)</option>
-              {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
+          <Field label="Canal" required>
+            <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
+              {(['email', 'whatsapp'] as const).map(c => (
+                <button key={c} type="button" onClick={() => setChannel(c)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors"
+                  style={channel === c
+                    ? { backgroundColor: 'var(--color-admin)', color: 'white' }
+                    : { backgroundColor: 'var(--color-input)', color: 'var(--color-muted-foreground)' }}>
+                  {c === 'email' ? <Mail size={12} /> : <MessageCircle size={12} />}
+                  {c === 'email' ? 'Email' : 'WhatsApp'}
+                </button>
+              ))}
+            </div>
           </Field>
+          {channel === 'email' ? (
+            <Field label="Plantilla de email">
+              <select name="template_id" className="rounded-lg px-3 py-2 text-sm outline-none w-full" style={inputStyle} defaultValue="">
+                <option value="">Sin plantilla (solo registro)</option>
+                {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </Field>
+          ) : (
+            <Field label="Plantilla de WhatsApp">
+              <select name="whatsapp_template_id" className="rounded-lg px-3 py-2 text-sm outline-none w-full" style={inputStyle} defaultValue="">
+                <option value="">Sin plantilla (solo registro)</option>
+                {whatsappTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </Field>
+          )}
           <Field label="Destinatarios" required>
             <select name="recipients" required className="rounded-lg px-3 py-2 text-sm outline-none w-full" style={inputStyle} defaultValue="client">
               {Object.entries(RECIPIENT_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -847,6 +1075,82 @@ function TemplateModal({ tenantId, onClose, onSaved }: { tenantId: string; onClo
               <textarea name="body_html" required rows={16}
                 placeholder={`Hola {{client_name}},\n\nTu cita ha sido confirmada para el {{appointment_date}} a las {{appointment_time}}.\n\nSaludos,\n{{gym_name}}`}
                 className="rounded-lg px-3 py-2 text-sm outline-none resize-y font-mono w-full" style={inputStyle} />
+            </Field>
+
+            {error && <p className="text-sm rounded-lg px-3 py-2" style={{ backgroundColor: 'color-mix(in srgb, var(--color-destructive) 8%, transparent)', color: 'var(--color-destructive)' }}>{error}</p>}
+          </div>
+          <div className="px-6 py-4 border-t flex justify-end gap-3 flex-shrink-0" style={{ borderColor: 'var(--color-border)' }}>
+            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium" style={{ backgroundColor: 'var(--color-muted)', color: 'var(--color-foreground)' }}>Cancelar</button>
+            <button type="submit" disabled={isPending} className="rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-60" style={{ backgroundColor: 'var(--color-admin)', color: 'white' }}>
+              {isPending ? 'Guardando…' : 'Crear plantilla'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── WhatsApp Template Modal ───────────────────────────────────────
+function WhatsAppTemplateModal({ tenantId, onClose, onSaved }: { tenantId: string; onClose: () => void; onSaved: (t: WhatsAppTemplate) => void }) {
+  const [isPending, startTransition] = useTransition()
+  const [variables, setVariables] = useState<string[]>([])
+  const [error, setError] = useState('')
+  const supabase = createClient()
+
+  const VARS = ['client_name', 'coach_name', 'appointment_date', 'appointment_time', 'plan_name', 'gym_name']
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const fd = new FormData(e.currentTarget)
+    const payload = { tenant_id: tenantId, name: fd.get('name') as string, body_text: fd.get('body_text') as string, variables }
+
+    startTransition(async () => {
+      const { data, error } = await supabase
+        .from('whatsapp_templates')
+        .insert(payload)
+        .select('id, name, body_text, variables, created_at')
+        .single()
+      if (error) { setError(error.message) } else { onSaved(data as WhatsAppTemplate) }
+    })
+  }
+
+  const inputStyle: React.CSSProperties = { backgroundColor: 'var(--color-input)', border: '1px solid var(--color-border)', color: 'var(--color-foreground)' }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="w-full max-w-lg rounded-2xl shadow-xl flex flex-col max-h-[92vh]"
+        style={{ backgroundColor: 'var(--color-card)', border: '1px solid var(--color-border)' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0" style={{ borderColor: 'var(--color-border)' }}>
+          <h2 className="text-base font-semibold" style={{ color: 'var(--color-foreground)' }}>Nueva plantilla de WhatsApp</h2>
+          <button onClick={onClose} style={{ color: 'var(--color-muted-foreground)' }}><MessageCircle size={16} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
+            <Field label="Nombre interno" required>
+              <input name="name" required placeholder="Ej. Bienvenida por WhatsApp" className="rounded-lg px-3 py-2 text-sm outline-none w-full" style={inputStyle} />
+            </Field>
+
+            <Field label="Variables disponibles">
+              <div className="flex flex-wrap gap-1.5">
+                {VARS.map(v => (
+                  <button key={v} type="button"
+                    onClick={() => setVariables(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])}
+                    className="text-[10px] px-2 py-1 rounded-full font-medium transition-colors"
+                    style={variables.includes(v)
+                      ? { backgroundColor: 'var(--color-admin)', color: 'white' }
+                      : { backgroundColor: 'var(--color-muted)', color: 'var(--color-muted-foreground)' }}>
+                    {`{{${v}}}`}
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            <Field label="Mensaje (texto plano)" required>
+              <textarea name="body_text" required rows={6}
+                placeholder={`Hola {{client_name}}, tu cita en {{gym_name}} es el {{appointment_date}} a las {{appointment_time}}.`}
+                className="rounded-lg px-3 py-2 text-sm outline-none resize-y w-full" style={inputStyle} />
             </Field>
 
             {error && <p className="text-sm rounded-lg px-3 py-2" style={{ backgroundColor: 'color-mix(in srgb, var(--color-destructive) 8%, transparent)', color: 'var(--color-destructive)' }}>{error}</p>}
