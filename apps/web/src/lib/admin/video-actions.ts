@@ -212,7 +212,11 @@ export async function createVideoRecordAction(data: {
     is_free: data.is_free,
     status: 'draft',
     video_storage_path: data.storage_path,
-    video_bucket: data.storage_bucket,
+    // video_bucket is NOT NULL (defaults to 'videos' in the schema), but a
+    // default only applies when the column is omitted from the INSERT —
+    // the external-link flow explicitly sent storage_bucket: null here,
+    // which overrides the default and violates the constraint.
+    video_bucket: data.storage_bucket ?? 'videos',
     thumbnail_storage_path: data.thumbnail_storage_path ?? null,
     thumbnail_bucket: data.thumbnail_bucket ?? 'video-thumbnails',
     external_url: data.external_url ?? null,
