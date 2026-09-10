@@ -58,6 +58,7 @@ interface AuthState {
 interface AuthActions {
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  finishOAuthCallback: (code: string) => Promise<void>;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
   refreshIfNeeded: () => Promise<void>;
@@ -337,8 +338,8 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
   signInWithGoogle: async () => {
     set({ isLoading: true, error: null });
     try {
-      // Construct the redirect URI using the app's deep-link scheme.
-      // scheme comes from app.config.js → expo.scheme: "saas-client-management"
+      // Construct the redirect URI using the app's deep-link scheme
+      // (app.config.js → expo.scheme: "argym").
       const redirectUri = Linking.createURL('auth/callback');
 
       const { data, error } = await withTimeout(supabase.auth.signInWithOAuth({
@@ -351,24 +352,27 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
         return;
       }
 
-      // Open in-app browser; it closes automatically when the redirect URI is hit.
+      // Open in-app browser; it closes automatically once redirected back to
+      // redirectUri. We deliberately don't parse `result.url` here — on this
+      // app expo-router's own deep-link handling races this same event and
+      // routinely wins, mounting app/auth/callback.tsx (which does the
+      // actual code exchange via finishOAuthCallback) before this promise
+      // settles. If the browser is simply dismissed with nothing else
+      // in flight, clear the spinner; otherwise leave isLoading as-is so we
+      // don't flash the login form while the callback screen takes over.
       const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUri);
-
-      if (result.type !== 'success' || !result.url) {
-        // User dismissed the browser
+      if (result.type !== 'success') {
         set({ isLoading: false });
-        return;
       }
+    } catch (err) {
+      const msg = err instanceof TimeoutError ? 'auth.errors.networkTimeout' : 'auth.errors.generic';
+      set({ isLoading: false, error: msg });
+    }
+  },
 
-      // Extract the PKCE code from the redirect URL and exchange it for a session.
-      const parsed = new URL(result.url);
-      const code   = parsed.searchParams.get('code');
-
-      if (!code) {
-        set({ isLoading: false, error: 'auth.errors.generic' });
-        return;
-      }
-
+  finishOAuthCallback: async (code: string) => {
+    set({ isLoading: true, error: null });
+    try {
       const { data: sessionData, error: sessionError } = await withTimeout(supabase.auth.exchangeCodeForSession(code));
       if (sessionError || !sessionData.session) {
         set({ isLoading: false, error: 'auth.errors.generic' });

@@ -79,6 +79,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    // Without this, signInWithOAuth defaults to the implicit flow, which
+    // returns tokens in the redirect URL's hash fragment (#access_token=...)
+    // instead of a ?code= query param — but auth.store.ts's
+    // signInWithGoogle() (correctly, for a mobile app) expects PKCE and
+    // reads `code` from the query string via exchangeCodeForSession(),
+    // so every Google sign-in silently failed to find a code.
+    flowType: 'pkce',
   },
 });
 

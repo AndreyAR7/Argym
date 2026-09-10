@@ -31,6 +31,7 @@
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="saas-client-management"/>
+        <data android:scheme="argym"/>
         <data android:scheme="exp+argym"/>
       </intent-filter>
     </activity>
