@@ -16,6 +16,13 @@ export interface AppointmentDetail {
   meeting_url: string | null
   cancellation_reason: string | null
   coach: { full_name: string } | null
+  // true when I'm only invited via appointment_participants (a group
+  // "clase" invitee), not the appointment's own client_id. The
+  // confirm/decline actions below act on the appointment's own status,
+  // which for a group class belongs to whoever created it — never valid
+  // for a participant to trigger, so those buttons are hidden for them.
+  isParticipant?: boolean
+  myParticipantStatus?: string | null
 }
 
 interface Props {
@@ -31,6 +38,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   completed:  { label: 'Completada',  color: 'var(--color-muted-foreground)' },
   cancelled:  { label: 'Cancelada',   color: 'var(--color-destructive)' },
   no_show:    { label: 'No asistió',  color: '#f59e0b'                },
+  attended:   { label: 'Asististe',   color: '#22c55e'                },
 }
 
 const TYPE_CONFIG: Record<string, { label: string; Icon: React.FC<{ size?: number; style?: React.CSSProperties }> }> = {
@@ -74,7 +82,10 @@ export function AppointmentDetailSheet({ appointment, onClose }: Props) {
     })
   }
 
-  const isPendingConfirmation = appointment.status === 'pending_confirmation'
+  const isPendingConfirmation = appointment.status === 'pending_confirmation' && !appointment.isParticipant
+  const myStatusLabel = appointment.myParticipantStatus
+    ? (STATUS_CONFIG[appointment.myParticipantStatus]?.label ?? appointment.myParticipantStatus)
+    : null
 
   const startD   = new Date(appointment.start_time)
   const endD     = new Date(appointment.end_time)
@@ -226,6 +237,20 @@ export function AppointmentDetailSheet({ appointment, onClose }: Props) {
                   {actionError}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ── GROUP CLASS INVITEE — read-only, my own confirm/cancel isn't ── */}
+          {/* self-service yet; nothing here should touch the class's own status. */}
+          {appointment.isParticipant && myStatusLabel && (
+            <div
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+              style={{ backgroundColor: 'var(--color-muted)' }}
+            >
+              <User size={14} style={{ color: 'var(--color-client)' }} />
+              <span className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
+                Tu estado en esta clase: <strong style={{ color: 'var(--color-foreground)' }}>{myStatusLabel}</strong>
+              </span>
             </div>
           )}
 

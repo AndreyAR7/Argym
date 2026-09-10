@@ -41,24 +41,44 @@ export default async function ClientAppointmentsPage({
   const weekEnd   = new Date(weekStart)
   weekEnd.setDate(weekStart.getDate() + 7)
 
-  // For calendar view fetch only the current week; for list view fetch all
-  const query = supabase
-    .from('appointments')
-    .select('id, title, start_time, end_time, status, appointment_type, notes, location, meeting_url, cancellation_reason, coach:profiles!appointments_coach_id_fkey(full_name)')
-    .eq('client_id', user.id)
+  // list_appointments() — not a raw .eq('client_id', user.id) query, which
+  // only ever found appointments where the client is the PRIMARY invitee.
+  // A client invited to a group "clase" as an appointment_participants row
+  // (any invitee past the first one picked when the class was created)
+  // never showed up here at all under the old query, even though they
+  // already got a push notification and appear in admin/coach guest
+  // tables — this was the actual bug behind "fuiste invitado pero no veo
+  // la clase". list_appointments already scopes correctly to client_id OR
+  // participant match for a plain client caller.
+  const { data: rpcRows } = view === 'calendar'
+    ? await supabase.rpc('list_appointments', {
+        p_start_time: weekStart.toISOString(),
+        p_end_time:   weekEnd.toISOString(),
+      })
+    : await supabase.rpc('list_appointments')
 
-  const { data: appointments } = view === 'calendar'
-    ? await query
-        .gte('start_time', weekStart.toISOString())
-        .lt('start_time', weekEnd.toISOString())
-        .order('start_time')
-    : await query.order('start_time', { ascending: false })
-
-  // Supabase returns foreign-key joins as arrays; normalize to object | null
-  const all = (appointments ?? []).map((a: any) => ({
-    ...a,
-    coach: Array.isArray(a.coach) ? (a.coach[0] ?? null) : a.coach,
-  }))
+  const all = ((rpcRows ?? []) as any[]).map((a) => ({
+    id: a.id,
+    title: a.title,
+    start_time: a.start_time,
+    end_time: a.end_time,
+    status: a.status,
+    appointment_type: a.appointment_type,
+    notes: a.notes ?? null,
+    location: a.location,
+    meeting_url: a.meeting_url,
+    cancellation_reason: a.cancellation_reason,
+    coach: a.coach_name ? { full_name: a.coach_name } : null,
+    // true when I'm only invited via appointment_participants, not the
+    // appointment's own client_id — my own confirm/decline must act on
+    // MY participant row, never the whole class's status.
+    isParticipant: a.client_id !== user.id,
+    myParticipantStatus: a.my_participant_status ?? null,
+  })).sort((a, b) =>
+    view === 'calendar'
+      ? new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+      : new Date(b.start_time).getTime() - new Date(a.start_time).getTime()
+  )
   const ACTIVE_STATUSES = ['scheduled', 'confirmed', 'pending_confirmation', 'postpone_requested']
   const upcoming = all.filter((a: any) => ACTIVE_STATUSES.includes(a.status))
   const past     = all.filter((a: any) => !ACTIVE_STATUSES.includes(a.status))
