@@ -38,6 +38,7 @@ export async function addExerciseAction(
     })
     if (error) throw error
     revalidatePath(`/admin/routines/${routineId}`)
+    revalidatePath(`/coach/routines/${routineId}`)
     return { success: true }
   } catch (e: any) {
     return { success: false, error: e.message }
@@ -67,6 +68,7 @@ export async function updateExerciseAction(
       .eq('tenant_id', tenantId)
     if (error) throw error
     revalidatePath(`/admin/routines/${routineId}`)
+    revalidatePath(`/coach/routines/${routineId}`)
     return { success: true }
   } catch (e: any) {
     return { success: false, error: e.message }
@@ -83,6 +85,7 @@ export async function deleteExerciseAction(exerciseId: string, routineId: string
       .eq('tenant_id', tenantId)
     if (error) throw error
     revalidatePath(`/admin/routines/${routineId}`)
+    revalidatePath(`/coach/routines/${routineId}`)
     return { success: true }
   } catch (e: any) {
     return { success: false, error: e.message }
@@ -102,6 +105,8 @@ export async function updateRoutineAction(
     if (error) throw error
     revalidatePath('/admin/routines')
     revalidatePath(`/admin/routines/${routineId}`)
+    revalidatePath('/coach/routines')
+    revalidatePath(`/coach/routines/${routineId}`)
     return { success: true }
   } catch (e: any) {
     return { success: false, error: e.message }
@@ -130,6 +135,7 @@ export async function createRoutineAction(data: {
       .single()
     if (error) throw error
     revalidatePath('/admin/routines')
+    revalidatePath('/coach/routines')
     return { success: true, routineId: routine.id }
   } catch (e: any) {
     return { success: false, error: e.message }
@@ -146,6 +152,7 @@ export async function deleteRoutineAction(routineId: string) {
       .eq('tenant_id', tenantId)
     if (error) throw error
     revalidatePath('/admin/routines')
+    revalidatePath('/coach/routines')
     return { success: true }
   } catch (e: any) {
     return { success: false, error: e.message }
@@ -199,6 +206,7 @@ export async function cloneRoutineAction(routineId: string) {
     }
 
     revalidatePath('/admin/routines')
+    revalidatePath('/coach/routines')
     return { success: true, routineId: cloned.id }
   } catch (e: any) {
     return { success: false, error: e.message }

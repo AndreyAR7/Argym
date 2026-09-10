@@ -1,4 +1,4 @@
-'use server'
+﻿'use server'
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
@@ -36,6 +36,7 @@ export async function updateVideoMetadataAction(
   if (error) return { error: error.message }
   if (!updated || updated.length === 0) return { error: 'No tienes permiso para editar este video.' }
   revalidatePath('/admin/videos')
+  revalidatePath('/coach/videos')
   return { success: true }
 }
 
@@ -68,6 +69,7 @@ export async function updateVideoFileAction(
   }
 
   revalidatePath('/admin/videos')
+  revalidatePath('/coach/videos')
   return { success: true }
 }
 
@@ -95,6 +97,7 @@ export async function updateVideoThumbnailAction(
   }
 
   revalidatePath('/admin/videos')
+  revalidatePath('/coach/videos')
   return { success: true }
 }
 
@@ -120,6 +123,7 @@ export async function deleteVideoAction(
 
   if (error) return { error: error.message }
   revalidatePath('/admin/videos')
+  revalidatePath('/coach/videos')
   return { success: true }
 }
 
@@ -167,6 +171,7 @@ export async function createVideoAction(data: {
 
   if (error) return { error: error.message }
   revalidatePath('/admin/videos')
+  revalidatePath('/coach/videos')
   return { success: true, videoId: video.id }
 }
 
@@ -213,7 +218,7 @@ export async function createVideoRecordAction(data: {
     status: 'draft',
     video_storage_path: data.storage_path,
     // video_bucket is NOT NULL (defaults to 'videos' in the schema), but a
-    // default only applies when the column is omitted from the INSERT —
+    // default only applies when the column is omitted from the INSERT â€”
     // the external-link flow explicitly sent storage_bucket: null here,
     // which overrides the default and violates the constraint.
     video_bucket: data.storage_bucket ?? 'videos',
@@ -227,6 +232,7 @@ export async function createVideoRecordAction(data: {
 
   if (error) return { error: error.message }
   revalidatePath('/admin/videos')
+  revalidatePath('/coach/videos')
   return { success: true }
 }
 
@@ -265,5 +271,7 @@ export async function assignVideoToClientAction(
 
   if (error) return { error: error.message }
   revalidatePath('/admin/videos')
+  revalidatePath('/coach/videos')
   return { success: true }
 }
+

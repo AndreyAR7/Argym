@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation'
 interface VideoLevelSelectProps {
   currentLevel: string
   currentStatus: string
+  basePath?: string
 }
 
-export function VideoLevelSelect({ currentLevel, currentStatus }: VideoLevelSelectProps) {
+export function VideoLevelSelect({ currentLevel, currentStatus, basePath = '/admin/videos' }: VideoLevelSelectProps) {
   const router = useRouter()
 
   function handleChange(level: string) {
@@ -15,7 +16,7 @@ export function VideoLevelSelect({ currentLevel, currentStatus }: VideoLevelSele
     if (currentStatus !== 'all') sp.set('status', currentStatus)
     if (level !== 'all') sp.set('level', level)
     const qs = sp.toString()
-    router.push(`/admin/videos${qs ? `?${qs}` : ''}`)
+    router.push(`${basePath}${qs ? `?${qs}` : ''}`)
   }
 
   return (

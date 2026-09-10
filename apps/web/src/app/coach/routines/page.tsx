@@ -2,11 +2,15 @@ import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/shared/page-header'
 import { Badge } from '@/components/ui/badge'
 import { RoutineSearch } from '@/components/admin/routine-search'
+import { NewRoutineButton } from '@/components/admin/new-routine-button'
+import { RoutineDeleteButton } from '@/components/admin/routine-delete-button'
+import { RoutineCloneButton } from '@/components/admin/routine-clone-button'
+import { RoutineToggle } from '@/components/admin/routine-toggle'
 import { Dumbbell } from 'lucide-react'
 import Link from 'next/link'
 import { AssignRoutineButton } from './assign-routine-button'
 
-export const metadata = { title: 'Mis Rutinas' }
+export const metadata = { title: 'Rutinas' }
 
 const LEVEL_TABS = [
   { value: 'all',          label: 'Todas'         },
@@ -26,14 +30,22 @@ export default async function CoachRoutinesPage({
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('tenant_id')
+    .eq('id', user!.id)
+    .single()
+  const tenantId = profile?.tenant_id as string
 
+  // Same tenant-wide visibility as admin — a coach with content.manage
+  // can see and manage every routine in the tenant, not just their own.
   let query = supabase
     .from('routines')
     .select('id, name, description, level, is_active, is_template, created_at, exercises(count)', { count: 'exact' })
-    .eq('created_by', user!.id)
+    .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false })
 
-  if (search)             query = query.ilike('name', `%${search}%`)
+  if (search)                query = query.ilike('name', `%${search}%`)
   if (levelFilter !== 'all') query = query.eq('level', levelFilter)
 
   const { data: routines, count } = await query
@@ -50,9 +62,11 @@ export default async function CoachRoutinesPage({
   return (
     <div className="p-4 md:p-8">
       <PageHeader
-        title="Mis Rutinas"
-        subtitle={`${count ?? 0} rutina${count !== 1 ? 's' : ''} creadas por ti`}
-      />
+        title="Rutinas"
+        subtitle={`${count ?? 0} rutina${count !== 1 ? 's' : ''} en el tenant`}
+      >
+        <NewRoutineButton />
+      </PageHeader>
 
       {/* Filters */}
       <div className="mt-6 flex flex-wrap gap-3">
@@ -82,7 +96,7 @@ export default async function CoachRoutinesPage({
           </div>
           <p className="text-sm font-medium text-[var(--color-foreground)]">Sin rutinas</p>
           <p className="text-xs text-[var(--color-muted-foreground)]">
-            Crea rutinas desde la aplicación móvil para verlas aquí.
+            Crea la primera rutina con el botón "Nueva rutina".
           </p>
         </div>
       ) : (
@@ -122,7 +136,18 @@ export default async function CoachRoutinesPage({
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <AssignRoutineButton routineId={routine.id} routineName={routine.name} />
+                    <div className="flex items-center justify-end gap-2">
+                      <AssignRoutineButton routineId={routine.id} routineName={routine.name} />
+                      <RoutineCloneButton routineId={routine.id} routineName={routine.name} />
+                      <RoutineDeleteButton routineId={routine.id} routineName={routine.name} />
+                      <Link
+                        href={`/coach/routines/${routine.id}`}
+                        className="px-2.5 py-1.5 rounded-lg border border-[var(--color-border)] text-xs font-medium text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors"
+                      >
+                        Ver
+                      </Link>
+                      <RoutineToggle routineId={routine.id} isActive={routine.is_active} />
+                    </div>
                   </td>
                 </tr>
               ))}
