@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { unassignSubscription } from '@/lib/billing/unassign-subscription'
 
 // ── Approvals ──────────────────────────────────────────────────
 
@@ -220,6 +221,15 @@ export async function assignPlanAction(userId: string, tenantId: string, planId:
   if (error) return { error: error.message }
   revalidatePath('/admin/clients')
   return { success: true }
+}
+
+export async function unassignPlanAction(subscriptionId: string, reason?: string) {
+  const supabase = await createClient()
+  const result = await unassignSubscription(supabase, subscriptionId, reason)
+  revalidatePath('/admin/clients')
+  revalidatePath('/admin/billing')
+  revalidatePath('/admin/clients/[id]', 'page')
+  return result
 }
 
 // ── Plans ──────────────────────────────────────────────────────

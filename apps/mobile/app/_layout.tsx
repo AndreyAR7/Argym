@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, ActivityIndicator, useColorScheme } from 'react-native';
+import { View, ActivityIndicator, useColorScheme, Text, TouchableOpacity } from 'react-native';
 import { Slot, useSegments, useRouter, useRootNavigationState } from 'expo-router';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { I18nextProvider } from 'react-i18next';
@@ -21,7 +21,7 @@ import {
 } from '@/lib/pushNotifications';
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { session, user, isLoading, initialize, approvalStatus } = useAuthStore();
+  const { session, user, isLoading, initialize, approvalStatus, signOut } = useAuthStore();
   const { theme } = useProfileStore();
   const { loadTenant } = useTenantStore();
   const { seenByUser, checkedByUser, checkSeen } = useOnboardingStore();
@@ -54,6 +54,23 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const onboardingSeen = user?.id
     ? (checkedByUser[user.id] ? seenByUser[user.id] : null)
     : null;
+
+  // An approved profile with no role assigned (e.g. a user_roles row missing
+  // or deleted out from under them) makes AuthGuard wait silently forever —
+  // there's no route to redirect to and no error is ever surfaced, so the
+  // user just sees a frozen loading screen with no way to recover. Give that
+  // wait a ceiling so it degrades to a visible, actionable error instead.
+  const [roleTimedOut, setRoleTimedOut] = React.useState(false);
+  const awaitingRole = approvalStatus === 'approved' && !!session && !user?.primaryRole;
+
+  useEffect(() => {
+    if (!awaitingRole) {
+      setRoleTimedOut(false);
+      return;
+    }
+    const timer = setTimeout(() => setRoleTimedOut(true), 10000);
+    return () => clearTimeout(timer);
+  }, [awaitingRole]);
 
   useEffect(() => {
     // Wait until the root navigator is fully mounted before any redirect
@@ -149,6 +166,25 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: themeConfig.bg }}>
         <ActivityIndicator size="large" color={themeConfig.accent} />
+      </View>
+    );
+  }
+
+  if (roleTimedOut) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: themeConfig.bg, padding: 24 }}>
+        <Text style={{ color: themeConfig.text, fontSize: 16, textAlign: 'center', marginBottom: 24 }}>
+          No se pudo cargar tu cuenta. Es posible que no tengas un rol asignado — contacta al administrador del gimnasio.
+        </Text>
+        <TouchableOpacity
+          onPress={() => initialize()}
+          style={{ backgroundColor: themeConfig.accent, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8, marginBottom: 12 }}
+        >
+          <Text style={{ color: '#fff', fontWeight: '600' }}>Reintentar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => signOut()}>
+          <Text style={{ color: themeConfig.text, textDecorationLine: 'underline' }}>Cerrar sesión</Text>
+        </TouchableOpacity>
       </View>
     );
   }

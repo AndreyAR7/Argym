@@ -86,3 +86,34 @@ export async function assignPlanToClient(
   });
   if (error) throw error;
 }
+
+export interface UnassignResult {
+  refunded?: boolean;
+  refundAmount?: number;
+  refundError?: string;
+}
+
+// Mobile has no direct Stripe access (only the web app holds
+// STRIPE_SECRET_KEY), so reverting a plan — and, when it was actually paid
+// via Stripe, issuing the refund — goes through the web app's API route
+// instead of a direct RPC call. See apps/web/src/lib/billing/unassign-subscription.ts.
+export async function unassignSubscription(subscriptionId: string, reason?: string): Promise<UnassignResult> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('No autenticado');
+
+  const siteUrl = process.env.EXPO_PUBLIC_SITE_URL;
+  if (!siteUrl) throw new Error('EXPO_PUBLIC_SITE_URL no configurado');
+
+  const res = await fetch(`${siteUrl}/api/admin/subscriptions/unassign`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ subscriptionId, reason }),
+  });
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json?.error ?? 'No se pudo desasignar el plan');
+  return json as UnassignResult;
+}

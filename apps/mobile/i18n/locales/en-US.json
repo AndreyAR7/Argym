@@ -53,6 +53,7 @@
       "emailNotConfirmed": "Please confirm your email before signing in. Check your inbox.",
       "pendingApproval": "Your account is pending approval by an administrator.",
       "rateLimitExceeded": "Too many attempts. Try again in 15 minutes.",
+      "networkTimeout": "The connection took too long. Check your internet connection and try again.",
       "generic": "An error occurred. Please try again.",
       "emailRequired": "Email is required",
       "passwordRequired": "Password is required",
@@ -488,7 +489,16 @@
         "cycleOneTime": "one-time",
         "alreadyHasLabel": "ALREADY HAS",
         "closeButton": "Close",
-        "assignButton": "Assign"
+        "assignButton": "Assign",
+        "confirmTitle": "Confirm assignment",
+        "confirmMessage": "You're about to assign \"{{plan}}\" to {{name}}. Double-check it's the right plan — a mistake can upset the client. If you got it wrong, you can revert it afterward.",
+        "confirmButton": "Yes, assign",
+        "unassignButton": "Unassign",
+        "unassignConfirmTitle": "Unassign plan",
+        "unassignConfirmMessage": "Are you sure you want to revert the \"{{plan}}\" plan for {{name}}? It will be cancelled immediately. If it was paid via Stripe it will be refunded automatically; if it was manually assigned, any refund is handled outside the app.",
+        "unassignedToast": "Plan unassigned",
+        "unassignedRefundedToast": "Plan unassigned and refunded",
+        "unassignFailed": "Could not unassign the plan."
       },
       "create": {
         "emailRequired": "Email is required.",

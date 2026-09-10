@@ -15,7 +15,7 @@ import {
   useClientsWithPlan, useClientsWithPlanInfinite,
   useUpdateProfile, useToggleProfileActive, useCreateUser,
 } from '@/hooks/useProfiles';
-import { useTenantPlans, useAssignPlan } from '@/hooks/useSubscriptions';
+import { useTenantPlans, useAssignPlan, useUnassignPlan } from '@/hooks/useSubscriptions';
 import { getClientSubscriptions } from '@/services/subscriptions.service';
 import type { SubscriptionRecord } from '@/services/subscriptions.service';
 import { supabase } from '@/lib/supabase';
@@ -538,30 +538,79 @@ function AssignPlanModal({ client, visible, onClose, onSaved, tenantId }: {
   const { t } = useTranslation();
   const { data: plans = [], isLoading: plansLoading } = useTenantPlans();
   const assignMutation = useAssignPlan();
+  const unassignMutation = useUnassignPlan();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [clientSubs, setClientSubs] = useState<SubscriptionRecord[]>([]);
   const [subsLoading, setSubsLoading] = useState(false);
 
-  React.useEffect(() => {
-    if (!visible || !client) { setSelectedPlanId(null); setClientSubs([]); return; }
-    setSelectedPlanId(null);
+  const reloadSubs = React.useCallback(() => {
+    if (!client) return;
     setSubsLoading(true);
     getClientSubscriptions(client.id).then(setClientSubs).catch(() => setClientSubs([]))
       .finally(() => setSubsLoading(false));
+  }, [client?.id]);
+
+  React.useEffect(() => {
+    if (!visible || !client) { setSelectedPlanId(null); setClientSubs([]); return; }
+    setSelectedPlanId(null);
+    reloadSubs();
   }, [visible, client?.id]);
 
   const subscribedPlanIds = new Set(clientSubs.map((s) => s.plan_id));
   const isLoading = plansLoading || subsLoading;
 
-  const handleAssign = async () => {
-    if (!client || !selectedPlanId) { Alert.alert(t('common.error'), t('admin.clients.plan.selectRequired')); return; }
-    if (subscribedPlanIds.has(selectedPlanId)) { Alert.alert(t('admin.clients.plan.infoTitle'), t('admin.clients.plan.alreadyHasPlan')); return; }
+  const doAssign = async () => {
+    if (!client || !selectedPlanId) return;
     const plan = plans.find((p) => p.id === selectedPlanId);
     try {
       await assignMutation.mutateAsync({ userId: client.id, tenantId, planId: selectedPlanId, planPrice: plan?.price ?? 0 });
       ToastManager.show({ message: t('admin.clients.plan.assignedToast', { name: plan?.name }), type: 'success' });
       onSaved(); onClose();
     } catch (err: any) { Alert.alert(t('common.error'), err.message ?? t('admin.clients.plan.assignFailed')); }
+  };
+
+  const handleAssign = () => {
+    if (!client || !selectedPlanId) { Alert.alert(t('common.error'), t('admin.clients.plan.selectRequired')); return; }
+    if (subscribedPlanIds.has(selectedPlanId)) { Alert.alert(t('admin.clients.plan.infoTitle'), t('admin.clients.plan.alreadyHasPlan')); return; }
+    const plan = plans.find((p) => p.id === selectedPlanId);
+    Alert.alert(
+      t('admin.clients.plan.confirmTitle'),
+      t('admin.clients.plan.confirmMessage', { plan: plan?.name, name: client.full_name }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('admin.clients.plan.confirmButton'), onPress: doAssign },
+      ],
+    );
+  };
+
+  const handleUnassign = (sub: SubscriptionRecord) => {
+    if (!client) return;
+    Alert.alert(
+      t('admin.clients.plan.unassignConfirmTitle'),
+      t('admin.clients.plan.unassignConfirmMessage', { plan: sub.plan?.name ?? '', name: client.full_name }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('admin.clients.plan.unassignButton'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const result = await unassignMutation.mutateAsync({ subscriptionId: sub.id, userId: client.id });
+              ToastManager.show({
+                message: result.refunded
+                  ? t('admin.clients.plan.unassignedRefundedToast')
+                  : t('admin.clients.plan.unassignedToast'),
+                type: 'success',
+              });
+              reloadSubs();
+              onSaved();
+            } catch (err: any) {
+              Alert.alert(t('common.error'), err.message ?? t('admin.clients.plan.unassignFailed'));
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -579,7 +628,11 @@ function AssignPlanModal({ client, visible, onClose, onSaved, tenantId }: {
                 {clientSubs.map((sub) => (
                   <View key={sub.id} style={[modalStyles.planOption, { backgroundColor: T.greenSoft, borderColor: T.green + '55' }]}>
                     <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: T.text }}>{sub.plan?.name ?? t('admin.clients.plan.planFallback')}</Text>
-                    <Text style={{ fontSize: 18, color: T.green }}>✓</Text>
+                    <TouchableOpacity onPress={() => handleUnassign(sub)} disabled={unassignMutation.isPending} hitSlop={8}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: T.red }}>
+                        {t('admin.clients.plan.unassignButton')}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 ))}
               </View>

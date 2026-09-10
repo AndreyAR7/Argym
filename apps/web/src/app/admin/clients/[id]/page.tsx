@@ -163,7 +163,7 @@ export default async function ClientDetailPage({
                 Suscripciones
               </h2>
             </div>
-            <SubscriptionHistory subscriptions={subscriptions} />
+            <SubscriptionHistory subscriptions={subscriptions} clientName={profile.full_name ?? undefined} />
           </div>
 
           {/* Nutrition plans */}

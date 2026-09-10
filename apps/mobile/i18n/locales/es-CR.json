@@ -53,6 +53,7 @@
       "emailNotConfirmed": "Debes confirmar tu correo antes de iniciar sesión. Revisa tu bandeja de entrada.",
       "pendingApproval": "Tu cuenta está pendiente de aprobación por un administrador.",
       "rateLimitExceeded": "Demasiados intentos. Intente de nuevo en 15 minutos.",
+      "networkTimeout": "La conexión tardó demasiado. Revise su conexión a internet e intente de nuevo.",
       "generic": "Ocurrió un error. Intente de nuevo.",
       "emailRequired": "El correo es requerido",
       "passwordRequired": "La contraseña es requerida",
@@ -488,7 +489,16 @@
         "cycleOneTime": "único",
         "alreadyHasLabel": "YA TIENE",
         "closeButton": "Cerrar",
-        "assignButton": "Asignar"
+        "assignButton": "Asignar",
+        "confirmTitle": "Confirmar asignación",
+        "confirmMessage": "Vas a asignar \"{{plan}}\" a {{name}}. Verifica que sea el plan correcto — un error puede generar disgusto en el cliente. Si te equivocás, podés revertirlo después.",
+        "confirmButton": "Sí, asignar",
+        "unassignButton": "Desasignar",
+        "unassignConfirmTitle": "Desasignar plan",
+        "unassignConfirmMessage": "¿Confirmás que querés revertir el plan \"{{plan}}\" de {{name}}? Se cancelará de inmediato. Si lo pagó por Stripe se reembolsará automáticamente; si fue manual, la devolución se maneja por fuera de la app.",
+        "unassignedToast": "Plan desasignado",
+        "unassignedRefundedToast": "Plan desasignado y reembolsado",
+        "unassignFailed": "No se pudo desasignar el plan."
       },
       "create": {
         "emailRequired": "El email es requerido.",

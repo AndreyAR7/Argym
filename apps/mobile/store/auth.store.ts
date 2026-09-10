@@ -11,6 +11,30 @@ WebBrowser.maybeCompleteAuthSession();
 
 let authSubscription: { unsubscribe: () => void } | null = null;
 
+// None of the boot/login network calls below had a timeout, so a single
+// stalled request (flaky wifi, captive portal, a dropped connection while
+// switching networks) left the app frozen on the loading spinner forever
+// with no way to recover short of a force-kill. Race every one of them
+// against this so a hang degrades to a normal, catchable error instead.
+const NETWORK_TIMEOUT_MS = 15000;
+
+class TimeoutError extends Error {
+  constructor() {
+    super('Network request timed out');
+    this.name = 'TimeoutError';
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number = NETWORK_TIMEOUT_MS): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new TimeoutError()), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
+
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'blocked';
 
 interface Session {
@@ -131,7 +155,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
   initialize: async () => {
     set({ isLoading: true });
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await withTimeout(supabase.auth.getSession());
       if (!session) {
         set({ isLoading: false });
         return;
@@ -141,16 +165,16 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
       let activeSession = session;
       const expiresAt = session.expires_at ?? 0;
       if (expiresAt - Date.now() / 1000 < TOKEN_REFRESH_BUFFER_SECONDS) {
-        const { data: refreshed } = await supabase.auth.refreshSession();
+        const { data: refreshed } = await withTimeout(supabase.auth.refreshSession());
         if (refreshed.session) activeSession = refreshed.session;
       }
 
-      const profile = await fetchProfile(activeSession.user.id);
+      const profile = await withTimeout(fetchProfile(activeSession.user.id));
       const approvalStatus = profile.approval_status ?? 'pending';
       const rejectionReason = profile.rejection_reason ?? null;
       const rejectionCount = profile.rejection_count ?? 0;
       const permissions = approvalStatus === 'approved'
-        ? await fetchPermissions(activeSession.user.id, profile.tenant_id)
+        ? await withTimeout(fetchPermissions(activeSession.user.id, profile.tenant_id))
         : [];
 
       set({
@@ -219,7 +243,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
   signIn: async (email, password) => {
     set({ isLoading: true, error: null });
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await withTimeout(supabase.auth.signInWithPassword({ email, password }));
       if (error) {
         let msg: string;
         if (error.status === 429) {
@@ -245,8 +269,14 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
 
       let profile: Awaited<ReturnType<typeof fetchProfile>>;
       try {
-        profile = await fetchProfile(data.user.id);
-      } catch {
+        profile = await withTimeout(fetchProfile(data.user.id));
+      } catch (profileErr) {
+        if (profileErr instanceof TimeoutError) {
+          // Auth already succeeded (we have a session) — don't strand the
+          // user on a frozen spinner just because the profile fetch stalled.
+          set({ isLoading: false, error: 'auth.errors.networkTimeout' });
+          return;
+        }
         // Auth succeeded but profile is missing — treat as pending so the user
         // sees the pending-approval screen instead of a confusing error.
         set({
@@ -265,7 +295,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
       const rejectionReason = profile.rejection_reason ?? null;
       const rejectionCount = profile.rejection_count ?? 0;
       const permissions = approvalStatus === 'approved'
-        ? await fetchPermissions(data.user.id, profile.tenant_id)
+        ? await withTimeout(fetchPermissions(data.user.id, profile.tenant_id))
         : [];
 
       set({
@@ -282,7 +312,10 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
       // Register push token after successful login (fire-and-forget)
       registerPushToken(data.user.id).catch(() => {});
     } catch (err: unknown) {
-      if (!get().error) set({ isLoading: false, error: 'auth.errors.generic' });
+      if (!get().error) {
+        const msg = err instanceof TimeoutError ? 'auth.errors.networkTimeout' : 'auth.errors.generic';
+        set({ isLoading: false, error: msg });
+      }
       throw err;
     }
   },
@@ -308,10 +341,10 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
       // scheme comes from app.config.js → expo.scheme: "saas-client-management"
       const redirectUri = Linking.createURL('auth/callback');
 
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await withTimeout(supabase.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: redirectUri, skipBrowserRedirect: true },
-      });
+      }));
 
       if (error || !data.url) {
         set({ isLoading: false, error: 'auth.errors.generic' });
@@ -336,7 +369,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
         return;
       }
 
-      const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
+      const { data: sessionData, error: sessionError } = await withTimeout(supabase.auth.exchangeCodeForSession(code));
       if (sessionError || !sessionData.session) {
         set({ isLoading: false, error: 'auth.errors.generic' });
         return;
@@ -345,8 +378,12 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
       const sess = sessionData.session;
       let profile: Awaited<ReturnType<typeof fetchProfile>>;
       try {
-        profile = await fetchProfile(sess.user.id);
-      } catch {
+        profile = await withTimeout(fetchProfile(sess.user.id));
+      } catch (profileErr) {
+        if (profileErr instanceof TimeoutError) {
+          set({ isLoading: false, error: 'auth.errors.networkTimeout' });
+          return;
+        }
         set({
           session: { access_token: sess.access_token, refresh_token: sess.refresh_token, expires_at: sess.expires_at ?? 0, user: { id: sess.user.id, email: sess.user.email ?? '' } },
           user: null,
@@ -361,7 +398,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
 
       const approvalStatus = profile.approval_status ?? 'pending';
       const permissions    = approvalStatus === 'approved'
-        ? await fetchPermissions(sess.user.id, profile.tenant_id)
+        ? await withTimeout(fetchPermissions(sess.user.id, profile.tenant_id))
         : [];
 
       set({
@@ -376,8 +413,9 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
       });
 
       registerPushToken(sess.user.id).catch(() => {});
-    } catch {
-      set({ isLoading: false, error: 'auth.errors.generic' });
+    } catch (err) {
+      const msg = err instanceof TimeoutError ? 'auth.errors.networkTimeout' : 'auth.errors.generic';
+      set({ isLoading: false, error: msg });
     }
   },
 

@@ -257,6 +257,7 @@ export default async function ClientsPage({
                         branchId={(client as any).branch_id ?? null}
                         branches={branches ?? []}
                         activePlanName={plan?.name ?? null}
+                        activeSubscriptionId={activeSub?.id ?? null}
                         suspensionReason={client.suspension_reason ?? null}
                         lapsedSubscriptionId={lapsedGymSub?.id ?? null}
                       />

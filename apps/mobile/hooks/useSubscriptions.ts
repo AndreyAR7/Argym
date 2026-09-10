@@ -3,6 +3,7 @@ import {
   getTenantPlans,
   getClientSubscription,
   assignPlanToClient,
+  unassignSubscription,
 } from '@/services/subscriptions.service';
 import { PROFILES_KEYS, CLIENTS_WITH_PLAN_KEY } from '@/hooks/useProfiles';
 
@@ -42,6 +43,19 @@ export function useAssignPlan() {
       planId: string;
       planPrice: number;
     }) => assignPlanToClient(userId, tenantId, planId, planPrice),
+    onSuccess: (_data, { userId }) => {
+      qc.invalidateQueries({ queryKey: SUBSCRIPTION_KEYS.clientSub(userId) });
+      qc.invalidateQueries({ queryKey: PROFILES_KEYS.clients });
+      qc.invalidateQueries({ queryKey: CLIENTS_WITH_PLAN_KEY });
+    },
+  });
+}
+
+export function useUnassignPlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ subscriptionId, reason }: { subscriptionId: string; userId: string; reason?: string }) =>
+      unassignSubscription(subscriptionId, reason),
     onSuccess: (_data, { userId }) => {
       qc.invalidateQueries({ queryKey: SUBSCRIPTION_KEYS.clientSub(userId) });
       qc.invalidateQueries({ queryKey: PROFILES_KEYS.clients });

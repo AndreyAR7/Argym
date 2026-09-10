@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useTransition, useRef } from 'react'
-import { MoreHorizontal, UserX, UserCheck, Tag, Pencil, Building2 } from 'lucide-react'
-import { toggleProfileActiveAction, assignPlanAction, assignUserToBranchAction, reactivateSuspendedClientAction } from '@/lib/admin/actions'
+import { MoreHorizontal, UserX, UserCheck, Tag, Pencil, Building2, TriangleAlert, Ban } from 'lucide-react'
+import { toggleProfileActiveAction, assignPlanAction, unassignPlanAction, assignUserToBranchAction, reactivateSuspendedClientAction } from '@/lib/admin/actions'
 
 interface Plan {
   id: string
@@ -23,6 +23,7 @@ interface ClientRowActionsProps {
   branchId: string | null
   branches: { id: string; name: string }[]
   activePlanName?: string | null
+  activeSubscriptionId?: string | null
   suspensionReason?: string | null
   lapsedSubscriptionId?: string | null
 }
@@ -36,17 +37,21 @@ export function ClientRowActions({
   branchId,
   branches,
   activePlanName,
+  activeSubscriptionId,
   suspensionReason,
   lapsedSubscriptionId,
 }: ClientRowActionsProps) {
   const [open, setOpen] = useState(false)
   const [showAssign, setShowAssign] = useState(false)
+  const [confirmAssign, setConfirmAssign] = useState(false)
   const [showBranch, setShowBranch] = useState(false)
   const [showDeactivate, setShowDeactivate] = useState(false)
   const [deactivateError, setDeactivateError] = useState<string | null>(null)
   const [showReactivate, setShowReactivate] = useState(false)
   const [reactivateError, setReactivateError] = useState<string | null>(null)
   const [reactivateMonths, setReactivateMonths] = useState(1)
+  const [showUnassign, setShowUnassign] = useState(false)
+  const [unassignResult, setUnassignResult] = useState<{ error?: string; success?: true; refunded?: boolean; refundAmount?: number; refundError?: string } | null>(null)
   const isSuspendedForNonPayment = !isActive && suspensionReason === 'non_payment'
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -123,7 +128,19 @@ export function ClientRowActions({
     startTransition(async () => {
       await assignPlanAction(clientId, tenantId, selectedPlan.id, selectedPlan.price)
       setShowAssign(false)
+      setConfirmAssign(false)
       setSelectedPlan(null)
+    })
+  }
+
+  function handleUnassignPlan() {
+    if (!activeSubscriptionId) return
+    startTransition(async () => {
+      const result = await unassignPlanAction(activeSubscriptionId, 'Revertido por administrador desde la lista de clientes')
+      setUnassignResult(result)
+      if (result?.success && !result.refundError) {
+        setShowUnassign(false)
+      }
     })
   }
 
@@ -155,6 +172,15 @@ export function ClientRowActions({
                 <Tag size={13} className="text-[var(--color-muted-foreground)]" />
                 Asignar plan
               </button>
+              {activeSubscriptionId && (
+                <button
+                  onClick={() => { setOpen(false); setUnassignResult(null); setShowUnassign(true) }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors"
+                >
+                  <Ban size={13} className="text-[var(--color-muted-foreground)]" />
+                  Desasignar plan
+                </button>
+              )}
               <button
                 onClick={() => { setOpen(false); setShowBranch(true) }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors"
@@ -237,49 +263,132 @@ export function ClientRowActions({
       {showAssign && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-xl">
-            <h2 className="text-base font-semibold text-[var(--color-foreground)] mb-1">Asignar plan</h2>
-            <p className="text-sm text-[var(--color-muted-foreground)] mb-5">
-              Selecciona el plan para <strong>{clientName}</strong>
-            </p>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {plans.length > 0 ? plans.map((plan) => (
-                <button
-                  key={plan.id}
-                  onClick={() => setSelectedPlan(plan)}
-                  className={`w-full flex items-center justify-between gap-3 rounded-lg border p-3.5 text-left transition-all ${
-                    selectedPlan?.id === plan.id
-                      ? 'border-[var(--color-admin)] bg-[var(--color-admin-light)]'
-                      : 'border-[var(--color-border)] hover:bg-[var(--color-muted)]'
-                  }`}
-                >
-                  <div>
-                    <p className="text-sm font-medium text-[var(--color-foreground)]">{plan.name}</p>
-                    <p className="text-xs text-[var(--color-muted-foreground)]">
-                      {plan.billing_cycle === 'monthly' ? 'Mensual' : plan.billing_cycle === 'yearly' ? 'Anual' : 'Único'}
-                    </p>
-                  </div>
-                  <span className="text-sm font-semibold text-[var(--color-foreground)] flex-shrink-0">
-                    {plan.currency} {plan.price.toLocaleString('es-CR')}
-                  </span>
-                </button>
-              )) : (
-                <p className="text-sm text-[var(--color-muted-foreground)] text-center py-4">No hay planes disponibles</p>
-              )}
+            {!confirmAssign ? (
+              <>
+                <h2 className="text-base font-semibold text-[var(--color-foreground)] mb-1">Asignar plan</h2>
+                <p className="text-sm text-[var(--color-muted-foreground)] mb-5">
+                  Selecciona el plan para <strong>{clientName}</strong>
+                </p>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {plans.length > 0 ? plans.map((plan) => (
+                    <button
+                      key={plan.id}
+                      onClick={() => setSelectedPlan(plan)}
+                      className={`w-full flex items-center justify-between gap-3 rounded-lg border p-3.5 text-left transition-all ${
+                        selectedPlan?.id === plan.id
+                          ? 'border-[var(--color-admin)] bg-[var(--color-admin-light)]'
+                          : 'border-[var(--color-border)] hover:bg-[var(--color-muted)]'
+                      }`}
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-[var(--color-foreground)]">{plan.name}</p>
+                        <p className="text-xs text-[var(--color-muted-foreground)]">
+                          {plan.billing_cycle === 'monthly' ? 'Mensual' : plan.billing_cycle === 'yearly' ? 'Anual' : 'Único'}
+                        </p>
+                      </div>
+                      <span className="text-sm font-semibold text-[var(--color-foreground)] flex-shrink-0">
+                        {plan.currency} {plan.price.toLocaleString('es-CR')}
+                      </span>
+                    </button>
+                  )) : (
+                    <p className="text-sm text-[var(--color-muted-foreground)] text-center py-4">No hay planes disponibles</p>
+                  )}
+                </div>
+                <div className="flex gap-2.5 mt-5">
+                  <button
+                    onClick={() => { setShowAssign(false); setSelectedPlan(null) }}
+                    className="flex-1 rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => setConfirmAssign(true)}
+                    disabled={!selectedPlan}
+                    className="flex-1 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Continuar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-1">
+                  <TriangleAlert size={18} className="text-amber-500 flex-shrink-0" />
+                  <h2 className="text-base font-semibold text-[var(--color-foreground)]">Confirmar asignación</h2>
+                </div>
+                <p className="text-sm text-[var(--color-muted-foreground)] mb-4">
+                  Vas a asignar <strong>{selectedPlan?.name}</strong> ({selectedPlan?.currency} {selectedPlan?.price.toLocaleString('es-CR')}) a <strong>{clientName}</strong>.
+                </p>
+                <p className="text-sm text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2.5 mb-5">
+                  Verifica que sea el plan correcto — un error puede generar disgusto en el cliente. Si te equivocás, podés revertirlo después con &quot;Desasignar plan&quot;.
+                </p>
+                <div className="flex gap-2.5">
+                  <button
+                    onClick={() => setConfirmAssign(false)}
+                    disabled={isPending}
+                    className="flex-1 rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors disabled:opacity-50"
+                  >
+                    Volver
+                  </button>
+                  <button
+                    onClick={handleAssignPlan}
+                    disabled={isPending}
+                    className="flex-1 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    {isPending ? 'Asignando…' : 'Sí, asignar plan'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Unassign (revert) active plan */}
+      {showUnassign && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-xl">
+            <div className="flex items-center gap-2 mb-1">
+              <Ban size={18} className="text-[var(--color-destructive)] flex-shrink-0" />
+              <h2 className="text-base font-semibold text-[var(--color-foreground)]">Desasignar plan</h2>
             </div>
-            <div className="flex gap-2.5 mt-5">
+            <p className="text-sm text-[var(--color-muted-foreground)] mb-4">
+              ¿Confirmás que querés revertir el plan <strong>{activePlanName}</strong> de <strong>{clientName}</strong>? Se cancelará de inmediato.
+            </p>
+            <p className="text-sm text-[var(--color-muted-foreground)] mb-5">
+              Si el cliente lo pagó por Stripe, se reembolsará automáticamente. Si fue una asignación manual, cualquier devolución de dinero se maneja por fuera de la app.
+            </p>
+            {unassignResult?.error && (
+              <p className="text-sm text-[var(--color-destructive)] bg-[var(--color-destructive)]/5 border border-[var(--color-destructive)]/20 rounded-lg px-3 py-2 mb-4">
+                {unassignResult.error}
+              </p>
+            )}
+            {unassignResult?.success && (
+              <p className="text-sm text-emerald-700 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2 mb-4">
+                {unassignResult.refunded
+                  ? `Plan desasignado y reembolso de ${unassignResult.refundAmount?.toLocaleString('es-CR')} procesado en Stripe.`
+                  : unassignResult.refundError
+                    ? `Plan desasignado. El reembolso automático falló: ${unassignResult.refundError}. Procesalo manualmente en Stripe.`
+                    : 'Plan desasignado.'}
+              </p>
+            )}
+            <div className="flex gap-2.5">
               <button
-                onClick={() => { setShowAssign(false); setSelectedPlan(null) }}
-                className="flex-1 rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors"
+                onClick={() => { setShowUnassign(false); setUnassignResult(null) }}
+                disabled={isPending}
+                className="flex-1 rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors disabled:opacity-50"
               >
-                Cancelar
+                {unassignResult?.success ? 'Cerrar' : 'Cancelar'}
               </button>
-              <button
-                onClick={handleAssignPlan}
-                disabled={!selectedPlan || isPending}
-                className="flex-1 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {isPending ? 'Asignando…' : 'Asignar plan'}
-              </button>
+              {!unassignResult?.success && (
+                <button
+                  onClick={handleUnassignPlan}
+                  disabled={isPending}
+                  className="flex-1 rounded-lg bg-[var(--color-destructive)] px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  {isPending ? 'Procesando…' : 'Sí, desasignar'}
+                </button>
+              )}
             </div>
           </div>
         </div>
