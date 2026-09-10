@@ -52,7 +52,7 @@ export default async function AppointmentsPage({
   const weekEnd   = new Date(weekStart)
   weekEnd.setDate(weekStart.getDate() + 7)
 
-  const [coachResult, clientResult, appointmentsResult, branchResult, blocksResult] = await Promise.all([
+  const [coachResult, clientResult, appointmentsResult, branchResult, blocksResult, tenantResult] = await Promise.all([
     supabase.rpc('get_profiles_by_role', { role_name: 'coach' }),
     supabase.rpc('get_profiles_by_role', { role_name: 'client' }),
     // SECURITY DEFINER RPC — bypasses RLS issues with user_roles subquery
@@ -71,6 +71,9 @@ export default async function AppointmentsPage({
           .lt('start_time', weekEnd.toISOString())
           .gt('end_time', weekStart.toISOString())
       : Promise.resolve({ data: [], error: null }),
+    view === 'calendar'
+      ? supabase.from('tenants').select('appointment_grace_hours').eq('id', tenantId).single()
+      : Promise.resolve({ data: null, error: null }),
   ])
 
   const loadError = appointmentsResult.error
@@ -82,6 +85,7 @@ export default async function AppointmentsPage({
   const clientList = clientResult.data ?? []
   const branchList = branchResult.data ?? []
   const blockList  = blocksResult.data ?? []
+  const tenantGraceHours = (tenantResult.data as { appointment_grace_hours: number } | null)?.appointment_grace_hours ?? 2
 
   // Normalize flat RPC response → shape expected by child components
   const rawApts = (appointmentsResult.data ?? []) as Array<{
@@ -160,6 +164,7 @@ export default async function AppointmentsPage({
           branches={branchList}
           blocks={blockList}
           weekStart={localDateStr(weekStart)}
+          tenantGraceHours={tenantGraceHours}
         />
       ) : (
         <>

@@ -7,6 +7,7 @@ import AppointmentFormModal from '@/components/admin/appointment-form-modal'
 import AppointmentEditModal, { type AppointmentForEdit } from '@/components/admin/appointment-edit-modal'
 import { ScheduleBlockModal } from '@/components/admin/schedule-block-modal'
 import { ClassRosterModal } from '@/components/admin/class-roster-modal'
+import { DayAppointmentsPanel } from '@/components/admin/day-appointments-panel'
 
 interface Participant { id: string; full_name: string; avatar_url: string | null; status?: string; participant_id?: string }
 
@@ -39,6 +40,7 @@ interface Props {
   branches:     Branch[]
   blocks:       Block[]
   weekStart:    string
+  tenantGraceHours: number
 }
 
 const HOUR_START  = 6
@@ -79,12 +81,15 @@ function nowTop(): number | null {
 
 interface SlotClick { date: string; time: string }
 
-export function AppointmentsCalendar({ appointments, coaches, clients, branches, blocks, weekStart }: Props) {
+export function AppointmentsCalendar({ appointments, coaches, clients, branches, blocks, weekStart, tenantGraceHours }: Props) {
   const router = useRouter()
   const [slotClick,    setSlotClick]    = useState<SlotClick | null>(null)
   const [editingApt,   setEditingApt]   = useState<Appointment | null>(null)
   const [currentTopPx, setCurrentTopPx] = useState<number | null>(nowTop)
   const [showBlockModal, setShowBlockModal] = useState(false)
+  // Day header click -> shows the paginated guest-detail table below the
+  // grid for that single day, instead of only the aggregate calendar blocks.
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
   // Filters the visible timeline by coach — with several coaches sharing
   // one shared-timeline grid (no per-coach lanes), telling whose session
   // is whose gets hard fast. Default 'all' keeps today's behavior.
@@ -243,13 +248,19 @@ export function AppointmentsCalendar({ appointments, coaches, clients, branches,
         {days.map((d, i) => {
           const dateStr = localDateStr(d)
           const isToday = dateStr === todayStr
+          const isSelected = dateStr === selectedDay
           return (
             <div key={i} className="py-2 text-center border-r border-[var(--color-border)] last:border-r-0">
               <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-muted-foreground)' }}>{DAY_LABELS[i]}</p>
-              <div className={`mx-auto mt-0.5 w-7 h-7 flex items-center justify-center rounded-full text-sm font-semibold transition-colors ${isToday ? '' : ''}`}
-                style={isToday ? { backgroundColor: 'var(--color-admin)', color: 'white' } : { color: 'var(--color-foreground)' }}>
+              <button
+                onClick={() => setSelectedDay(isSelected ? null : dateStr)}
+                title="Ver detalle de citas de este día"
+                className="mx-auto mt-0.5 w-7 h-7 flex items-center justify-center rounded-full text-sm font-semibold transition-colors hover:opacity-80"
+                style={isSelected
+                  ? { backgroundColor: 'var(--color-foreground)', color: 'var(--color-background)' }
+                  : isToday ? { backgroundColor: 'var(--color-admin)', color: 'white' } : { color: 'var(--color-foreground)' }}>
                 {d.getDate()}
-              </div>
+              </button>
             </div>
           )
         })}
@@ -406,6 +417,13 @@ export function AppointmentsCalendar({ appointments, coaches, clients, branches,
           })}
         </div>
       </div>
+
+      <DayAppointmentsPanel
+        day={selectedDay}
+        appointments={selectedDay ? (aptsByDate[selectedDay] ?? []) : []}
+        tenantGraceHours={tenantGraceHours}
+        onClose={() => setSelectedDay(null)}
+      />
 
       {/* Group class instances open a roster; everything else opens the edit modal */}
       {editingApt && editingApt.class_template_id ? (

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { friendlyAppointmentError } from './appointment-error'
+import { queueNotification } from '@/lib/notifications/send-notification'
 import type { AppointmentStatus } from '@platform/types'
 import { computeWeeklyOccurrences } from '@platform/types'
 
@@ -210,5 +211,67 @@ export async function getAppointmentHistoryAction(appointmentId: string): Promis
   }))
 
   return { entries }
+}
+
+// Re-sends a push reminder to one guest of an appointment (1:1 client or one
+// group-class participant) who hasn't confirmed yet. Gated by the same
+// grace-period rule auto_cancel_ungraced_requests() uses to auto-cancel an
+// unconfirmed booking — resending past that point is pointless (the booking
+// will be/was auto-cancelled) and would be misleading to the guest. Uses
+// appointment.grace_hours_override for both individual and group cases as a
+// simplification — the DB job actually reads the *class_template's* override
+// for group classes, but that only diverges when a class has its own
+// override AND the appointment row doesn't; acceptable for a UI gate that's
+// re-checked server-side here (not a security boundary).
+export async function resendAppointmentReminderAction(params: {
+  appointmentId: string
+  userId: string
+  guestName: string
+  appointmentTitle: string
+  startTime: string
+}): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient()
+  const { error: authErr, tenantId } = await getCallerTenantId(supabase)
+  if (authErr) return { error: authErr }
+
+  const { data: allowed } = await supabase.rpc('has_permission', { permission_code: 'appointments.manage' })
+  if (!allowed) return { error: 'No tienes permiso para reenviar notificaciones.' }
+
+  const [{ data: appt }, { data: tenant }] = await Promise.all([
+    supabase
+      .from('appointments')
+      .select('grace_hours_override')
+      .eq('id', params.appointmentId)
+      .eq('tenant_id', tenantId!)
+      .single(),
+    supabase
+      .from('tenants')
+      .select('appointment_grace_hours')
+      .eq('id', tenantId!)
+      .single(),
+  ])
+  if (!appt) return { error: 'Cita no encontrada' }
+
+  const graceHours = appt.grace_hours_override ?? tenant?.appointment_grace_hours ?? 2
+  const cutoff = new Date(params.startTime).getTime() - graceHours * 3_600_000
+  if (Date.now() >= cutoff) {
+    return { error: 'Ya no se puede reenviar: la cita está dentro del periodo límite de confirmación.' }
+  }
+
+  const result = await queueNotification({
+    userId:           params.userId,
+    tenantId:         tenantId!,
+    eventType:        'appointment_reminder',
+    notificationType: 'appointment',
+    title:            'Recordatorio de cita',
+    message:          `Tu cita "${params.appointmentTitle}" aún no ha sido confirmada. Por favor confírmala.`,
+    payload: {
+      appointment_id: params.appointmentId,
+      title:          params.appointmentTitle,
+      start_time:     params.startTime,
+    },
+  })
+  if ('error' in result) return { error: result.error }
+  return { success: true }
 }
 
