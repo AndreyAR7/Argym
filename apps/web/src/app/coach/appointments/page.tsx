@@ -135,6 +135,17 @@ export default async function CoachAppointmentsPage({
   const count = filtered.length
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
+  // Status tabs and the view toggle used to be literal hrefs that dropped
+  // every other param — switching tabs while a coach had a search term or
+  // custom date range silently reset both back to "today" with no filter.
+  function buildUrl(overrides: Record<string, string | undefined>) {
+    const merged: Record<string, string | undefined> = { ...params, ...overrides, page: undefined }
+    const qs = new URLSearchParams()
+    Object.entries(merged).forEach(([k, v]) => { if (v) qs.set(k, v) })
+    const s = qs.toString()
+    return `/coach/appointments${s ? `?${s}` : ''}`
+  }
+
   return (
     <div className="p-4 md:p-8">
       {/* Header */}
@@ -150,14 +161,14 @@ export default async function CoachAppointmentsPage({
         <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
           {/* View toggle */}
           <div className="flex items-center gap-0 rounded-lg border border-[var(--color-border)] overflow-hidden">
-            <Link href="/coach/appointments"
+            <Link href={buildUrl({ view: undefined })}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
                 view !== 'calendar' ? 'bg-[var(--color-coach)] text-white' : 'text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]'
               }`}
             >
               <LayoutList size={13} />Lista
             </Link>
-            <Link href="/coach/appointments?view=calendar"
+            <Link href={buildUrl({ view: 'calendar' })}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
                 view === 'calendar' ? 'bg-[var(--color-coach)] text-white' : 'text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]'
               }`}
@@ -193,7 +204,7 @@ export default async function CoachAppointmentsPage({
             {STATUS_TABS.map((tab) => (
               <Link
                 key={tab.value}
-                href={tab.value === 'all' ? '/coach/appointments' : `/coach/appointments?status=${tab.value}`}
+                href={buildUrl({ status: tab.value === 'all' ? undefined : tab.value })}
                 className={`px-3.5 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
                   statusFilter === tab.value
                     ? 'bg-[var(--color-card)] text-[var(--color-foreground)] shadow-sm'

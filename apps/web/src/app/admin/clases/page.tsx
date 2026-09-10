@@ -81,8 +81,18 @@ export default async function ClassesPage({
   if (coachFilter !== 'all') filteredClasses = filteredClasses.filter(a => a.coach_id === coachFilter)
   filteredClasses.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
 
+  // Preserves the scheduled tab's date-range/coach filters when bouncing
+  // over to "Horarios recurrentes" and back — a literal href here would
+  // silently reset them to "today" on the way back.
   function tabUrl(t: string) {
-    return t === 'templates' ? '/admin/clases?tab=templates' : '/admin/clases'
+    const sp = new URLSearchParams()
+    if (t === 'templates') sp.set('tab', 'templates')
+    else {
+      if (!isDefaultRange) { sp.set('from', fromFilter); sp.set('to', toFilter) }
+      if (coachFilter !== 'all') sp.set('coach', coachFilter)
+    }
+    const qs = sp.toString()
+    return `/admin/clases${qs ? `?${qs}` : ''}`
   }
 
   return (

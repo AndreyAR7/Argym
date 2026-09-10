@@ -42,6 +42,7 @@ interface Props {
   blocks:       Block[]
   weekStart:    string
   tenantGraceHours: number
+  currentUserId?: string
 }
 
 const HOUR_START  = 6
@@ -82,7 +83,7 @@ function nowTop(): number | null {
 
 interface SlotClick { date: string; time: string; mode: 'class' | 'appointment' }
 
-export function AppointmentsCalendar({ appointments, coaches, clients, branches, blocks, weekStart, tenantGraceHours }: Props) {
+export function AppointmentsCalendar({ appointments, coaches, clients, branches, blocks, weekStart, tenantGraceHours, currentUserId }: Props) {
   const router = useRouter()
   const [slotClick,    setSlotClick]    = useState<SlotClick | null>(null)
   // Empty-slot click asks Clase/Cita first, same as the "Nueva" button —
@@ -458,6 +459,7 @@ export function AppointmentsCalendar({ appointments, coaches, clients, branches,
           mode={slotClick.mode}
           coaches={coaches}
           clients={clients}
+          currentUserId={currentUserId}
           initialDate={slotClick.date}
           initialTime={slotClick.time}
           onClose={() => setSlotClick(null)}

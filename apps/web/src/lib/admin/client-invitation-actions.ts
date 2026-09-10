@@ -30,6 +30,11 @@ export async function sendClientInvitationAction(data: {
   const fullName = data.full_name.trim()
   if (!email || !fullName) return { error: 'Correo y nombre son requeridos.' }
 
+  const { data: alreadyHasAccount } = await supabase.rpc('email_has_account', { p_email: email })
+  if (alreadyHasAccount) {
+    return { error: 'Esta persona ya tiene una cuenta con ese correo — puede iniciar sesión directamente, no hace falta invitarla.' }
+  }
+
   // Reuse an existing pending invite for this email instead of erroring on
   // the unique index — re-sending should just refresh it.
   const { data: existing } = await supabase

@@ -16,6 +16,11 @@ export async function sendClientInvitation(input: SendInvitationInput): Promise<
   const fullName = input.fullName.trim();
   if (!email || !fullName) throw new Error('Correo y nombre son requeridos.');
 
+  const { data: alreadyHasAccount } = await supabase.rpc('email_has_account', { p_email: email });
+  if (alreadyHasAccount) {
+    throw new Error('Esta persona ya tiene una cuenta con ese correo — puede iniciar sesión directamente, no hace falta invitarla.');
+  }
+
   const { data: existing } = await supabase
     .from('client_invitations')
     .select('id')

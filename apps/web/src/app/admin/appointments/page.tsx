@@ -132,9 +132,10 @@ export default async function AppointmentsPage({
   const totalPages = Math.ceil(count / PAGE_SIZE)
   const pageAppointments = view === 'calendar' ? appointments : appointments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  function buildUrl(s?: string, p?: number) {
+  function buildUrl(s?: string, p?: number, v?: string) {
     const sp = new URLSearchParams()
-    const st = s ?? statusFilter; const pg = p ?? page
+    const st = s ?? statusFilter; const pg = p ?? page; const vw = v ?? view
+    if (vw === 'calendar') sp.set('view', 'calendar')
     if (st !== 'all') sp.set('status', st)
     if (!isDefaultRange) { sp.set('from', fromFilter); sp.set('to', toFilter) }
     if (coachFilter !== 'all') sp.set('coach', coachFilter)
@@ -159,14 +160,14 @@ export default async function AppointmentsPage({
       >
         {/* View toggle */}
         <div className="flex items-center gap-0 rounded-lg border border-[var(--color-border)] overflow-hidden">
-          <Link href="/admin/appointments"
+          <Link href={buildUrl(undefined, undefined, 'list')}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
               view !== 'calendar' ? 'bg-[var(--color-admin)] text-white' : 'text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]'
             }`}
           >
             <LayoutList size={13} />Lista
           </Link>
-          <Link href="/admin/appointments?view=calendar"
+          <Link href={buildUrl(undefined, undefined, 'calendar')}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
               view === 'calendar' ? 'bg-[var(--color-admin)] text-white' : 'text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]'
             }`}
@@ -186,6 +187,7 @@ export default async function AppointmentsPage({
           blocks={blockList}
           weekStart={localDateStr(weekStart)}
           tenantGraceHours={tenantGraceHours}
+          currentUserId={user.id}
         />
       ) : (
         <>
