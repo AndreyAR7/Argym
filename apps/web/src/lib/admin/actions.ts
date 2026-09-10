@@ -40,6 +40,45 @@ export async function rejectUserAction(userId: string, reason: string) {
   return { success: true }
 }
 
+// ── Role change (client <-> coach <-> admin) ──────────────────
+// Only touches user_roles + approval fields — subscriptions, gym
+// check-ins, gamification streak/XP, routines, etc. all live in
+// separate tables keyed by user_id and are never touched here, so
+// switching a role and switching it back later loses nothing.
+const ROLE_ERROR_MESSAGES: Record<string, string> = {
+  invalid_role: 'Rol inválido.',
+  admin_not_found: 'No se pudo verificar tu cuenta de administrador.',
+  user_not_in_tenant: 'Ese usuario no pertenece a tu gimnasio.',
+  cannot_change_own_role: 'No puedes cambiar tu propio rol desde aquí.',
+  last_admin: 'No puedes quitarle el rol de administrador — es el único admin del gimnasio.',
+  role_not_found: 'Rol no encontrado en el sistema.',
+}
+
+export async function changeUserRoleAction(
+  userId: string,
+  newRole: 'client' | 'coach' | 'admin',
+): Promise<{ success?: true; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { error } = await supabase.rpc('set_user_role', {
+    p_user_id: userId,
+    p_new_role: newRole,
+    p_admin_id: user.id,
+  })
+
+  if (error) {
+    const code = error.message?.split(/\s|:/)[0]
+    return { error: ROLE_ERROR_MESSAGES[code] ?? error.message }
+  }
+
+  revalidatePath('/admin/clients')
+  revalidatePath('/admin/coaches')
+  revalidatePath('/admin/dashboard')
+  return { success: true }
+}
+
 // ── Create coach (via Edge Function) ──────────────────────────
 
 export async function createClientAction(data: {

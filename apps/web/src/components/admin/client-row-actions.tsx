@@ -1,8 +1,16 @@
 'use client'
 
 import { useState, useTransition, useRef } from 'react'
-import { MoreHorizontal, UserX, UserCheck, Tag, Pencil, Building2, TriangleAlert, Ban } from 'lucide-react'
-import { toggleProfileActiveAction, assignPlanAction, unassignPlanAction, assignUserToBranchAction, reactivateSuspendedClientAction } from '@/lib/admin/actions'
+import { MoreHorizontal, UserX, UserCheck, Tag, Pencil, Building2, TriangleAlert, Ban, ShieldCheck } from 'lucide-react'
+import { toggleProfileActiveAction, assignPlanAction, unassignPlanAction, assignUserToBranchAction, reactivateSuspendedClientAction, changeUserRoleAction } from '@/lib/admin/actions'
+
+type RoleOption = 'client' | 'coach' | 'admin'
+
+const ROLE_LABELS: Record<RoleOption, string> = {
+  client: 'Cliente',
+  coach: 'Coach',
+  admin: 'Administrador',
+}
 
 interface Plan {
   id: string
@@ -52,6 +60,10 @@ export function ClientRowActions({
   const [reactivateMonths, setReactivateMonths] = useState(1)
   const [showUnassign, setShowUnassign] = useState(false)
   const [unassignResult, setUnassignResult] = useState<{ error?: string; success?: true; refunded?: boolean; refundAmount?: number; refundError?: string } | null>(null)
+  const [showRole, setShowRole] = useState(false)
+  const [selectedRole, setSelectedRole] = useState<RoleOption | null>(null)
+  const [confirmRole, setConfirmRole] = useState(false)
+  const [roleResult, setRoleResult] = useState<{ error?: string; success?: true } | null>(null)
   const isSuspendedForNonPayment = !isActive && suspensionReason === 'non_payment'
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -144,6 +156,21 @@ export function ClientRowActions({
     })
   }
 
+  function handleChangeRole() {
+    if (!selectedRole || selectedRole === 'client') return
+    startTransition(async () => {
+      const result = await changeUserRoleAction(clientId, selectedRole)
+      setRoleResult(result)
+    })
+  }
+
+  function closeRoleModal() {
+    setShowRole(false)
+    setSelectedRole(null)
+    setConfirmRole(false)
+    setRoleResult(null)
+  }
+
   return (
     <>
       <div className="relative inline-block">
@@ -187,6 +214,13 @@ export function ClientRowActions({
               >
                 <Building2 size={13} className="text-[var(--color-muted-foreground)]" />
                 Asignar sucursal
+              </button>
+              <button
+                onClick={() => { setOpen(false); closeRoleModal(); setShowRole(true) }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors"
+              >
+                <ShieldCheck size={13} className="text-[var(--color-muted-foreground)]" />
+                Rol
               </button>
               <a
                 href={`/admin/clients/${clientId}`}
@@ -255,6 +289,110 @@ export function ClientRowActions({
                 Cancelar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Role change modal */}
+      {showRole && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-xl">
+            {roleResult?.success ? (
+              <>
+                <div className="flex items-center gap-2 mb-1">
+                  <UserCheck size={18} className="text-emerald-600 flex-shrink-0" />
+                  <h2 className="text-base font-semibold text-[var(--color-foreground)]">Rol actualizado</h2>
+                </div>
+                <p className="text-sm text-[var(--color-muted-foreground)] mb-5">
+                  <strong>{clientName}</strong> ahora tiene el rol de <strong>{selectedRole ? ROLE_LABELS[selectedRole] : ''}</strong>.
+                </p>
+                <button
+                  onClick={closeRoleModal}
+                  className="w-full rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90"
+                >
+                  Cerrar
+                </button>
+              </>
+            ) : !confirmRole ? (
+              <>
+                <h2 className="text-base font-semibold text-[var(--color-foreground)] mb-1">Cambiar rol</h2>
+                <p className="text-sm text-[var(--color-muted-foreground)] mb-5">
+                  Selecciona el nuevo rol para <strong>{clientName}</strong>
+                </p>
+                <div className="space-y-2">
+                  {(['client', 'coach', 'admin'] as RoleOption[]).map((role) => (
+                    <button
+                      key={role}
+                      onClick={() => setSelectedRole(role)}
+                      disabled={role === 'client'}
+                      className={`w-full flex items-center justify-between gap-3 rounded-lg border p-3.5 text-left transition-all ${
+                        selectedRole === role
+                          ? 'border-[var(--color-admin)] bg-[var(--color-admin-light)]'
+                          : 'border-[var(--color-border)] hover:bg-[var(--color-muted)]'
+                      } ${role === 'client' ? 'opacity-60 cursor-default' : ''}`}
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-[var(--color-foreground)]">{ROLE_LABELS[role]}</p>
+                        {role === 'client' && (
+                          <p className="text-xs text-[var(--color-muted-foreground)]">Rol actual</p>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2.5 mt-5">
+                  <button
+                    onClick={closeRoleModal}
+                    className="flex-1 rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => setConfirmRole(true)}
+                    disabled={!selectedRole || selectedRole === 'client'}
+                    className="flex-1 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Continuar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-1">
+                  <TriangleAlert size={18} className="text-amber-500 flex-shrink-0" />
+                  <h2 className="text-base font-semibold text-[var(--color-foreground)]">Confirmar cambio de rol</h2>
+                </div>
+                <p className="text-sm text-[var(--color-muted-foreground)] mb-4">
+                  Vas a cambiar a <strong>{clientName}</strong> de <strong>Cliente</strong> a <strong>{selectedRole ? ROLE_LABELS[selectedRole] : ''}</strong>.
+                  {selectedRole === 'admin' && ' Tendrá acceso administrativo completo a este gimnasio: clientes, coaches, pagos y configuración.'}
+                  {selectedRole === 'coach' && ' Podrá gestionar clientes, rutinas, citas y contenido asignados.'}
+                </p>
+                <p className="text-sm text-emerald-700 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2.5 mb-5">
+                  No pierde nada de lo que tenía como cliente: su racha y progreso de gamificación se conservan, y si tiene un plan activo sigue corriendo hasta su vencimiento normal. Si más adelante lo regresas a Cliente, recupera todo tal cual estaba.
+                </p>
+                {roleResult?.error && (
+                  <p className="text-sm text-[var(--color-destructive)] bg-[var(--color-destructive)]/5 border border-[var(--color-destructive)]/20 rounded-lg px-3 py-2 mb-4">
+                    {roleResult.error}
+                  </p>
+                )}
+                <div className="flex gap-2.5">
+                  <button
+                    onClick={() => { setConfirmRole(false); setRoleResult(null) }}
+                    disabled={isPending}
+                    className="flex-1 rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors disabled:opacity-50"
+                  >
+                    Volver
+                  </button>
+                  <button
+                    onClick={handleChangeRole}
+                    disabled={isPending}
+                    className="flex-1 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    {isPending ? 'Aplicando…' : `Sí, hacer ${selectedRole ? ROLE_LABELS[selectedRole] : ''}`}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
