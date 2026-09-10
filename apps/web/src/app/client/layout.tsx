@@ -27,9 +27,12 @@ export default async function ClientLayout({ children }: { children: React.React
   const role = (userRole as any)?.roles?.name as string | undefined
   if (role !== 'client') redirect('/pending-approval')
 
-  const { data: tenant } = profile.tenant_id
-    ? await supabase.from('tenants').select('name, logo_url').eq('id', profile.tenant_id).single()
-    : { data: null }
+  const [{ data: tenant }, { data: hasPassword }] = await Promise.all([
+    profile.tenant_id
+      ? supabase.from('tenants').select('name, logo_url').eq('id', profile.tenant_id).single()
+      : Promise.resolve({ data: null }),
+    supabase.rpc('user_has_password'),
+  ])
 
   return (
     <ClientShell
@@ -39,6 +42,7 @@ export default async function ClientLayout({ children }: { children: React.React
       userId={user.id}
       currentTenantName={tenant?.name}
       currentTenantLogoUrl={tenant?.logo_url}
+      hasPassword={!!hasPassword}
     >
       {children}
     </ClientShell>

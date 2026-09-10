@@ -4,10 +4,13 @@ import { RegisterForm } from '../_components/register-form'
 
 export default async function RegisterSlugPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>
+  searchParams: Promise<{ email?: string; full_name?: string }>
 }) {
   const { slug } = await params
+  const { email, full_name } = await searchParams
   const supabase = await createClient()
 
   const { data: tenant } = await supabase
@@ -29,6 +32,8 @@ export default async function RegisterSlugPage({
   return (
     <RegisterForm
       slug={slug}
+      defaultEmail={email}
+      defaultFullName={full_name}
       branches={(branches ?? []).map((b) => ({
         ...b,
         tenants: Array.isArray(b.tenants) ? b.tenants[0] ?? null : (b.tenants as { name: string } | null),

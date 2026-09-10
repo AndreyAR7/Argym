@@ -14,6 +14,11 @@ interface Props {
   currentUserId?: string
   initialDate?:  string  // YYYY-MM-DD — pre-fill from calendar click
   initialTime?:  string  // HH:MM     — pre-fill from calendar click
+  /** 'class' forces group_mode='group' even with one invitee, and adjusts
+   * copy — a "clase privada" with a single confirmed attendee is still a
+   * class, not a 1:1. Defaults to 'appointment' for the calendar's
+   * click-an-empty-slot flow, which doesn't ask first. */
+  mode?:         'class' | 'appointment'
   onClose:       () => void
 }
 
@@ -142,8 +147,9 @@ function Combobox({
 }
 
 // ── Main Modal ──────────────────────────────────────────────────
-export default function AppointmentFormModal({ coaches, clients, currentUserId, initialDate, initialTime, onClose }: Props) {
+export default function AppointmentFormModal({ coaches, clients, currentUserId, initialDate, initialTime, mode = 'appointment', onClose }: Props) {
   const router = useRouter()
+  const isClass = mode === 'class'
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [type, setType]   = useState<'in_person' | 'virtual' | 'phone'>('in_person')
@@ -166,8 +172,8 @@ export default function AppointmentFormModal({ coaches, clients, currentUserId, 
   }
 
   function validate(date: string, title: string): string | null {
-    if (!title.trim())               return 'El título de la cita es obligatorio.'
-    if (selectedClients.length === 0) return 'Debes seleccionar al menos un cliente.'
+    if (!title.trim())               return `El título de ${isClass ? 'la clase' : 'la cita'} es obligatorio.`
+    if (selectedClients.length === 0) return `Debes seleccionar al menos un${isClass ? ' invitado' : ' cliente'}.`
     if (!date)                       return 'La fecha es obligatoria.'
 
     const start = new Date(`${date}T${startTime}:00`)
@@ -183,7 +189,7 @@ export default function AppointmentFormModal({ coaches, clients, currentUserId, 
     const todayStr = now.toLocaleDateString('en-CA') // YYYY-MM-DD en zona local
 
     if (date < todayStr) {
-      return `No se puede crear una cita en una fecha pasada (${date}).`
+      return `No se puede crear ${isClass ? 'una clase' : 'una cita'} en una fecha pasada (${date}).`
     }
 
     if (date === todayStr && start < now) {
@@ -229,6 +235,7 @@ export default function AppointmentFormModal({ coaches, clients, currentUserId, 
           description:      notes,
           participant_ids:  selectedClients.map(c => c.id),
           repeat_weeks:     weeks,
+          is_class:         isClass,
         })
         if (result?.error) { setError(result.error) }
         else { router.refresh(); onClose() }
@@ -248,7 +255,7 @@ export default function AppointmentFormModal({ coaches, clients, currentUserId, 
         <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0"
           style={{ borderColor: 'var(--color-border)' }}>
           <div>
-            <h2 className="text-base font-semibold" style={{ color: 'var(--color-foreground)' }}>Nueva cita</h2>
+            <h2 className="text-base font-semibold" style={{ color: 'var(--color-foreground)' }}>{isClass ? 'Nueva clase' : 'Nueva cita'}</h2>
             {selfCoach && (
               <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted-foreground)' }}>
                 Organizada por ti · {selfCoach.full_name}
@@ -269,7 +276,7 @@ export default function AppointmentFormModal({ coaches, clients, currentUserId, 
               <label className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>
                 Título <span style={{ color: 'var(--color-admin)' }}>*</span>
               </label>
-              <input type="text" name="title" required placeholder="Ej. Sesión de evaluación inicial"
+              <input type="text" name="title" required placeholder={isClass ? 'Ej. Spinning matutino' : 'Ej. Sesión de evaluación inicial'}
                 className="rounded-lg px-3 py-2 text-sm outline-none" style={inputStyle} />
             </div>
 
@@ -277,7 +284,7 @@ export default function AppointmentFormModal({ coaches, clients, currentUserId, 
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium flex items-center gap-1.5" style={{ color: 'var(--color-foreground)' }}>
                 <Users size={13} />
-                Clientes <span style={{ color: 'var(--color-admin)' }}>*</span>
+                {isClass ? 'Invitados a la clase' : 'Clientes'} <span style={{ color: 'var(--color-admin)' }}>*</span>
                 {selectedClients.length > 0 && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
                     style={{ backgroundColor: 'var(--color-admin)', color: 'white' }}>
@@ -286,7 +293,7 @@ export default function AppointmentFormModal({ coaches, clients, currentUserId, 
                 )}
               </label>
               <Combobox
-                placeholder="Buscar cliente por nombre…"
+                placeholder={isClass ? 'Buscar invitados por nombre…' : 'Buscar cliente por nombre…'}
                 items={clients}
                 selected={selectedClients}
                 onSelect={c => setSelectedClients(prev => prev.find(x => x.id === c.id) ? prev : [...prev, c])}
@@ -318,7 +325,7 @@ export default function AppointmentFormModal({ coaches, clients, currentUserId, 
 
             {/* Appointment type */}
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>Tipo de cita</label>
+              <label className="text-sm font-medium" style={{ color: 'var(--color-foreground)' }}>Tipo de {isClass ? 'clase' : 'cita'}</label>
               <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
                 {TYPES.map(({ value, label, Icon }) => (
                   <button key={value} type="button" onClick={() => setType(value)}
@@ -372,7 +379,7 @@ export default function AppointmentFormModal({ coaches, clients, currentUserId, 
                     onChange={e => setRepeatWeeks(e.target.value)}
                     className="w-20 rounded-lg px-2 py-1 text-sm outline-none" style={inputStyle} />
                   <span className="text-xs" style={{ color: 'var(--color-muted-foreground)' }}>
-                    (crea {Number(repeatWeeks) || 0} citas, mismo día/hora, una por semana)
+                    (crea {Number(repeatWeeks) || 0} {isClass ? 'clases' : 'citas'}, mismo día/hora, una por semana)
                   </span>
                 </div>
               )}
@@ -422,7 +429,7 @@ export default function AppointmentFormModal({ coaches, clients, currentUserId, 
             <button type="submit" disabled={isPending}
               className="rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
               style={{ backgroundColor: 'var(--color-admin)', color: 'var(--color-primary-foreground)' }}>
-              {isPending ? 'Guardando…' : 'Crear cita'}
+              {isPending ? 'Guardando…' : isClass ? 'Crear clase' : 'Crear cita'}
             </button>
           </div>
         </form>

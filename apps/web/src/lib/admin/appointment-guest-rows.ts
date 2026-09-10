@@ -131,3 +131,39 @@ export function canResendGuestRow(row: GuestRow, tenantGraceHours: number): bool
   const cutoff = new Date(row.startTime).getTime() - tenantGraceHours * 3_600_000
   return Date.now() < cutoff
 }
+
+// appointments.status on a group class is capacity-gated ('scheduled' once
+// booked, regardless of who's coming) — it's completely independent of each
+// participant's own confirm/cancel state in appointment_participants. Using
+// it directly as "the" status badge for a class row is misleading (a class
+// where every participant cancelled can still show "Confirmada"). For group
+// appointments, summarize the participants instead; individual appointments
+// keep using their own status as-is, since there it *is* the guest's status.
+export function aggregateAppointmentStatus(apt: GuestRowSourceAppointment): { label: string; className: string } {
+  if (apt.group_mode !== 'group') {
+    return STATUS_LABELS[apt.status] ?? { label: apt.status, className: 'bg-zinc-100 text-zinc-500 border-zinc-200' }
+  }
+
+  if (apt.participants.length === 0) {
+    return { label: 'Sin inscritos', className: 'bg-zinc-100 text-zinc-500 border-zinc-200' }
+  }
+
+  const active = apt.participants.filter(p => p.status !== 'cancelled')
+  if (active.length === 0) {
+    return { label: 'Todos cancelaron', className: 'bg-red-50 text-red-700 border-red-200' }
+  }
+
+  const confirmed = active.filter(p => p.status === 'confirmed' || p.status === 'attended').length
+  const noShow    = active.filter(p => p.status === 'no_show').length
+
+  if (confirmed === active.length) {
+    return { label: `${confirmed} confirmado${confirmed !== 1 ? 's' : ''}`, className: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
+  }
+  if (noShow === active.length) {
+    return { label: `${noShow} no asistió${noShow !== 1 ? 'eron' : ''}`, className: 'bg-red-50 text-red-700 border-red-200' }
+  }
+  if (confirmed === 0) {
+    return { label: `${active.length} pendiente${active.length !== 1 ? 's' : ''}`, className: 'bg-amber-50 text-amber-700 border-amber-200' }
+  }
+  return { label: `${confirmed}/${active.length} confirmados`, className: 'bg-amber-50 text-amber-700 border-amber-200' }
+}

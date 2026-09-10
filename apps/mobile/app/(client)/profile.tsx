@@ -19,8 +19,8 @@ import { supabase } from '@/lib/supabase';
 import type { Gender } from '@/lib/types';
 
 // ─── Shared SettingRow ────────────────────────────────────────
-function SettingRow({ icon, label, value, onPress, danger }: {
-  icon: string; label: string; value?: string; onPress?: () => void; danger?: boolean;
+function SettingRow({ icon, label, value, onPress, danger, dot }: {
+  icon: string; label: string; value?: string; onPress?: () => void; danger?: boolean; dot?: boolean;
 }) {
   const T = useTheme();
   return (
@@ -29,6 +29,7 @@ function SettingRow({ icon, label, value, onPress, danger }: {
         <Text style={{ fontSize: 16 }}>{icon}</Text>
       </View>
       <Text style={[styles.settingLabel, { color: danger ? T.red : T.text }]}>{label}</Text>
+      {dot && <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: T.red, marginLeft: 6 }} />}
       <View style={{ flex: 1 }} />
       {value && <Text style={[styles.settingValue, { color: T.textMuted }]}>{value}</Text>}
       {!danger && <Text style={[styles.settingArrow, { color: T.textMuted }]}>›</Text>}
@@ -160,9 +161,16 @@ function PersonalInfoModal({ visible, onClose }: { visible: boolean; onClose: ()
 }
 
 // ─── Change Password Modal ────────────────────────────────────
+// Smart about whether "current password" applies: a Google-only account
+// has none to verify (auth.users.encrypted_password is empty), so asking
+// for it left those users stuck — they'd fail Google sign-in and have no
+// working fallback because they could never fill in a field that has no
+// correct answer. useAuthStore().hasPassword (from the user_has_password()
+// RPC) decides which mode this renders in.
 function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const T = useTheme();
   const { t } = useTranslation();
+  const { session, hasPassword, setHasPassword } = useAuthStore();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -173,10 +181,29 @@ function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: 
   const handleSave = async () => {
     if (!next.trim() || next.length < 6) { Alert.alert(t('common.error'), t('client.profile.newPasswordTooShort')); return; }
     if (next !== confirm) { Alert.alert(t('common.error'), t('client.profile.passwordsDoNotMatch')); return; }
+    if (hasPassword && !current.trim()) { Alert.alert(t('common.error'), t('client.profile.currentPasswordRequired')); return; }
+
     setSaving(true);
     try {
+      if (hasPassword) {
+        const { data: lockedUntil } = await supabase.rpc('check_password_change_lock');
+        if (lockedUntil) {
+          const minutes = Math.max(1, Math.ceil((new Date(lockedUntil as string).getTime() - Date.now()) / 60000));
+          Alert.alert(t('common.error'), t('client.profile.tooManyAttempts', { minutes }));
+          return;
+        }
+        const { error: verifyError } = await supabase.auth.signInWithPassword({ email: session?.user.email ?? '', password: current });
+        if (verifyError) {
+          await supabase.rpc('record_password_change_failure');
+          Alert.alert(t('common.error'), t('client.profile.currentPasswordIncorrect'));
+          return;
+        }
+        await supabase.rpc('clear_password_change_lock');
+      }
+
       const { error } = await supabase.auth.updateUser({ password: next });
       if (error) throw error;
+      setHasPassword(true);
       ToastManager.show({ message: t('client.profile.passwordUpdated'), type: 'success' });
       reset(); onClose();
     } catch (e: any) {
@@ -191,7 +218,23 @@ function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: 
           <View style={[styles.sheet, { backgroundColor: T.bgCard }]}>
             <View style={styles.handle} />
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={[styles.sheetTitle, { color: T.text }]}>{t('client.profile.changePasswordTitle')}</Text>
+              <Text style={[styles.sheetTitle, { color: T.text }]}>
+                {hasPassword ? t('client.profile.changePasswordTitle') : t('client.profile.setPasswordTitle')}
+              </Text>
+              {hasPassword === false && (
+                <View style={[styles.noPasswordNotice, { backgroundColor: T.orange + '18', borderColor: T.orange + '44' }]}>
+                  <Text style={{ fontSize: 12, color: T.text, lineHeight: 17 }}>
+                    🔴 {t('client.profile.noPasswordNotice')}
+                  </Text>
+                </View>
+              )}
+              {hasPassword && (
+                <>
+                  <Text style={[styles.label, { color: T.textSecondary }]}>{t('client.profile.currentPassword')}</Text>
+                  <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
+                    value={current} onChangeText={setCurrent} placeholder={t('client.profile.currentPasswordPlaceholder')} placeholderTextColor={T.textMuted} secureTextEntry />
+                </>
+              )}
               <Text style={[styles.label, { color: T.textSecondary }]}>{t('client.profile.newPassword')}</Text>
               <TextInput style={[styles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
                 value={next} onChangeText={setNext} placeholder={t('client.profile.minCharsPlaceholder')} placeholderTextColor={T.textMuted} secureTextEntry />
@@ -203,7 +246,9 @@ function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: 
                   <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleSave} disabled={saving} style={[styles.modalBtn, { backgroundColor: T.accent }]}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? t('client.profile.saving') : t('client.profile.update')}</Text>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>
+                    {saving ? t('client.profile.saving') : hasPassword ? t('client.profile.update') : t('client.profile.setPasswordButton')}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -387,7 +432,7 @@ export default function ProfileScreen() {
   const T = useTheme();
   const { t } = useTranslation();
   const router = useRouter();
-  const { user, signOut } = useAuthStore();
+  const { user, signOut, hasPassword } = useAuthStore();
   const { loadProfile } = useProfileStore();
   const { mySubscription, fetchMySubscription } = usePlansStore();
 
@@ -461,7 +506,7 @@ export default function ProfileScreen() {
         <View style={[styles.settingsCard, { backgroundColor: T.bgCard, borderColor: T.border, borderRadius: T.radiusMd }]}>
           <SettingRow icon="👤" label={t('client.profile.personalInfo')} onPress={() => setShowPersonal(true)} />
           <View style={[styles.divider, { backgroundColor: T.border }]} />
-          <SettingRow icon="🔒" label={t('client.profile.changePassword')} onPress={() => setShowPassword(true)} />
+          <SettingRow icon="🔒" label={t('client.profile.changePassword')} onPress={() => setShowPassword(true)} dot={hasPassword === false} />
           <View style={[styles.divider, { backgroundColor: T.border }]} />
           <SettingRow icon="🔔" label={t('client.profile.notifications')} onPress={() => setShowNotifs(true)} />
           <View style={[styles.divider, { backgroundColor: T.border }]} />
@@ -526,6 +571,7 @@ const styles = StyleSheet.create({
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#444', alignSelf: 'center', marginBottom: 16 },
   sheetTitle: { fontSize: 20, fontWeight: '800', marginBottom: 20 },
+  noPasswordNotice: { borderWidth: 1, borderRadius: 12, padding: 12, marginTop: -12, marginBottom: 16 },
   label: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
   input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 16 },
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 4 },

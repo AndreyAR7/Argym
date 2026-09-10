@@ -4,7 +4,6 @@ import { NewAppointmentButton } from '@/components/admin/new-appointment-button'
 import { AppointmentsCalendar } from '@/components/admin/appointments-calendar'
 import { AdminAppointmentsGuestTable } from '@/components/admin/admin-appointments-guest-table'
 import { AppointmentListFilters } from '@/components/admin/appointment-list-filters'
-import { flattenToGuestRows } from '@/lib/admin/appointment-guest-rows'
 import { CalendarDays, LayoutList, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 
@@ -39,15 +38,22 @@ function localDateStr(d: Date): string {
 export default async function AppointmentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; page?: string; view?: string; week?: string; date?: string; coach?: string }>
+  searchParams: Promise<{ status?: string; page?: string; view?: string; week?: string; from?: string; to?: string; coach?: string }>
 }) {
   const params = await searchParams
   const statusFilter = params.status ?? 'all'
-  const dateFilter  = params.date ?? ''
-  const coachFilter = params.coach ?? 'all'
-  const page        = Math.max(1, parseInt(params.page ?? '1'))
-  const view        = params.view ?? 'list'
-  const PAGE_SIZE   = 30
+  const coachFilter  = params.coach ?? 'all'
+  const page         = Math.max(1, parseInt(params.page ?? '1'))
+  const view         = params.view ?? 'list'
+  const PAGE_SIZE    = 30
+
+  // The list view defaults to "today" so admins land on something
+  // actionable instead of every appointment ever booked — an explicit
+  // ?from/?to opens it up to any range.
+  const todayStr       = localDateStr(new Date())
+  const isDefaultRange = !params.from && !params.to
+  const fromFilter      = params.from ?? todayStr
+  const toFilter        = params.to   ?? (params.from ?? todayStr)
 
   const session = await getSessionData()
   const { supabase, user, tenantId } = session!
@@ -108,28 +114,29 @@ export default async function AppointmentsPage({
     coach:  a.coach_id  ? { full_name: a.coach_name  ?? '' }                                       : null,
   }))
 
-  // Client-side status/date/coach filter (works with any volume a gym would have)
+  // Client-side status/date-range/coach filter (works with any volume a gym would have)
   let filtered = statusFilter === 'all' ? normalizedApts : normalizedApts.filter(a => a.status === statusFilter)
-  if (dateFilter) filtered = filtered.filter(a => localDateStr(new Date(a.start_time)) === dateFilter)
+  if (view !== 'calendar') {
+    filtered = filtered.filter(a => {
+      const d = localDateStr(new Date(a.start_time))
+      return d >= fromFilter && d <= toFilter
+    })
+  }
   if (coachFilter !== 'all') filtered = filtered.filter(a => a.coach_id === coachFilter)
 
   const appointments = view === 'calendar'
     ? normalizedApts  // calendar already filtered by date in RPC
     : filtered
 
-  // List view shows one row per guest (per group-class participant, or per
-  // 1:1 client) rather than one row per appointment — pagination is over
-  // that flattened, more granular unit.
-  const guestRows  = flattenToGuestRows(appointments as any)
-  const count      = view === 'calendar' ? appointments.length : guestRows.length
+  const count      = appointments.length
   const totalPages = Math.ceil(count / PAGE_SIZE)
-  const pageGuestRows = guestRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const pageAppointments = view === 'calendar' ? appointments : appointments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   function buildUrl(s?: string, p?: number) {
     const sp = new URLSearchParams()
     const st = s ?? statusFilter; const pg = p ?? page
     if (st !== 'all') sp.set('status', st)
-    if (dateFilter) sp.set('date', dateFilter)
+    if (!isDefaultRange) { sp.set('from', fromFilter); sp.set('to', toFilter) }
     if (coachFilter !== 'all') sp.set('coach', coachFilter)
     if (pg > 1) sp.set('page', String(pg))
     return `/admin/appointments${sp.toString() ? `?${sp.toString()}` : ''}`
@@ -148,7 +155,7 @@ export default async function AppointmentsPage({
         title="Citas"
         subtitle={view === 'calendar'
           ? `Semana del ${localDateStr(weekStart)}`
-          : `${count} registro${count !== 1 ? 's' : ''} (por invitado)`}
+          : `${count} cita${count !== 1 ? 's' : ''}${isDefaultRange ? ' hoy' : ''}`}
       >
         {/* View toggle */}
         <div className="flex items-center gap-0 rounded-lg border border-[var(--color-border)] overflow-hidden">
@@ -197,13 +204,19 @@ export default async function AppointmentsPage({
             ))}
           </div>
 
-          {/* Date + coach filters */}
+          {/* Date range + coach filters */}
           <div className="mt-3">
-            <AppointmentListFilters defaultDate={dateFilter} defaultCoach={coachFilter} coaches={coachList} />
+            <AppointmentListFilters
+              defaultFrom={fromFilter}
+              defaultTo={toFilter}
+              defaultCoach={coachFilter}
+              coaches={coachList}
+              isDefaultToday={isDefaultRange}
+            />
           </div>
 
           <AdminAppointmentsGuestTable
-            rows={pageGuestRows}
+            appointments={pageAppointments as any}
             coaches={coachList}
             clients={clientList}
             tenantGraceHours={tenantGraceHours}
@@ -212,7 +225,7 @@ export default async function AppointmentsPage({
 
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-4">
-              <p className="text-xs text-[var(--color-muted-foreground)]">{count} registros · página {page} de {totalPages}</p>
+              <p className="text-xs text-[var(--color-muted-foreground)]">{count} citas · página {page} de {totalPages}</p>
               <div className="flex gap-2">
                 {page > 1 && (
                   <Link href={buildUrl(undefined, page - 1)} className="px-3 py-1.5 text-xs rounded-lg border border-[var(--color-border)] text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors">

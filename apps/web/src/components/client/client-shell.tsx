@@ -14,9 +14,10 @@ interface ClientShellProps {
   userId: string
   currentTenantName?: string
   currentTenantLogoUrl?: string | null
+  hasPassword?: boolean
 }
 
-export function ClientShell({ children, userName, userEmail, avatarUrl, userId, currentTenantName, currentTenantLogoUrl }: ClientShellProps) {
+export function ClientShell({ children, userName, userEmail, avatarUrl, userId, currentTenantName, currentTenantLogoUrl, hasPassword }: ClientShellProps) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
@@ -43,6 +44,7 @@ export function ClientShell({ children, userName, userEmail, avatarUrl, userId, 
         profileHref="/client/profile"
         helpHref="/client/help"
         contactHref="/client/contact"
+        hasPassword={hasPassword}
       />
 
       {/* ── Body: sidebar + main ── */}

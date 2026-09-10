@@ -24,12 +24,13 @@ interface AdminShellProps {
   currentTenantLogoUrl?: string | null
   homeTenantId?: string | null
   canManageCorrespondence?: boolean
+  hasPassword?: boolean
 }
 
 export function AdminShell({
   children, userName, userEmail, avatarUrl, userId, isPlatformAdmin,
   tenants, currentTenantId, currentTenantName, currentTenantLogoUrl, homeTenantId,
-  canManageCorrespondence,
+  canManageCorrespondence, hasPassword,
 }: AdminShellProps) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
@@ -57,6 +58,7 @@ export function AdminShell({
         profileHref="/admin/profile"
         helpHref="/admin/help"
         contactHref="/admin/contact"
+        hasPassword={hasPassword}
       />
 
       {/* ── Body: sidebar + main ── */}

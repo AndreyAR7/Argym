@@ -21,6 +21,7 @@ interface Payload {
   appointment_id?:  string
   subscription_id?: string
   user_id?:         string
+  invitation_id?:   string
 }
 
 interface ReceiptData {
@@ -183,7 +184,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const VALID_EVENT_TYPES = new Set([
   'appointment.created', 'appointment.confirmed', 'appointment.cancelled',
   'appointment.reminder', 'plan.purchased', 'plan.expiring', 'plan.expired',
-  'promotion.used', 'client.approved', 'client.welcome',
+  'promotion.used', 'client.approved', 'client.welcome', 'client.invitation',
   'payment.failed', 'subscription.cancelled',
 ])
 
@@ -233,6 +234,7 @@ Deno.serve(async (req: Request) => {
   if (payload.appointment_id  && !UUID_RE.test(payload.appointment_id))  return new Response('Invalid appointment_id',  { status: 400 })
   if (payload.subscription_id && !UUID_RE.test(payload.subscription_id)) return new Response('Invalid subscription_id', { status: 400 })
   if (payload.user_id         && !UUID_RE.test(payload.user_id))         return new Response('Invalid user_id',         { status: 400 })
+  if (payload.invitation_id   && !UUID_RE.test(payload.invitation_id))   return new Response('Invalid invitation_id',   { status: 400 })
 
   if (webhookSecret) {
     // ── Path A: internal DB trigger / cron ──────────────────────
@@ -280,6 +282,114 @@ Deno.serve(async (req: Request) => {
 
   // Service client for privileged DB operations (emails, SMTP config, etc.)
   const supabase = supabaseAdmin
+
+  // ── client.invitation: transactional, not template/rule-driven ─────
+  // Unlike every other event type, an invitation has no recipient profile
+  // yet (that's the whole point) and isn't something tenants customize
+  // via Correspondencia — it's a structural "here's your join link" email,
+  // built inline the same way the plan.purchased PDF receipt is.
+  if (event_type === 'client.invitation') {
+    if (!payload.invitation_id) {
+      return new Response('Missing invitation_id', { status: 400 })
+    }
+
+    const { data: invitation } = await supabase
+      .from('client_invitations')
+      .select('email, full_name, token')
+      .eq('id', payload.invitation_id)
+      .eq('tenant_id', tenant_id)
+      .single()
+
+    if (!invitation) {
+      return new Response(JSON.stringify({ processed: 0, reason: 'invitation not found' }), { status: 200 })
+    }
+
+    const { data: tenant } = await supabase
+      .from('tenants')
+      .select('name, primary_color')
+      .eq('id', tenant_id)
+      .single()
+
+    const gymName    = tenant?.name ?? 'ARGYM'
+    const brandColor = tenant?.primary_color || '#6366f1'
+    const siteUrl    = Deno.env.get('SITE_URL') ?? 'https://argym.app'
+    const inviteUrl  = `${siteUrl}/invite/${invitation.token}`
+
+    const { data: smtp } = await supabase
+      .from('smtp_configs')
+      .select('host, port, username, password, from_email, from_name')
+      .eq('tenant_id', tenant_id)
+      .maybeSingle()
+
+    const resendApiKey = Deno.env.get('RESEND_API_KEY')
+    const resendFrom   = Deno.env.get('RESEND_FROM_EMAIL') ?? 'ARGYM <noreply@argym.app>'
+    const hasSmtp      = !!(smtp?.host && smtp.username && smtp.password)
+
+    if (!hasSmtp && !resendApiKey) {
+      return new Response(JSON.stringify({ processed: 0, reason: 'no smtp config and no resend fallback' }), { status: 200 })
+    }
+
+    const subject = `Invitación a ${gymName}`
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;color:#111827;">
+        <h2 style="color:${brandColor};margin:0 0 16px;font-size:20px;">¡Bienvenido a ${gymName}!</h2>
+        <p style="font-size:15px;line-height:1.6;">Hola ${invitation.full_name},</p>
+        <p style="font-size:15px;line-height:1.6;">
+          Fuiste invitado a unirte a <strong>${gymName}</strong>. Al crear tu cuenta con este correo
+          (${invitation.email}), tu acceso queda activo de inmediato — sin esperar aprobación.
+        </p>
+        <p style="text-align:center;margin:28px 0;">
+          <a href="${inviteUrl}" style="background:${brandColor};color:#ffffff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;display:inline-block;">
+            Unirme a ${gymName}
+          </a>
+        </p>
+        <p style="font-size:12px;color:#6b7280;">Si el botón no funciona, copia y pega este enlace en tu navegador:<br/>${inviteUrl}</p>
+      </div>`
+
+    const from = hasSmtp && smtp ? `"${smtp.from_name}" <${smtp.from_email}>` : resendFrom
+    let status = 'sent'
+    let errorMsg: string | null = null
+
+    try {
+      if (hasSmtp && smtp) {
+        const port = Number(smtp.port)
+        const transporter = createTransport({
+          host: smtp.host, port, secure: port === 465, requireTLS: port === 587,
+          auth: { user: smtp.username, pass: smtp.password },
+          tls: { rejectUnauthorized: false },
+        })
+        await transporter.sendMail({ from, to: invitation.email, subject, html })
+      } else {
+        const res = await fetch('https://api.resend.com/emails', {
+          method:  'POST',
+          headers: { 'Authorization': `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ from, to: [invitation.email], subject, html }),
+        })
+        if (!res.ok) {
+          const body = await res.text().catch(() => '')
+          throw new Error(`Resend API error ${res.status}: ${body}`)
+        }
+      }
+    } catch (err) {
+      status   = 'failed'
+      errorMsg = err instanceof Error ? err.message : String(err)
+    }
+
+    await supabase.from('email_logs').insert({
+      tenant_id,
+      to_email:  invitation.email,
+      subject,
+      body_html: html,
+      status,
+      error_msg: errorMsg,
+      sent_at:   status === 'sent' ? new Date().toISOString() : null,
+    })
+
+    return new Response(JSON.stringify({ processed: status === 'sent' ? 1 : 0, status }), {
+      headers: { 'Content-Type': 'application/json' },
+      status:  200,
+    })
+  }
 
   // ── 1. Matching active rules ────────────────────────────────────
   const { data: rules, error: rulesErr } = await supabase

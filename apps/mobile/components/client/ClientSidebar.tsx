@@ -52,7 +52,7 @@ const NAV_ITEMS: NavItem[] = [
 export function ClientSidebar() {
   const T = useTheme();
   const { isOpen, close } = useClientSidebarStore();
-  const { user, signOut } = useAuthStore();
+  const { user, signOut, hasPassword } = useAuthStore();
   const { avatarUrl, loadProfile } = useProfileStore();
   const { mySubscription, fetchMySubscription } = usePlansStore();
   const router = useRouter();
@@ -136,16 +136,21 @@ export function ClientSidebar() {
             <AppLogo size={80} />
           </View>
           <View style={styles.headerTop}>
-            {displayAvatar ? (
-              <Image
-                source={{ uri: displayAvatar }}
-                style={[styles.avatar, { borderColor: T.accent + '55' }]}
-              />
-            ) : (
-              <View style={[styles.avatar, { backgroundColor: T.accent + '30', borderColor: T.accent + '55' }]}>
-                <Text style={{ fontSize: 20, fontWeight: '900', color: T.accent }}>{initials}</Text>
-              </View>
-            )}
+            <View>
+              {displayAvatar ? (
+                <Image
+                  source={{ uri: displayAvatar }}
+                  style={[styles.avatar, { borderColor: T.accent + '55' }]}
+                />
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: T.accent + '30', borderColor: T.accent + '55' }]}>
+                  <Text style={{ fontSize: 20, fontWeight: '900', color: T.accent }}>{initials}</Text>
+                </View>
+              )}
+              {hasPassword === false && (
+                <View style={{ position: 'absolute', top: -2, right: -2, width: 14, height: 14, borderRadius: 7, backgroundColor: T.red, borderWidth: 2, borderColor: '#0F0F1A' }} />
+              )}
+            </View>
             <TouchableOpacity
               onPress={close}
               style={[styles.closeBtn, { backgroundColor: T.bgCard }]}
@@ -206,6 +211,9 @@ export function ClientSidebar() {
                 <Text style={[styles.navLabel, { color: active ? T.text : T.textSecondary, fontWeight: active ? '700' : '500' }]}>
                   {item.label}
                 </Text>
+                {item.id === 'profile' && hasPassword === false && (
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: T.red, marginRight: active ? 12 : 4 }} />
+                )}
                 {active && <View style={[styles.activeBar, { backgroundColor: accent }]} />}
               </TouchableOpacity>
             );

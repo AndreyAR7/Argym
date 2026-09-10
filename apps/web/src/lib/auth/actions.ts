@@ -108,33 +108,51 @@ export async function forgotPasswordAction(
   return { success: true }
 }
 
+export async function userHasPasswordAction(): Promise<boolean> {
+  const supabase = await createClient()
+  const { data } = await supabase.rpc('user_has_password')
+  return !!data
+}
+
+// currentPassword is only required when the account already has one set —
+// a Google-only account (encrypted_password never set) has no "current
+// password" to verify, so the caller passes null and this skips straight
+// to setting it. Trust the server's own user_has_password() check here,
+// never the caller's claim, so a user who DOES have a password can't skip
+// verification just by passing null.
 export async function changePasswordAction(
-  currentPassword: string,
+  currentPassword: string | null,
   newPassword: string,
 ): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user?.email) return { error: 'No autenticado' }
 
-  // Repeated wrong guesses here are otherwise unlimited — the attacker is
-  // already authenticated (stolen session, shared device), so this isn't
-  // gated by login rate limits at all.
-  const { data: lockedUntil } = await supabase.rpc('check_password_change_lock')
-  if (lockedUntil) {
-    const minutes = Math.max(1, Math.ceil((new Date(lockedUntil as string).getTime() - Date.now()) / 60000))
-    return { error: `Demasiados intentos fallidos. Intenta de nuevo en ${minutes} minuto(s).` }
-  }
+  const { data: hasPassword } = await supabase.rpc('user_has_password')
 
-  // Verify current password
-  const { error: verifyError } = await supabase.auth.signInWithPassword({
-    email: user.email,
-    password: currentPassword,
-  })
-  if (verifyError) {
-    await supabase.rpc('record_password_change_failure')
-    return { error: 'La contraseña actual es incorrecta' }
+  if (hasPassword) {
+    if (!currentPassword) return { error: 'La contraseña actual es requerida' }
+
+    // Repeated wrong guesses here are otherwise unlimited — the attacker is
+    // already authenticated (stolen session, shared device), so this isn't
+    // gated by login rate limits at all.
+    const { data: lockedUntil } = await supabase.rpc('check_password_change_lock')
+    if (lockedUntil) {
+      const minutes = Math.max(1, Math.ceil((new Date(lockedUntil as string).getTime() - Date.now()) / 60000))
+      return { error: `Demasiados intentos fallidos. Intenta de nuevo en ${minutes} minuto(s).` }
+    }
+
+    // Verify current password
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    })
+    if (verifyError) {
+      await supabase.rpc('record_password_change_failure')
+      return { error: 'La contraseña actual es incorrecta' }
+    }
+    await supabase.rpc('clear_password_change_lock')
   }
-  await supabase.rpc('clear_password_change_lock')
 
   const { error } = await supabase.auth.updateUser({ password: newPassword })
   if (error) return { error: error.message }

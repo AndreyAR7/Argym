@@ -3,20 +3,14 @@
 import { useState } from 'react'
 import { CalendarDays, Users } from 'lucide-react'
 import { Avatar } from '@/components/ui/avatar'
-import AppointmentEditModal, { type AppointmentForEdit } from '@/components/admin/appointment-edit-modal'
-import { ClassRosterModal } from '@/components/admin/class-roster-modal'
 import { AppointmentGuestsModal } from '@/components/shared/appointment-guests-modal'
 import { aggregateAppointmentStatus, type GuestRowSourceAppointment } from '@/lib/admin/appointment-guest-rows'
 
-interface Coach  { id: string; full_name: string }
-interface Client { id: string; full_name: string }
-
 interface Props {
   appointments: GuestRowSourceAppointment[]
-  coaches: Coach[]
-  clients: Client[]
   tenantGraceHours: number
   statusFilter: string
+  emptyMessage?: string
 }
 
 function formatDateTime(iso: string) {
@@ -26,9 +20,8 @@ function formatDateTime(iso: string) {
   return { date, time }
 }
 
-export function AdminAppointmentsGuestTable({ appointments, coaches, clients, tenantGraceHours, statusFilter }: Props) {
-  const [editingApt, setEditingApt]   = useState<GuestRowSourceAppointment | null>(null)
-  const [guestsApt, setGuestsApt]     = useState<GuestRowSourceAppointment | null>(null)
+export function CoachAppointmentsGuestTable({ appointments, tenantGraceHours, statusFilter, emptyMessage }: Props) {
+  const [guestsApt, setGuestsApt] = useState<GuestRowSourceAppointment | null>(null)
 
   if (appointments.length === 0) {
     return (
@@ -38,7 +31,7 @@ export function AdminAppointmentsGuestTable({ appointments, coaches, clients, te
         </div>
         <p className="text-sm font-medium text-[var(--color-foreground)]">No hay citas</p>
         <p className="text-xs text-[var(--color-muted-foreground)]">
-          {statusFilter !== 'all' ? 'No hay citas con este estado en el rango seleccionado.' : 'Crea la primera cita con el botón de arriba, o ajusta el rango de fechas.'}
+          {emptyMessage ?? (statusFilter !== 'all' ? 'No hay citas con este estado en el rango seleccionado.' : 'Ajusta el rango de fechas para ver más citas.')}
         </p>
       </div>
     )
@@ -51,7 +44,6 @@ export function AdminAppointmentsGuestTable({ appointments, coaches, clients, te
           <thead>
             <tr className="border-b border-[var(--color-border)] bg-[var(--color-muted)]">
               <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Cita</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider hidden md:table-cell">Coach</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Invitados</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Estado</th>
             </tr>
@@ -68,8 +60,7 @@ export function AdminAppointmentsGuestTable({ appointments, coaches, clients, te
               return (
                 <tr
                   key={apt.id}
-                  className="hover:bg-[var(--color-muted)] transition-colors cursor-pointer"
-                  onClick={() => setEditingApt(apt)}
+                  className="hover:bg-[var(--color-muted)] transition-colors"
                   style={apt.status === 'postpone_requested'
                     ? { backgroundColor: 'color-mix(in srgb, #f59e0b 6%, transparent)' }
                     : undefined}
@@ -81,10 +72,7 @@ export function AdminAppointmentsGuestTable({ appointments, coaches, clients, te
                       <p className="text-xs text-red-500 mt-0.5 line-clamp-1">{apt.cancellation_reason}</p>
                     )}
                   </td>
-                  <td className="px-4 py-3 hidden md:table-cell text-sm text-[var(--color-muted-foreground)]">
-                    {apt.coach?.full_name ?? <span className="italic">Sin asignar</span>}
-                  </td>
-                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                  <td className="px-4 py-3">
                     <button
                       onClick={() => setGuestsApt(apt)}
                       className="inline-flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full border border-[var(--color-border)] hover:bg-[var(--color-muted)] transition-colors"
@@ -131,21 +119,7 @@ export function AdminAppointmentsGuestTable({ appointments, coaches, clients, te
           appointment={guestsApt}
           tenantGraceHours={tenantGraceHours}
           onClose={() => setGuestsApt(null)}
-          accent="admin"
-        />
-      )}
-
-      {editingApt && editingApt.class_template_id ? (
-        <ClassRosterModal
-          appointment={editingApt as any}
-          onClose={() => setEditingApt(null)}
-        />
-      ) : editingApt && (
-        <AppointmentEditModal
-          appointment={editingApt as unknown as AppointmentForEdit}
-          coaches={coaches}
-          clients={clients}
-          onClose={() => setEditingApt(null)}
+          accent="coach"
         />
       )}
     </>

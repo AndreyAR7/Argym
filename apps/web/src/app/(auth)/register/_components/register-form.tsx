@@ -14,9 +14,11 @@ interface Branch {
 interface Props {
   branches: Branch[]
   slug?: string
+  defaultEmail?: string
+  defaultFullName?: string
 }
 
-export function RegisterForm({ branches, slug }: Props) {
+export function RegisterForm({ branches, slug, defaultEmail, defaultFullName }: Props) {
   const [state, formAction, isPending] = useActionState(registerAction, null)
   const loginHref = slug ? `/login/${slug}` : '/login'
 
@@ -84,6 +86,7 @@ export function RegisterForm({ branches, slug }: Props) {
             type="text"
             autoComplete="name"
             required
+            defaultValue={defaultFullName}
             placeholder="Juan Pérez"
             disabled={isPending}
             className="w-full rounded-lg border border-[var(--color-input)] bg-[var(--color-card)] px-3.5 py-2.5 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] outline-none transition-all focus:border-[var(--color-ring)] focus:ring-2 focus:ring-[var(--color-ring)]/20 disabled:opacity-50"
@@ -100,6 +103,7 @@ export function RegisterForm({ branches, slug }: Props) {
             type="email"
             autoComplete="email"
             required
+            defaultValue={defaultEmail}
             placeholder="nombre@empresa.com"
             disabled={isPending}
             className="w-full rounded-lg border border-[var(--color-input)] bg-[var(--color-card)] px-3.5 py-2.5 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] outline-none transition-all focus:border-[var(--color-ring)] focus:ring-2 focus:ring-[var(--color-ring)]/20 disabled:opacity-50"

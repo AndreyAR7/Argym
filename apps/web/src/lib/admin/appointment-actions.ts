@@ -70,6 +70,10 @@ export async function createAppointmentAction(data: {
   meeting_url: string | null
   participant_ids?: string[]
   repeat_weeks?: number
+  /** From the "Clase" choice in the create flow — forces group_mode='group'
+   * even with a single invitee, so a one-attendee "clase privada" still
+   * shows up as a class everywhere instead of silently becoming a 1:1. */
+  is_class?: boolean
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -95,7 +99,7 @@ export async function createAppointmentAction(data: {
       p_location:         data.location,
       p_meeting_url:      data.meeting_url,
       p_description:      data.description,
-      p_group_mode:       data.participant_ids && data.participant_ids.length > 1 ? 'group' : 'individual',
+      p_group_mode:       data.is_class || (data.participant_ids && data.participant_ids.length > 1) ? 'group' : 'individual',
       p_participant_ids:  data.participant_ids ?? null,
       p_series_id:        seriesId,
     })
@@ -231,16 +235,16 @@ export async function resendAppointmentReminderAction(params: {
   startTime: string
 }): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
   const { error: authErr, tenantId } = await getCallerTenantId(supabase)
   if (authErr) return { error: authErr }
 
-  const { data: allowed } = await supabase.rpc('has_permission', { permission_code: 'appointments.manage' })
-  if (!allowed) return { error: 'No tienes permiso para reenviar notificaciones.' }
-
-  const [{ data: appt }, { data: tenant }] = await Promise.all([
+  const [{ data: allowed }, { data: appt }, { data: tenant }] = await Promise.all([
+    supabase.rpc('has_permission', { permission_code: 'appointments.manage' }),
     supabase
       .from('appointments')
-      .select('grace_hours_override')
+      .select('grace_hours_override, coach_id')
       .eq('id', params.appointmentId)
       .eq('tenant_id', tenantId!)
       .single(),
@@ -251,6 +255,11 @@ export async function resendAppointmentReminderAction(params: {
       .single(),
   ])
   if (!appt) return { error: 'Cita no encontrada' }
+  // Coaches don't hold appointments.manage (deliberately — see migration
+  // 20240101000188) but must still be able to resend for their own agenda.
+  if (!allowed && appt.coach_id !== user.id) {
+    return { error: 'No tienes permiso para reenviar notificaciones.' }
+  }
 
   const graceHours = appt.grace_hours_override ?? tenant?.appointment_grace_hours ?? 2
   const cutoff = new Date(params.startTime).getTime() - graceHours * 3_600_000

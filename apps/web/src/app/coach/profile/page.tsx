@@ -11,11 +11,14 @@ export default async function CoachProfilePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name, phone, avatar_url, approval_status, created_at, gender')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, { data: hasPassword }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('full_name, phone, avatar_url, approval_status, created_at, gender')
+      .eq('id', user.id)
+      .single(),
+    supabase.rpc('user_has_password'),
+  ])
 
   return (
     <div className="p-4 md:p-8 max-w-2xl">
@@ -32,6 +35,7 @@ export default async function CoachProfilePage() {
           avatarUrl={profile?.avatar_url ?? null}
           createdAt={profile?.created_at ?? null}
           gender={profile?.gender ?? null}
+          hasPassword={!!hasPassword}
         />
       </div>
       <div className="mt-6">

@@ -53,6 +53,10 @@ interface AuthState {
   rejectionCount: number | null;
   isLoading: boolean;
   error: string | null;
+  // null = not checked yet. A Google-only account never sets
+  // auth.users.encrypted_password, so this is the only reliable way to
+  // know whether "change password" should ask for the current one.
+  hasPassword: boolean | null;
 }
 
 interface AuthActions {
@@ -65,6 +69,8 @@ interface AuthActions {
   hasPermission: (code: string) => boolean;
   clearError: () => void;
   resubmitRegistration: () => Promise<{ error?: string }>;
+  refreshHasPassword: () => Promise<void>;
+  setHasPassword: (value: boolean) => void;
 }
 
 interface RawProfile {
@@ -152,6 +158,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
   rejectionCount: null,
   isLoading: true,
   error: null,
+  hasPassword: null,
 
   initialize: async () => {
     set({ isLoading: true });
@@ -192,6 +199,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
         rejectionCount,
         isLoading: false,
       });
+      get().refreshHasPassword().catch(() => {});
 
       // Keep session in sync with Supabase auth state changes (token refresh, sign-out)
       authSubscription?.unsubscribe();
@@ -210,7 +218,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
         }
         if (event === 'SIGNED_OUT') {
           resetAllStores();
-          set({ user: null, session: null, permissions: [], approvalStatus: null, rejectionReason: null });
+          set({ user: null, session: null, permissions: [], approvalStatus: null, rejectionReason: null, hasPassword: null });
         }
       });
       authSubscription = subscription;
@@ -309,6 +317,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
         isLoading: false,
         error: null,
       });
+      get().refreshHasPassword().catch(() => {});
 
       // Register push token after successful login (fire-and-forget)
       registerPushToken(data.user.id).catch(() => {});
@@ -332,7 +341,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
     }
     await supabase.auth.signOut();
     resetAllStores();
-    set({ user: null, session: null, permissions: [], approvalStatus: null, rejectionReason: null, error: null, isLoading: false });
+    set({ user: null, session: null, permissions: [], approvalStatus: null, rejectionReason: null, error: null, isLoading: false, hasPassword: null });
   },
 
   signInWithGoogle: async () => {
@@ -415,6 +424,7 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
         isLoading: false,
         error: null,
       });
+      get().refreshHasPassword().catch(() => {});
 
       registerPushToken(sess.user.id).catch(() => {});
     } catch (err) {
@@ -425,6 +435,12 @@ export const useAuthStore = create<AuthState & AuthActions>()((set, get) => ({
 
   hasPermission: (code) => get().permissions.includes(code),
   clearError: () => set({ error: null }),
+
+  refreshHasPassword: async () => {
+    const { data } = await supabase.rpc('user_has_password');
+    set({ hasPassword: !!data });
+  },
+  setHasPassword: (value) => set({ hasPassword: value }),
 
   resubmitRegistration: async () => {
     const userId = get().session?.user.id;

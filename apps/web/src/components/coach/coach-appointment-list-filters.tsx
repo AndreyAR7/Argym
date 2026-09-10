@@ -4,18 +4,13 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useCallback } from 'react'
 import { X } from 'lucide-react'
 
-interface Coach { id: string; full_name: string }
-
 interface Props {
   defaultFrom: string
   defaultTo: string
-  defaultCoach: string
-  coaches: Coach[]
-  /** Whether the current from/to is the implicit "today" default (no ?from/?to in the URL) — shown as a quick badge/reset. */
   isDefaultToday: boolean
 }
 
-export function AppointmentListFilters({ defaultFrom, defaultTo, defaultCoach, coaches, isDefaultToday }: Props) {
+export function CoachAppointmentListFilters({ defaultFrom, defaultTo, isDefaultToday }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -24,7 +19,7 @@ export function AppointmentListFilters({ defaultFrom, defaultTo, defaultCoach, c
     (updates: Record<string, string>) => {
       const params = new URLSearchParams(searchParams.toString())
       for (const [key, value] of Object.entries(updates)) {
-        if (value && value !== 'all') params.set(key, value)
+        if (value) params.set(key, value)
         else params.delete(key)
       }
       params.delete('page')
@@ -33,13 +28,10 @@ export function AppointmentListFilters({ defaultFrom, defaultTo, defaultCoach, c
     [router, pathname, searchParams],
   )
 
-  const hasExtraFilters = !isDefaultToday || (defaultCoach && defaultCoach !== 'all')
-
   function resetToToday() {
     const params = new URLSearchParams(searchParams.toString())
     params.delete('from')
     params.delete('to')
-    params.delete('coach')
     params.delete('page')
     router.replace(`${pathname}${params.toString() ? `?${params.toString()}` : ''}`, { scroll: false })
   }
@@ -67,25 +59,12 @@ export function AppointmentListFilters({ defaultFrom, defaultTo, defaultCoach, c
       </div>
 
       {isDefaultToday && (
-        <span className="px-2 py-1 rounded-full text-[11px] font-medium bg-[var(--color-admin-light)] text-[var(--color-admin)]">
+        <span className="px-2 py-1 rounded-full text-[11px] font-medium bg-[var(--color-coach-light)] text-[var(--color-coach)]">
           Mostrando hoy
         </span>
       )}
 
-      {coaches.length > 0 && (
-        <select
-          value={defaultCoach}
-          onChange={(e) => updateParams({ coach: e.target.value })}
-          className="px-3 py-1.5 text-sm rounded-lg border border-[var(--color-input)] bg-[var(--color-card)] text-[var(--color-foreground)] outline-none focus:border-[var(--color-ring)] focus:ring-2 focus:ring-[var(--color-ring)]/20 transition-all cursor-pointer"
-        >
-          <option value="all">Todos los coaches</option>
-          {coaches.map((c) => (
-            <option key={c.id} value={c.id}>{c.full_name}</option>
-          ))}
-        </select>
-      )}
-
-      {hasExtraFilters && (
+      {!isDefaultToday && (
         <button
           onClick={resetToToday}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] transition-colors"

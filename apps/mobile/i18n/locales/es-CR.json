@@ -507,6 +507,23 @@
         "failed": "No se pudo crear el cliente.",
         "title": "Nuevo cliente",
         "submitButton": "Crear"
+      },
+      "addChoice": {
+        "title": "Agregar cliente",
+        "createOption": "Crear cuenta directa",
+        "createOptionDesc": "Vos le asignás correo y contraseña. Queda activo de inmediato.",
+        "inviteOption": "Enviar invitación",
+        "inviteOptionDesc": "Le enviamos un correo con el link. Si acepta con Google o contraseña, entra activo sin aprobación."
+      },
+      "invite": {
+        "title": "Invitar cliente",
+        "description": "Le enviamos un correo con el link para unirse. Si acepta con ese mismo correo (Google o contraseña), entra directo como cliente activo.",
+        "nameRequired": "El nombre es requerido.",
+        "emailRequired": "El correo es requerido.",
+        "success": "Invitación enviada",
+        "successDetail": "Cuando esa persona cree su cuenta con ese correo, queda activa de inmediato — sin aprobación manual.",
+        "failed": "No se pudo enviar la invitación.",
+        "submitButton": "Enviar invitación"
       }
     },
     "appointments": {
@@ -825,9 +842,17 @@
       },
       "changePassword": {
         "title": "Cambiar contraseña",
+        "setTitle": "Configura una contraseña",
+        "noPasswordNotice": "Solo entrás con Google. Configura una contraseña para tener una opción de respaldo si Google falla.",
+        "currentPassword": "Contraseña actual",
+        "currentPasswordPlaceholder": "Tu contraseña actual",
+        "currentPasswordRequired": "La contraseña actual es requerida",
+        "currentPasswordIncorrect": "La contraseña actual es incorrecta",
+        "tooManyAttempts": "Demasiados intentos fallidos. Intenta de nuevo en {{minutes}} minuto(s).",
         "newPassword": "Nueva contraseña",
         "minCharsPlaceholder": "Mínimo 6 caracteres",
-        "repeatPlaceholder": "Repite la contraseña"
+        "repeatPlaceholder": "Repite la contraseña",
+        "setButton": "Configurar contraseña"
       },
       "notifications": {
         "title": "Notificaciones",
@@ -1221,11 +1246,19 @@
       "passwordUpdated": "Contraseña actualizada",
       "passwordChangeFailed": "No se pudo cambiar la contraseña.",
       "changePasswordTitle": "Cambiar contraseña",
+      "setPasswordTitle": "Configura una contraseña",
+      "noPasswordNotice": "Solo entrás con Google. Configura una contraseña para tener una opción de respaldo si Google falla.",
+      "currentPassword": "Contraseña actual",
+      "currentPasswordPlaceholder": "Tu contraseña actual",
+      "currentPasswordRequired": "La contraseña actual es requerida",
+      "currentPasswordIncorrect": "La contraseña actual es incorrecta",
+      "tooManyAttempts": "Demasiados intentos fallidos. Intenta de nuevo en {{minutes}} minuto(s).",
       "newPassword": "Nueva contraseña",
       "minCharsPlaceholder": "Mínimo 6 caracteres",
       "confirmNewPassword": "Confirmar contraseña",
       "repeatPasswordPlaceholder": "Repite la contraseña",
       "update": "Actualizar",
+      "setPasswordButton": "Configurar contraseña",
       "notificationsTitle": "Notificaciones",
       "notifAppointments": "Recordatorios de citas",
       "notifPromos": "Promociones y ofertas",

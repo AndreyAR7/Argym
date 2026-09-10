@@ -1,11 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
-import { Badge } from '@/components/ui/badge'
-import { Avatar } from '@/components/ui/avatar'
 import { SearchInput } from '@/components/shared/search-input'
 import { Pagination } from '@/components/shared/pagination'
 import { CoachNewAppointmentButton } from '@/components/coach/coach-new-appointment-button'
 import { CoachAppointmentsCalendar } from '@/components/coach/coach-appointments-calendar'
-import { CalendarDays, LayoutList, MapPin, Video, Phone } from 'lucide-react'
+import { CoachAppointmentsGuestTable } from '@/components/coach/coach-appointments-guest-table'
+import { CoachAppointmentListFilters } from '@/components/coach/coach-appointment-list-filters'
+import { CalendarDays, LayoutList } from 'lucide-react'
 import Link from 'next/link'
 
 export const metadata = { title: 'Mis Citas' }
@@ -18,26 +18,6 @@ const STATUS_TABS = [
   { value: 'completed',            label: 'Completadas' },
   { value: 'cancelled',            label: 'Canceladas'  },
 ]
-
-const TYPE_ICON: Record<string, React.ReactNode> = {
-  in_person: <MapPin size={13} />,
-  virtual:   <Video  size={13} />,
-  phone:     <Phone  size={13} />,
-}
-
-const TYPE_LABEL: Record<string, string> = {
-  in_person: 'Presencial',
-  virtual:   'Virtual',
-  phone:     'Teléfono',
-}
-
-function formatDateTime(iso: string) {
-  const d = new Date(iso)
-  return {
-    date: d.toLocaleDateString('es-CR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
-    time: d.toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' }),
-  }
-}
 
 function getWeekStart(weekParam?: string): Date {
   if (weekParam) {
@@ -59,7 +39,7 @@ function localDateStr(d: Date): string {
 export default async function CoachAppointmentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string; page?: string; view?: string; week?: string }>
+  searchParams: Promise<{ status?: string; q?: string; page?: string; view?: string; week?: string; from?: string; to?: string }>
 }) {
   const params = await searchParams
   const statusFilter = params.status ?? 'all'
@@ -68,6 +48,13 @@ export default async function CoachAppointmentsPage({
   const view  = params.view ?? 'list'
   const PAGE_SIZE = 20
 
+  // Defaults the list to "today" — same reasoning as the admin appointments
+  // list: a coach's whole appointment history isn't a useful landing view.
+  const todayStr       = localDateStr(new Date())
+  const isDefaultRange = !params.from && !params.to
+  const fromFilter      = params.from ?? todayStr
+  const toFilter        = params.to   ?? (params.from ?? todayStr)
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -75,17 +62,13 @@ export default async function CoachAppointmentsPage({
   const weekEnd   = new Date(weekStart)
   weekEnd.setDate(weekStart.getDate() + 7)
 
-  const [appointmentsResult, profileResult, clientsResult, calendarResult] = await Promise.all([
-    (() => {
-      let q = supabase
-        .from('appointments')
-        .select('id, title, start_time, end_time, status, appointment_type, location, meeting_url, notes, client_id, cancellation_reason', { count: 'exact' })
-        .eq('coach_id', user!.id)
-        .order('start_time', { ascending: false })
-      if (statusFilter !== 'all') q = q.eq('status', statusFilter)
-      return q
-    })(),
-    supabase.from('profiles').select('full_name').eq('id', user!.id).single(),
+  const [listResult, profileResult, clientsResult, calendarResult] = await Promise.all([
+    // list_appointments (no p_include_other_coaches) already scopes to
+    // coach_id = auth.uid() — this replaces the old raw
+    // .from('appointments') query, which never fetched group_mode or
+    // participants at all, so group classes had no guest breakdown here.
+    supabase.rpc('list_appointments'),
+    supabase.from('profiles').select('full_name, tenant_id').eq('id', user!.id).single(),
     // Scoped to this coach's assigned clients only — get_profiles_by_role
     // would return every client in the tenant, letting a coach schedule
     // appointments with clients that aren't theirs.
@@ -102,11 +85,17 @@ export default async function CoachAppointmentsPage({
       : Promise.resolve({ data: null, error: null }),
   ])
 
-  const { data: appointments, count } = appointmentsResult
   const coachName = profileResult.data?.full_name ?? ''
   const clientList = ((clientsResult.data ?? []) as any[])
     .map((row) => (Array.isArray(row.profiles) ? row.profiles[0] : row.profiles))
     .filter(Boolean) as { id: string; full_name: string }[]
+
+  // Grace hours gate the "Reenviar" resend button in the guests modal.
+  const tenantId = (profileResult.data as { tenant_id?: string } | null)?.tenant_id
+  const tenantResult = tenantId
+    ? await supabase.from('tenants').select('appointment_grace_hours').eq('id', tenantId).single()
+    : { data: null }
+  const tenantGraceHours = (tenantResult.data as { appointment_grace_hours: number } | null)?.appointment_grace_hours ?? 2
   // list_appointments scopes to the caller (coach_id/client_id/participant
   // match) plus, with p_include_other_coaches, other coaches' appointments
   // in the tenant — those come back with client-identifying fields
@@ -114,28 +103,37 @@ export default async function CoachAppointmentsPage({
   // scheduling context only.
   const calendarAppointments = (calendarResult.data ?? []) as any[]
 
-  // Fetch client profiles for display in the table
-  const clientIds = [...new Set((appointments ?? []).map((a: any) => a.client_id).filter(Boolean))]
-  const clientMap = new Map<string, { full_name: string; avatar_url: string | null }>()
-  if (clientIds.length > 0) {
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, full_name, avatar_url')
-      .in('id', clientIds)
-    ;(profiles ?? []).forEach((p: any) => clientMap.set(p.id, p))
+  const rawApts = (listResult.data ?? []) as Array<{
+    id: string; title: string; description: string | null
+    start_time: string; end_time: string; status: string
+    appointment_type: string; location: string | null; meeting_url: string | null
+    group_mode: string; coach_id: string | null; coach_name: string | null
+    client_id: string | null; client_name: string | null; client_avatar: string | null
+    series_id: string | null; class_template_id: string | null; max_participants: number | null
+    participants: Array<{ id: string; full_name: string; avatar_url: string | null; status?: string; participant_id?: string }>
+    cancellation_reason: string | null
+  }>
+  const normalizedApts = rawApts.map(a => ({
+    ...a,
+    client: a.client_id ? { full_name: a.client_name ?? '', avatar_url: a.client_avatar ?? null } : null,
+    coach:  a.coach_id  ? { full_name: a.coach_name  ?? '' }                                       : null,
+  }))
+
+  // Status + date-range + text filter (title or 1:1 client name)
+  let filtered = statusFilter === 'all' ? normalizedApts : normalizedApts.filter(a => a.status === statusFilter)
+  filtered = filtered.filter(a => {
+    const d = localDateStr(new Date(a.start_time))
+    return d >= fromFilter && d <= toFilter
+  })
+  if (q) {
+    const needle = q.toLowerCase()
+    filtered = filtered.filter(a =>
+      a.title?.toLowerCase().includes(needle) || a.client?.full_name?.toLowerCase().includes(needle)
+    )
   }
 
-  // Client-side text filter after loading
-  const filtered = q
-    ? (appointments ?? []).filter((a: any) => {
-        const client = clientMap.get(a.client_id)
-        return (
-          a.title?.toLowerCase().includes(q.toLowerCase()) ||
-          client?.full_name?.toLowerCase().includes(q.toLowerCase())
-        )
-      })
-    : (appointments ?? [])
-  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const count = filtered.length
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   return (
     <div className="p-4 md:p-8">
@@ -146,7 +144,7 @@ export default async function CoachAppointmentsPage({
             Mis Citas
           </h1>
           <p className="mt-0.5 text-sm text-[var(--color-muted-foreground)]">
-            {view === 'calendar' ? `Semana del ${localDateStr(weekStart)}` : `${count ?? 0} cita${count !== 1 ? 's' : ''}`}
+            {view === 'calendar' ? `Semana del ${localDateStr(weekStart)}` : `${count} cita${count !== 1 ? 's' : ''}${isDefaultRange ? ' hoy' : ''}`}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
@@ -207,76 +205,19 @@ export default async function CoachAppointmentsPage({
             ))}
           </div>
 
-          {/* Table */}
-          <div className="mt-4 rounded-xl border border-[var(--color-border)] overflow-hidden overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--color-border)] bg-[var(--color-muted)]">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Cita</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider hidden md:table-cell">Cliente</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Fecha</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider hidden lg:table-cell">Tipo</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="bg-[var(--color-card)] divide-y divide-[var(--color-border)]">
-                {paginated.length > 0 ? (
-                  paginated.map((apt: any) => {
-                    const client = clientMap.get(apt.client_id)
-                    const { date, time } = formatDateTime(apt.start_time)
-                    return (
-                      <tr key={apt.id} className="hover:bg-[var(--color-muted)] transition-colors">
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-[var(--color-foreground)]">{apt.title}</p>
-                          {apt.status === 'cancelled' && apt.cancellation_reason ? (
-                            <p className="text-xs text-red-500 mt-0.5 line-clamp-1">{apt.cancellation_reason}</p>
-                          ) : apt.notes && (
-                            <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5 line-clamp-1">{apt.notes}</p>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 hidden md:table-cell">
-                          {client ? (
-                            <div className="flex items-center gap-2">
-                              <Avatar name={client.full_name} src={client.avatar_url} size="sm" className="bg-[var(--color-client-light)]" />
-                              <span className="text-sm text-[var(--color-foreground)]">{client.full_name}</span>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-[var(--color-muted-foreground)]">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="text-sm text-[var(--color-foreground)] capitalize">{date}</p>
-                          <p className="text-xs text-[var(--color-muted-foreground)]">{time}</p>
-                        </td>
-                        <td className="px-4 py-3 hidden lg:table-cell">
-                          <div className="flex items-center gap-1.5 text-xs text-[var(--color-muted-foreground)]">
-                            {TYPE_ICON[apt.appointment_type]}
-                            {TYPE_LABEL[apt.appointment_type] ?? apt.appointment_type}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge value={apt.status} />
-                        </td>
-                      </tr>
-                    )
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="py-16 text-center">
-                      <div className="flex flex-col items-center gap-3">
-                        <CalendarDays size={32} className="text-[var(--color-border)]" />
-                        <p className="text-sm text-[var(--color-muted-foreground)]">
-                          {q ? `Sin resultados para "${q}"` : statusFilter !== 'all' ? 'Sin citas con ese estado' : 'Aún no tienes citas programadas'}
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          {/* Date range filter */}
+          <div className="mt-3">
+            <CoachAppointmentListFilters defaultFrom={fromFilter} defaultTo={toFilter} isDefaultToday={isDefaultRange} />
           </div>
 
-          <Pagination total={filtered.length} pageSize={PAGE_SIZE} currentPage={page} />
+          <CoachAppointmentsGuestTable
+            appointments={paginated as any}
+            tenantGraceHours={tenantGraceHours}
+            statusFilter={statusFilter}
+            emptyMessage={q ? `Sin resultados para "${q}"` : undefined}
+          />
+
+          <Pagination total={count} pageSize={PAGE_SIZE} currentPage={page} />
         </>
       )}
     </div>

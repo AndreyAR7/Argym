@@ -31,6 +31,7 @@ interface TopbarProps {
   profileHref?: string
   helpHref?: string
   contactHref?: string
+  hasPassword?: boolean
 }
 
 export function Topbar({
@@ -46,6 +47,7 @@ export function Topbar({
   profileHref = '#',
   helpHref = '#',
   contactHref = '#',
+  hasPassword = true,
 }: TopbarProps) {
   const { theme, setTheme } = useTheme()
   const [open, setOpen] = useState(false)
@@ -106,16 +108,25 @@ export function Topbar({
           className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors hover:bg-[var(--color-muted)]"
           style={{ color: 'var(--color-foreground)' }}
         >
-          {avatarUrl ? (
-            <img src={avatarUrl} alt={userName} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
-          ) : (
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0"
-              style={{ background: accentColor }}
-            >
-              {getInitials(userName)}
-            </div>
-          )}
+          <div className="relative flex-shrink-0">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={userName} className="w-7 h-7 rounded-full object-cover" />
+            ) : (
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold text-white"
+                style={{ background: accentColor }}
+              >
+                {getInitials(userName)}
+              </div>
+            )}
+            {!hasPassword && (
+              <span
+                className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500"
+                style={{ border: '2px solid var(--color-card)' }}
+                title="Configura una contraseña"
+              />
+            )}
+          </div>
           <span className="hidden sm:block text-sm font-medium max-w-[120px] truncate">{userName}</span>
           <ChevronDown
             size={13}
@@ -146,6 +157,7 @@ export function Topbar({
               >
                 <User size={14} style={{ color: 'var(--color-muted-foreground)' }} />
                 Mi perfil
+                {!hasPassword && <span className="w-1.5 h-1.5 rounded-full bg-red-500" />}
               </Link>
             </div>
 

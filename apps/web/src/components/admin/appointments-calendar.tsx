@@ -8,6 +8,7 @@ import AppointmentEditModal, { type AppointmentForEdit } from '@/components/admi
 import { ScheduleBlockModal } from '@/components/admin/schedule-block-modal'
 import { ClassRosterModal } from '@/components/admin/class-roster-modal'
 import { DayAppointmentsPanel } from '@/components/admin/day-appointments-panel'
+import { AppointmentTypeChoiceModal } from '@/components/admin/appointment-type-choice-modal'
 
 interface Participant { id: string; full_name: string; avatar_url: string | null; status?: string; participant_id?: string }
 
@@ -79,11 +80,14 @@ function nowTop(): number | null {
   return (h * 60 + m - HOUR_START * 60) * PX_PER_MIN
 }
 
-interface SlotClick { date: string; time: string }
+interface SlotClick { date: string; time: string; mode: 'class' | 'appointment' }
 
 export function AppointmentsCalendar({ appointments, coaches, clients, branches, blocks, weekStart, tenantGraceHours }: Props) {
   const router = useRouter()
   const [slotClick,    setSlotClick]    = useState<SlotClick | null>(null)
+  // Empty-slot click asks Clase/Cita first, same as the "Nueva" button —
+  // the click coordinates are held here until the user picks a mode.
+  const [pendingSlot,  setPendingSlot]  = useState<{ date: string; time: string } | null>(null)
   const [editingApt,   setEditingApt]   = useState<Appointment | null>(null)
   const [currentTopPx, setCurrentTopPx] = useState<number | null>(nowTop)
   const [showBlockModal, setShowBlockModal] = useState(false)
@@ -160,7 +164,7 @@ export function AppointmentsCalendar({ appointments, coaches, clients, branches,
     }
 
     setEditingApt(null)
-    setSlotClick({ date: dateStr, time })
+    setPendingSlot({ date: dateStr, time })
   }
 
   // Overlap: group appointments on same day that overlap in time
@@ -440,9 +444,18 @@ export function AppointmentsCalendar({ appointments, coaches, clients, branches,
         />
       )}
 
-      {/* Create modal — opens when clicking an empty calendar slot */}
+      {/* Clicking an empty calendar slot asks Clase/Cita first, same as "Nueva" */}
+      {pendingSlot && (
+        <AppointmentTypeChoiceModal
+          onChoose={(mode) => { setSlotClick({ ...pendingSlot, mode }); setPendingSlot(null) }}
+          onClose={() => setPendingSlot(null)}
+        />
+      )}
+
+      {/* Create modal — opens once the user picked Clase or Cita */}
       {slotClick && (
         <AppointmentFormModal
+          mode={slotClick.mode}
           coaches={coaches}
           clients={clients}
           initialDate={slotClick.date}

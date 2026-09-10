@@ -15,6 +15,7 @@ import {
   useClientsWithPlan, useClientsWithPlanInfinite,
   useUpdateProfile, useToggleProfileActive, useCreateUser,
 } from '@/hooks/useProfiles';
+import { useSendClientInvitation } from '@/hooks/useInvitations';
 import { useTenantPlans, useAssignPlan, useUnassignPlan } from '@/hooks/useSubscriptions';
 import { getClientSubscriptions } from '@/services/subscriptions.service';
 import type { SubscriptionRecord } from '@/services/subscriptions.service';
@@ -750,6 +751,106 @@ function CreateClientModal({ visible, onClose, onCreated }: {
   );
 }
 
+// ─── Invite client modal ───────────────────────────────────────
+function InviteClientModal({ visible, onClose, onSent, tenantId, invitedBy }: {
+  visible: boolean; onClose: () => void; onSent: () => void;
+  tenantId: string; invitedBy: string;
+}) {
+  const T = useTheme();
+  const { t } = useTranslation();
+  const inviteMutation = useSendClientInvitation();
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const reset = () => { setFullName(''); setEmail(''); };
+
+  const handleSend = async () => {
+    if (!fullName.trim()) { Alert.alert(t('common.error'), t('admin.clients.invite.nameRequired')); return; }
+    if (!email.trim()) { Alert.alert(t('common.error'), t('admin.clients.invite.emailRequired')); return; }
+    try {
+      await inviteMutation.mutateAsync({ email: email.trim(), fullName: fullName.trim(), tenantId, invitedBy });
+      Alert.alert(t('admin.clients.invite.success'), t('admin.clients.invite.successDetail'));
+      reset(); onSent(); onClose();
+    } catch (err: any) {
+      Alert.alert(t('common.error'), err.message ?? t('admin.clients.invite.failed'));
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <View style={modalStyles.overlay}>
+          <View style={[modalStyles.sheet, { backgroundColor: T.bgCard }]}>
+            <View style={modalStyles.handle} />
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <Text style={[modalStyles.title, { color: T.text }]}>{t('admin.clients.invite.title')}</Text>
+              <Text style={{ fontSize: 12, color: T.textMuted, marginTop: -12, marginBottom: 20 }}>
+                {t('admin.clients.invite.description')}
+              </Text>
+              <Text style={[modalStyles.label, { color: T.textSecondary }]}>{t('admin.clients.form.fullNameLabelRequired')}</Text>
+              <TextInput style={[modalStyles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
+                value={fullName} onChangeText={setFullName} placeholder={t('admin.clients.form.fullNamePlaceholder')} placeholderTextColor={T.textMuted} />
+              <Text style={[modalStyles.label, { color: T.textSecondary }]}>{t('admin.clients.form.emailLabel')}</Text>
+              <TextInput style={[modalStyles.input, { backgroundColor: T.bg, borderColor: T.border, color: T.text }]}
+                value={email} onChangeText={setEmail} placeholder={t('admin.clients.form.emailPlaceholder')} placeholderTextColor={T.textMuted}
+                autoCapitalize="none" keyboardType="email-address" />
+              <View style={modalStyles.actions}>
+                <TouchableOpacity onPress={() => { reset(); onClose(); }} style={[modalStyles.btn, { borderColor: T.border, borderWidth: 1 }]}>
+                  <Text style={{ color: T.text, fontWeight: '600' }}>{t('common.cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleSend} disabled={inviteMutation.isPending} style={[modalStyles.btn, { backgroundColor: T.accent }]}>
+                  {inviteMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>{t('admin.clients.invite.submitButton')}</Text>}
+                </TouchableOpacity>
+              </View>
+              <View style={{ height: 24 }} />
+            </ScrollView>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ─── Add-client choice sheet ────────────────────────────────────
+// Same "which one do you want" pattern as the web admin's Clase/Cita
+// choice — the top bar's single "+" action opens this first, then
+// routes to CreateClientModal or InviteClientModal.
+function AddClientChoiceSheet({ visible, onClose, onPickCreate, onPickInvite }: {
+  visible: boolean; onClose: () => void; onPickCreate: () => void; onPickInvite: () => void;
+}) {
+  const T = useTheme();
+  const { t } = useTranslation();
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity activeOpacity={1} style={modalStyles.overlay} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} style={[modalStyles.sheet, { backgroundColor: T.bgCard }]}>
+          <View style={modalStyles.handle} />
+          <Text style={[modalStyles.title, { color: T.text, marginBottom: 20 }]}>{t('admin.clients.addChoice.title')}</Text>
+
+          <TouchableOpacity onPress={onPickCreate}
+            style={[levelPickerStyles.option, { borderColor: T.border, backgroundColor: T.bg }]}>
+            <Text style={{ fontSize: 26 }}>👤</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: T.text }}>{t('admin.clients.addChoice.createOption')}</Text>
+              <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{t('admin.clients.addChoice.createOptionDesc')}</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={onPickInvite}
+            style={[levelPickerStyles.option, { borderColor: T.border, backgroundColor: T.bg }]}>
+            <Text style={{ fontSize: 26 }}>✉️</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: T.text }}>{t('admin.clients.addChoice.inviteOption')}</Text>
+              <Text style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{t('admin.clients.addChoice.inviteOptionDesc')}</Text>
+            </View>
+          </TouchableOpacity>
+          <View style={{ height: 8 }} />
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
 // ─── Main screen ──────────────────────────────────────────────
 export default function AdminClientsScreen() {
   const T = useTheme();
@@ -763,7 +864,9 @@ export default function AdminClientsScreen() {
   const [editTargetId, setEditTargetId] = useState<string | null>(null);
   const [editTargetClient, setEditTargetClient] = useState<ClientWithPlan | null>(null);
   const [showEdit, setShowEdit] = useState(false);
+  const [showAddChoice, setShowAddChoice] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
   const [planTarget, setPlanTarget] = useState<ClientWithPlan | null>(null);
   const [showPlan, setShowPlan] = useState(false);
   const [levelPickerTarget, setLevelPickerTarget] = useState<ClientWithPlan | null>(null);
@@ -821,7 +924,7 @@ export default function AdminClientsScreen() {
         title={t('navigation.clients')}
         subtitle={sectionLabel}
         actionLabel={t('admin.clients.newAction')}
-        onAction={() => setShowCreate(true)}
+        onAction={() => setShowAddChoice(true)}
       />
 
       {/* Search bar */}
@@ -911,7 +1014,20 @@ export default function AdminClientsScreen() {
 
       <EditClientModal clientId={editTargetId} client={editTargetClient} visible={showEdit}
         onClose={() => setShowEdit(false)} onSaved={() => refetch()} />
+      <AddClientChoiceSheet
+        visible={showAddChoice}
+        onClose={() => setShowAddChoice(false)}
+        onPickCreate={() => { setShowAddChoice(false); setShowCreate(true); }}
+        onPickInvite={() => { setShowAddChoice(false); setShowInvite(true); }}
+      />
       <CreateClientModal visible={showCreate} onClose={() => setShowCreate(false)} onCreated={() => refetch()} />
+      <InviteClientModal
+        visible={showInvite}
+        onClose={() => setShowInvite(false)}
+        onSent={() => refetch()}
+        tenantId={tenantId}
+        invitedBy={user?.id ?? ''}
+      />
       <AssignPlanModal client={planTarget} visible={showPlan} onClose={() => setShowPlan(false)}
         onSaved={() => refetch()} tenantId={tenantId} />
       <LevelPickerSheet

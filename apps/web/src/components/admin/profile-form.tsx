@@ -22,9 +22,10 @@ interface ProfileFormProps {
   avatarUrl: string | null
   createdAt: string | null
   gender?: string | null
+  hasPassword: boolean
 }
 
-export function ProfileForm({ userId, email, fullName, phone, avatarUrl, createdAt, gender: genderProp }: ProfileFormProps) {
+export function ProfileForm({ userId, email, fullName, phone, avatarUrl, createdAt, gender: genderProp, hasPassword }: ProfileFormProps) {
   const [isPending, startTransition] = useTransition()
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -109,10 +110,10 @@ export function ProfileForm({ userId, email, fullName, phone, avatarUrl, created
 
     if (newPw.length < 8) { setPwError('La nueva contraseña debe tener al menos 8 caracteres'); return }
     if (newPw !== confirmPw) { setPwError('Las contraseñas no coinciden'); return }
-    if (newPw === currentPw) { setPwError('La nueva contraseña debe ser diferente a la actual'); return }
+    if (hasPassword && newPw === currentPw) { setPwError('La nueva contraseña debe ser diferente a la actual'); return }
 
     startPwTransition(async () => {
-      const result = await changePasswordAction(currentPw, newPw)
+      const result = await changePasswordAction(hasPassword ? currentPw : null, newPw)
       if (result.error) {
         setPwError(result.error)
       } else {
@@ -307,34 +308,57 @@ export function ProfileForm({ userId, email, fullName, phone, avatarUrl, created
       {/* ── Change password ── */}
       <form onSubmit={handlePasswordSubmit} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden">
         <div className="px-5 py-4 border-b border-[var(--color-border)] bg-[var(--color-muted)] flex items-center gap-2.5">
-          <ShieldCheck size={15} className="text-[var(--color-muted-foreground)]" />
+          <div className="relative">
+            <ShieldCheck size={15} className="text-[var(--color-muted-foreground)]" />
+            {!hasPassword && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500" />
+            )}
+          </div>
           <div>
-            <h2 className="text-sm font-semibold text-[var(--color-foreground)]">Cambiar contraseña</h2>
-            <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">Elige una contraseña segura de al menos 8 caracteres</p>
+            <h2 className="text-sm font-semibold text-[var(--color-foreground)] flex items-center gap-1.5">
+              {hasPassword ? 'Cambiar contraseña' : 'Configura una contraseña'}
+              {!hasPassword && <span className="w-1.5 h-1.5 rounded-full bg-red-500" />}
+            </h2>
+            <p className="text-xs text-[var(--color-muted-foreground)] mt-0.5">
+              {hasPassword
+                ? 'Elige una contraseña segura de al menos 8 caracteres'
+                : 'Tu cuenta solo tiene acceso con Google. Configura una contraseña para poder entrar aunque falle el inicio de sesión con Google.'}
+            </p>
           </div>
         </div>
 
         <div className="p-5 space-y-4">
-          {/* Current password */}
-          <div>
-            <label className="block text-xs font-medium text-[var(--color-foreground)] mb-1.5">Contraseña actual</label>
-            <div className="relative">
-              <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
-              <input
-                type={showCurrentPw ? 'text' : 'password'}
-                value={currentPw}
-                onChange={(e) => setCurrentPw(e.target.value)}
-                required
-                placeholder="Tu contraseña actual"
-                disabled={pwPending}
-                className={`${inputCls} pl-9 pr-10`}
-              />
-              <button type="button" onClick={() => setShowCurrentPw(!showCurrentPw)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]">
-                {showCurrentPw ? <EyeOff size={14} /> : <Eye size={14} />}
-              </button>
+          {!hasPassword && (
+            <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3">
+              <AlertCircle size={14} className="shrink-0 mt-0.5 text-amber-600" />
+              <p className="text-xs text-amber-800">
+                Todavía no tienes una contraseña — solo puedes entrar con Google. Configura una abajo para tener una opción de respaldo.
+              </p>
             </div>
-          </div>
+          )}
+
+          {/* Current password — only when the account already has one */}
+          {hasPassword && (
+            <div>
+              <label className="block text-xs font-medium text-[var(--color-foreground)] mb-1.5">Contraseña actual</label>
+              <div className="relative">
+                <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
+                <input
+                  type={showCurrentPw ? 'text' : 'password'}
+                  value={currentPw}
+                  onChange={(e) => setCurrentPw(e.target.value)}
+                  required
+                  placeholder="Tu contraseña actual"
+                  disabled={pwPending}
+                  className={`${inputCls} pl-9 pr-10`}
+                />
+                <button type="button" onClick={() => setShowCurrentPw(!showCurrentPw)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]">
+                  {showCurrentPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* New password */}
           <div>
@@ -404,11 +428,11 @@ export function ProfileForm({ userId, email, fullName, phone, avatarUrl, created
         <div className="px-5 py-4 border-t border-[var(--color-border)] bg-[var(--color-muted)] flex justify-end">
           <button
             type="submit"
-            disabled={pwPending || !currentPw || !newPw || !confirmPw}
+            disabled={pwPending || (hasPassword && !currentPw) || !newPw || !confirmPw}
             className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--color-admin)] text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {pwPending && <Loader2 size={14} className="animate-spin" />}
-            {pwPending ? 'Actualizando…' : 'Cambiar contraseña'}
+            {pwPending ? 'Actualizando…' : hasPassword ? 'Cambiar contraseña' : 'Configurar contraseña'}
           </button>
         </div>
       </form>

@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
 import { ClientFilters } from '@/components/admin/client-filters'
 import { ClientRowActions } from '@/components/admin/client-row-actions'
+import { InviteClientButton } from '@/components/admin/invite-client-button'
 import { PageHeader } from '@/components/shared/page-header'
 import { formatDate } from '@/lib/utils'
 import { UserPlus, Users, HeartPulse } from 'lucide-react'
@@ -109,13 +110,16 @@ export default async function ClientsPage({
   return (
     <div className="p-4 md:p-8">
       <PageHeader title="Clientes" subtitle={`${count ?? 0} clientes en total`}>
-        <Link
-          href="/admin/clients/new"
-          className="flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-3.5 py-2 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90"
-        >
-          <UserPlus size={14} />
-          Nuevo cliente
-        </Link>
+        <div className="flex items-center gap-2">
+          <InviteClientButton />
+          <Link
+            href="/admin/clients/new"
+            className="flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-3.5 py-2 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90"
+          >
+            <UserPlus size={14} />
+            Nuevo cliente
+          </Link>
+        </div>
       </PageHeader>
 
       {/* ── Filters ── */}

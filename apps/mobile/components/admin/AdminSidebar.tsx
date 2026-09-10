@@ -51,7 +51,7 @@ function NavIcon({ icon, active, accent, bgSurface }: {
 export function AdminSidebar() {
   const T = useTheme(); // ← reactive, called inside component
   const { isOpen, close } = useSidebarStore();
-  const { user, signOut } = useAuthStore();
+  const { user, signOut, hasPassword } = useAuthStore();
   const { tenant } = useTenantStore();
   const { avatarUrl } = useProfileStore();
   const { data: unreadCount = 0 } = useUnreadCount(user?.id);
@@ -127,13 +127,18 @@ export function AdminSidebar() {
 
           {/* User row — tappable → settings */}
           <TouchableOpacity onPress={() => navigate('/(admin)/settings')} activeOpacity={0.8} style={styles.userRow}>
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={[styles.userAvatar, { backgroundColor: T.accentGlow, borderColor: T.accent + '44' }]} />
-            ) : (
-              <View style={[styles.userAvatar, { backgroundColor: T.accentGlow, borderColor: T.accent + '44' }]}>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: T.accent }}>{initials}</Text>
-              </View>
-            )}
+            <View>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={[styles.userAvatar, { backgroundColor: T.accentGlow, borderColor: T.accent + '44' }]} />
+              ) : (
+                <View style={[styles.userAvatar, { backgroundColor: T.accentGlow, borderColor: T.accent + '44' }]}>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: T.accent }}>{initials}</Text>
+                </View>
+              )}
+              {hasPassword === false && (
+                <View style={{ position: 'absolute', top: -2, right: -2, width: 12, height: 12, borderRadius: 6, backgroundColor: T.red, borderWidth: 2, borderColor: T.bgCard }} />
+              )}
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 13, fontWeight: '700', color: T.text }} numberOfLines={1}>
                 {user?.full_name ?? 'Administrador'}
@@ -172,6 +177,8 @@ export function AdminSidebar() {
                   <View style={[styles.navBadge, { backgroundColor: T.red }]}>
                     <Text style={styles.navBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
                   </View>
+                ) : item.id === 'settings' && hasPassword === false ? (
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: T.red }} />
                 ) : null}
                 {active && <View style={[styles.activeIndicator, { backgroundColor: T.accent }]} />}
               </TouchableOpacity>

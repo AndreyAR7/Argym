@@ -14,9 +14,10 @@ interface CoachShellProps {
   userId: string
   currentTenantName?: string
   currentTenantLogoUrl?: string | null
+  hasPassword?: boolean
 }
 
-export function CoachShell({ children, userName, userEmail, avatarUrl, userId, currentTenantName, currentTenantLogoUrl }: CoachShellProps) {
+export function CoachShell({ children, userName, userEmail, avatarUrl, userId, currentTenantName, currentTenantLogoUrl, hasPassword }: CoachShellProps) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
@@ -42,6 +43,7 @@ export function CoachShell({ children, userName, userEmail, avatarUrl, userId, c
         profileHref="/coach/profile"
         helpHref="/coach/help"
         contactHref="/coach/contact"
+        hasPassword={hasPassword}
       />
 
       <div className="flex flex-1 overflow-hidden">

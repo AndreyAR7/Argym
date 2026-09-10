@@ -49,9 +49,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     currentTenantLogoUrl = tenant?.logo_url
   }
 
-  const { data: canManageCorrespondence } = await supabase.rpc('has_permission', {
-    permission_code: 'tenant.manage_correspondence',
-  })
+  const [{ data: canManageCorrespondence }, { data: hasPassword }] = await Promise.all([
+    supabase.rpc('has_permission', { permission_code: 'tenant.manage_correspondence' }),
+    supabase.rpc('user_has_password'),
+  ])
 
   return (
     <AdminShell
@@ -66,6 +67,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       currentTenantLogoUrl={currentTenantLogoUrl}
       homeTenantId={homeTenantId}
       canManageCorrespondence={!!canManageCorrespondence}
+      hasPassword={!!hasPassword}
     >
       {children}
     </AdminShell>

@@ -507,6 +507,23 @@
         "failed": "Could not create the client.",
         "title": "New client",
         "submitButton": "Create"
+      },
+      "addChoice": {
+        "title": "Add client",
+        "createOption": "Create account directly",
+        "createOptionDesc": "You set the email and password. Active right away.",
+        "inviteOption": "Send invitation",
+        "inviteOptionDesc": "We email them a join link. If they accept with Google or a password, they're active with no approval needed."
+      },
+      "invite": {
+        "title": "Invite client",
+        "description": "We'll email them a link to join. If they accept with that same email (Google or password), they become an active client right away.",
+        "nameRequired": "Name is required.",
+        "emailRequired": "Email is required.",
+        "success": "Invitation sent",
+        "successDetail": "Once that person creates an account with this email, it's active immediately — no manual approval.",
+        "failed": "Could not send the invitation.",
+        "submitButton": "Send invitation"
       }
     },
     "appointments": {
@@ -825,9 +842,17 @@
       },
       "changePassword": {
         "title": "Change password",
+        "setTitle": "Set a password",
+        "noPasswordNotice": "You can only sign in with Google. Set a password to have a backup option if Google fails.",
+        "currentPassword": "Current password",
+        "currentPasswordPlaceholder": "Your current password",
+        "currentPasswordRequired": "Current password is required",
+        "currentPasswordIncorrect": "Current password is incorrect",
+        "tooManyAttempts": "Too many failed attempts. Try again in {{minutes}} minute(s).",
         "newPassword": "New password",
         "minCharsPlaceholder": "Minimum 6 characters",
-        "repeatPlaceholder": "Repeat your password"
+        "repeatPlaceholder": "Repeat your password",
+        "setButton": "Set password"
       },
       "notifications": {
         "title": "Notifications",
@@ -1221,11 +1246,19 @@
       "passwordUpdated": "Password updated",
       "passwordChangeFailed": "Could not change password.",
       "changePasswordTitle": "Change password",
+      "setPasswordTitle": "Set a password",
+      "noPasswordNotice": "You can only sign in with Google. Set a password to have a backup option if Google fails.",
+      "currentPassword": "Current password",
+      "currentPasswordPlaceholder": "Your current password",
+      "currentPasswordRequired": "Current password is required",
+      "currentPasswordIncorrect": "Current password is incorrect",
+      "tooManyAttempts": "Too many failed attempts. Try again in {{minutes}} minute(s).",
       "newPassword": "New password",
       "minCharsPlaceholder": "Minimum 6 characters",
       "confirmNewPassword": "Confirm password",
       "repeatPasswordPlaceholder": "Repeat the password",
       "update": "Update",
+      "setPasswordButton": "Set password",
       "notificationsTitle": "Notifications",
       "notifAppointments": "Appointment reminders",
       "notifPromos": "Promotions and offers",
