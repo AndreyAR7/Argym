@@ -1523,7 +1523,9 @@
       "availablePlans": "AVAILABLE PLANS",
       "noPlansForOffer": "No plans configured for this offer.",
       "activeOffersCount": "{{count}} active offer",
-      "activeOffersCount_plural": "{{count}} active offers"
+      "activeOffersCount_plural": "{{count}} active offers",
+      "allPlans": "All plans",
+      "noPlansAvailable": "No plans available right now."
     },
     "videoPlayer": {
       "notFound": "Video not found",

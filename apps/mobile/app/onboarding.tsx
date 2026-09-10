@@ -4,13 +4,12 @@ import {
   NativeSyntheticEvent, NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/auth.store';
 import { useOnboardingStore } from '@/store/onboarding.store';
 import { AppLogo } from '@/components/shared/AppLogo';
-import { getOnboardingSlides, roleHomeRoute, resolveAccent } from '@/components/onboarding/onboardingContent';
+import { getOnboardingSlides, resolveAccent } from '@/components/onboarding/onboardingContent';
 
 // First-run feature tour — one slide per real, navigable section of the
 // app for the signed-in user's role (mirrors ClientSidebar/AdminSidebar's
@@ -20,7 +19,6 @@ import { getOnboardingSlides, roleHomeRoute, resolveAccent } from '@/components/
 export default function OnboardingScreen() {
   const T = useTheme();
   const { t } = useTranslation();
-  const router = useRouter();
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   const { user } = useAuthStore();
   const { markSeen } = useOnboardingStore();
@@ -67,10 +65,17 @@ export default function OnboardingScreen() {
       Animated.timing(ctaScale, { toValue: 0.92, duration: 90, useNativeDriver: true }),
       Animated.spring(ctaScale, { toValue: 1, useNativeDriver: true, tension: 200, friction: 6 }),
     ]).start(async () => {
+      // Only flip the "seen" flag here — don't also navigate. markSeen()
+      // updates the zustand store synchronously, which AuthGuard
+      // (app/_layout.tsx) is already watching: it reacts to
+      // onboardingSeen going false -> true and performs its own debounced
+      // redirect to the role home route. Calling router.replace() here too
+      // raced that same-tick redirect from two uncoordinated call sites —
+      // an unhandled exception from either one hitting a transitional
+      // route crashed the JS thread instead of just showing an error.
       if (user?.id) await markSeen(user.id);
-      router.replace(roleHomeRoute(user?.primaryRole) as any);
     });
-  }, [user?.id, user?.primaryRole]);
+  }, [user?.id]);
 
   const handleNext = () => {
     if (isLast) { finish(); return; }

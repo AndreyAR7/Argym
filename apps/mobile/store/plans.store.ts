@@ -15,7 +15,7 @@ export interface Plan {
   currency: string;
   billing_cycle: 'monthly' | 'quarterly' | 'yearly' | 'one_time';
   features: PlanFeature[];
-  plan_tier: 'beginner' | 'intermediate' | 'advanced';
+  plan_tier: 'beginner' | 'intermediate' | 'advanced' | null;
   is_active: boolean;
   sort_order: number;
   expiry_date: string | null;

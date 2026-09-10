@@ -1523,7 +1523,9 @@
       "availablePlans": "PLANES DISPONIBLES",
       "noPlansForOffer": "No hay planes configurados para esta oferta.",
       "activeOffersCount": "{{count}} oferta activa",
-      "activeOffersCount_plural": "{{count}} ofertas activas"
+      "activeOffersCount_plural": "{{count}} ofertas activas",
+      "allPlans": "Todos los planes",
+      "noPlansAvailable": "No hay planes disponibles en este momento."
     },
     "videoPlayer": {
       "notFound": "Video no encontrado",

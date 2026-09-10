@@ -37,8 +37,8 @@ export default function ClientPlansScreen() {
   const T = useTheme();
   const { user } = useAuthStore();
   const {
-    promotions, mySubscriptions,
-    isLoadingPromos, fetchPlans, fetchPromotions, fetchMySubscription,
+    plans, promotions, mySubscriptions,
+    isLoadingPlans, isLoadingPromos, fetchPlans, fetchPromotions, fetchMySubscription,
     subscribeToRealtime,
   } = usePlansStore();
 
@@ -78,6 +78,16 @@ export default function ClientPlansScreen() {
     (p) =>
       isPromoLive(p) &&
       (p.target_level === 'all' || !myLevel || p.target_level === myLevel)
+  );
+
+  // All subscribable plans — this screen previously only ever rendered
+  // `promotions` even though fetchPlans() was already populating `plans` in
+  // the store; a client with no active promotion configured for their level
+  // had no way to see or subscribe to any plan at all. Mirrors the same
+  // is_active + tier filter web's client/planes/page.tsx uses (a plan with
+  // no plan_tier is shown to everyone).
+  const visiblePlans = plans.filter(
+    (p) => p.is_active && (!p.plan_tier || !myLevel || p.plan_tier === myLevel)
   );
 
   const handlePaymentConfirm = async (plan: Plan, promoId?: string) => {
@@ -156,6 +166,31 @@ export default function ClientPlansScreen() {
           renderItem={({ item }) => (
             <OfferCard offer={item} onPress={setSelectedOffer} />
           )}
+          ListFooterComponent={
+            <View style={{ marginTop: 24 }}>
+              <Text style={[styles.pageTitle, { color: T.text, fontSize: 18 }]}>
+                {t('client.plans.allPlans')}
+              </Text>
+              {isLoadingPlans ? (
+                <ActivityIndicator color={T.accent} style={{ marginTop: 24 }} />
+              ) : visiblePlans.length === 0 ? (
+                <Text style={[styles.emptyText, { color: T.textMuted, marginTop: 12 }]}>
+                  {t('client.plans.noPlansAvailable')}
+                </Text>
+              ) : (
+                <View style={{ marginTop: 12 }}>
+                  {visiblePlans.map((plan) => (
+                    <PlanCard
+                      key={plan.id}
+                      plan={plan}
+                      isSubscribed={subscribedPlanIds.has(plan.id)}
+                      onSubscribe={(p) => setPaymentPlan(p)}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          }
         />
       )}
 
