@@ -7,6 +7,8 @@ import {
 import { createClient } from '@/lib/supabase/server'
 import { ARGYM_LOGO_URL } from '@/lib/branding'
 import { ContactForm } from './_components/contact-form'
+import { FeatureExplorer } from './_components/feature-explorer'
+import { PricingCalculator } from './_components/pricing-calculator'
 import { ParticleNetwork } from '@/components/effects/particle-network'
 import { FitnessHud } from '@/components/effects/fitness-hud'
 import { AnimatedCounter } from '@/components/effects/animated-counter'
@@ -127,6 +129,18 @@ export default async function RootPage() {
           </span>
         </div>
         <div className="flex items-center gap-3">
+          <a
+            href="#funcionalidades"
+            className="hidden rounded-lg px-4 py-2 text-sm font-medium text-white/80 transition hover:text-white md:inline-block"
+          >
+            Funcionalidades
+          </a>
+          <a
+            href="#precios"
+            className="hidden rounded-lg px-4 py-2 text-sm font-medium text-white/80 transition hover:text-white md:inline-block"
+          >
+            Precios
+          </a>
           <a
             href="#contacto"
             className="hidden rounded-lg px-4 py-2 text-sm font-medium text-white/80 transition hover:text-white sm:inline-block"
@@ -295,6 +309,96 @@ export default async function RootPage() {
             </div>
           ))}
         </div>
+      </section>
+
+      {/* ── Feature explorer (by role + platform) ──────────────────────── */}
+      <section id="funcionalidades" className="mx-auto max-w-6xl px-6 py-24">
+        <div className="mb-14 text-center">
+          <p className="text-sm font-bold uppercase tracking-wide text-indigo-600">Explora por rol</p>
+          <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-gray-900 md:text-4xl">
+            Cada rol ve exactamente lo que necesita
+          </h2>
+          <p className="mt-4 text-gray-500 md:text-lg">
+            Filtra por rol o por plataforma para ver el alcance real de admin, coach y cliente — en web y en la app móvil.
+          </p>
+        </div>
+        <FeatureExplorer />
+      </section>
+
+      {/* ── Platform capabilities ───────────────────────────────────────── */}
+      <section className="border-y border-gray-100 bg-gray-50 px-6 py-24">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-14 text-center">
+            <p className="text-sm font-bold uppercase tracking-wide text-indigo-600">Lo que sostiene los tres roles</p>
+            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-gray-900 md:text-4xl">
+              Capacidades de plataforma
+            </h2>
+            <p className="mt-4 text-gray-500 md:text-lg">
+              Lo que convierte esto en un producto SaaS y no en una app de un solo gimnasio.
+            </p>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              { n: '01', title: 'Multi-tenant real', body: 'Un panel "ARGYM HQ" opera múltiples gimnasios clientes desde una sola instalación.', color: '#818cf8' },
+              { n: '02', title: 'Facturación en dos niveles', body: 'Cada gimnasio cobra a sus clientes con Stripe, y la plataforma puede cobrarle a cada gimnasio.', color: '#22d3ee' },
+              { n: '03', title: 'Gamificación', body: 'XP, niveles, rachas, logros y retos conectados directamente al check-in.', color: '#fb923c' },
+              { n: '04', title: 'Notificaciones multicanal', body: 'Push, correo (SMTP o Resend) y WhatsApp, gobernados por el motor de Correspondencia.', color: '#34d399' },
+              { n: '05', title: 'Check-in por QR', body: 'Token rotativo firmado, límites semanales por plan, bitácora de cada intento.', color: '#60a5fa' },
+              { n: '06', title: 'Contenido con permisos', body: 'Videos, rutinas y nutrición restringidos por nivel del cliente o por el plan contratado.', color: '#818cf8' },
+              { n: '07', title: 'Invitaciones con auto-aprobación', body: 'El invitado entra activo de inmediato si se registra con el correo invitado.', color: '#22d3ee' },
+              { n: '08', title: 'Roles y permisos finos', body: 'Permisos independientes por función; cambiar de rol nunca borra historial del cliente.', color: '#fb923c' },
+              { n: '09', title: 'Multi-sucursal', body: 'Cada sede con su propio QR, personal asignado y estadísticas.', color: '#34d399' },
+              { n: '10', title: 'Ficha médica y legal', body: 'Tabla separada y protegida — respaldo ante cualquier reclamo por lesión.', color: '#60a5fa' },
+              { n: '11', title: 'Sincronización de calendario', body: 'Feed iCal personal por cliente, con token que se puede rotar.', color: '#818cf8' },
+              { n: '12', title: 'Analítica exportable', body: 'Panel de ingresos y reportes de asistencia exportables a Excel.', color: '#22d3ee' },
+            ].map((tile) => (
+              <div
+                key={tile.n}
+                className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+              >
+                <div
+                  className="mb-3.5 inline-flex h-10 w-10 items-center justify-center rounded-lg text-xs font-extrabold"
+                  style={{ backgroundColor: tile.color + '22', color: tile.color }}
+                >
+                  {tile.n}
+                </div>
+                <h4 className="mb-1.5 text-[14.5px] font-bold text-gray-900">{tile.title}</h4>
+                <p className="text-[13px] leading-relaxed text-gray-500">{tile.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Health-professional callout ─────────────────────────────────── */}
+      <section className="mx-auto max-w-6xl px-6 pt-24">
+        <div className="flex flex-wrap items-start gap-5 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-blue-50 p-7">
+          <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-sm font-extrabold text-white">
+            Rx
+          </span>
+          <div>
+            <h3 className="mb-1.5 text-base font-bold text-gray-900">Pensado también para el criterio clínico</h3>
+            <p className="max-w-3xl text-sm leading-relaxed text-gray-600">
+              Ficha médica y legal con respaldo ante lesiones, seguimiento real de progreso corporal, rutinas y
+              nutrición filtradas por nivel del cliente, y gamificación que mejora la adherencia al plan — lo que
+              un coach certificado o un profesional de la salud necesita para respaldar su trabajo, no solo cobrar
+              membresías.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Pricing ──────────────────────────────────────────────────────── */}
+      <section id="precios" className="mx-auto max-w-6xl px-6 py-24">
+        <div className="mb-4 text-center">
+          <p className="text-sm font-bold uppercase tracking-wide text-indigo-600">Mercado de Costa Rica · ₡ CRC</p>
+          <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-gray-900 md:text-4xl">Precios sugeridos</h2>
+        </div>
+        <p className="mx-auto mb-14 max-w-2xl text-center text-gray-500 md:text-lg">
+          Referencia para un solo gimnasio con una o varias sedes. Todos los planes incluyen la app móvil y el
+          panel web para los tres roles. <b className="text-gray-900">+IVA (13%)</b>.
+        </p>
+        <PricingCalculator />
       </section>
 
       {/* ── Final CTA ────────────────────────────────────────────────── */}
