@@ -18,9 +18,9 @@ interface RoleBlock {
 }
 
 const ROLE_META: Record<'admin' | 'coach' | 'client', { label: string; badge: string; text: string; bg: string; dot: string; activeBg: string }> = {
-  admin:  { label: 'Administrador', badge: 'ADM',   text: 'text-indigo-600', bg: 'bg-indigo-50', dot: 'bg-indigo-400', activeBg: 'bg-indigo-600' },
-  coach:  { label: 'Coach',         badge: 'COACH', text: 'text-cyan-600',   bg: 'bg-cyan-50',   dot: 'bg-cyan-400',   activeBg: 'bg-cyan-600' },
-  client: { label: 'Cliente',       badge: 'CLI',   text: 'text-orange-600',bg: 'bg-orange-50', dot: 'bg-orange-400', activeBg: 'bg-orange-600' },
+  admin:  { label: 'Administrador', badge: 'ADM',   text: 'text-indigo-400', bg: 'bg-indigo-500/15', dot: 'bg-indigo-400', activeBg: 'bg-indigo-600' },
+  coach:  { label: 'Coach',         badge: 'COACH', text: 'text-cyan-400',   bg: 'bg-cyan-500/15',   dot: 'bg-cyan-400',   activeBg: 'bg-cyan-600' },
+  client: { label: 'Cliente',       badge: 'CLI',   text: 'text-orange-400',bg: 'bg-orange-500/15', dot: 'bg-orange-400', activeBg: 'bg-orange-600' },
 }
 
 // Inventory reflects the real state of the code (apps/web/src/app + apps/mobile/app).
@@ -132,18 +132,18 @@ export function FeatureExplorer() {
 
   return (
     <div>
-      <div className="mb-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-4 rounded-2xl border border-gray-100 bg-white px-6 py-5 shadow-sm">
+      <div className="mb-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-4 rounded-2xl border border-white/10 bg-white/5 px-6 py-5 shadow-sm backdrop-blur-sm">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-xs font-bold uppercase tracking-wide text-gray-400">Rol</span>
+          <span className="mr-1 text-xs font-bold uppercase tracking-wide text-gray-500">Rol</span>
           {(['all', 'admin', 'coach', 'client'] as Role[]).map((r) => {
             const active = role === r
-            const activeBg = r === 'all' ? 'bg-gray-900' : ROLE_META[r as 'admin' | 'coach' | 'client'].activeBg
+            const activeBg = r === 'all' ? 'bg-white text-gray-900' : `${ROLE_META[r as 'admin' | 'coach' | 'client'].activeBg} text-white`
             return (
               <button
                 key={r}
                 onClick={() => setRole(r)}
                 className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
-                  active ? `${activeBg} text-white` : 'border border-gray-200 text-gray-500 hover:text-gray-900'
+                  active ? activeBg : 'border border-white/15 text-gray-400 hover:border-white/30 hover:text-white'
                 }`}
               >
                 {r === 'all' ? 'Todos' : ROLE_META[r as 'admin' | 'coach' | 'client'].label}
@@ -152,13 +152,13 @@ export function FeatureExplorer() {
           })}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-xs font-bold uppercase tracking-wide text-gray-400">Plataforma</span>
+          <span className="mr-1 text-xs font-bold uppercase tracking-wide text-gray-500">Plataforma</span>
           {(['all', 'web', 'movil'] as Platform[]).map((p) => (
             <button
               key={p}
               onClick={() => setPlatform(p)}
               className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
-                platform === p ? 'bg-gray-900 text-white' : 'border border-gray-200 text-gray-500 hover:text-gray-900'
+                platform === p ? 'bg-white text-gray-900' : 'border border-white/15 text-gray-400 hover:border-white/30 hover:text-white'
               }`}
             >
               {p === 'all' ? 'Ambas' : p === 'web' ? 'Web' : 'Móvil'}
@@ -171,23 +171,23 @@ export function FeatureExplorer() {
         {visible.map((block, i) => {
           const meta = ROLE_META[block.role]
           return (
-            <div key={i} className="rounded-2xl border border-gray-100 bg-white p-7 shadow-sm">
+            <div key={i} className="rounded-2xl border border-white/10 bg-white/5 p-7 shadow-sm">
               <div className="mb-5 flex items-center gap-3">
                 <span className={`inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-xs font-extrabold ${meta.bg} ${meta.text}`}>
                   {meta.badge}
                 </span>
-                <h3 className="text-lg font-bold text-gray-900">{meta.label}</h3>
-                <span className="ml-auto rounded-md border border-gray-100 bg-gray-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                <h3 className="text-lg font-bold text-white">{meta.label}</h3>
+                <span className="ml-auto rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-500">
                   {block.platform === 'web' ? 'Web' : 'App'}
                 </span>
               </div>
               <ul className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
                 {block.features.map((f, j) => (
-                  <li key={j} className="relative pl-4 text-sm leading-relaxed text-gray-600">
+                  <li key={j} className="relative pl-4 text-sm leading-relaxed text-gray-400">
                     <span className={`absolute left-0 top-2 h-1.5 w-1.5 rounded-full ${meta.dot}`} />
-                    <b className="font-semibold text-gray-900">{f.title}</b> — {f.description}
+                    <b className="font-semibold text-white">{f.title}</b> — {f.description}
                     {f.note && (
-                      <span className="ml-1.5 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold text-indigo-600">{f.note}</span>
+                      <span className="ml-1.5 rounded bg-indigo-500/15 px-1.5 py-0.5 text-[10px] font-bold text-indigo-400">{f.note}</span>
                     )}
                   </li>
                 ))}

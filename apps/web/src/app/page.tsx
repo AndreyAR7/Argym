@@ -118,7 +118,7 @@ export default async function RootPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 font-sans">
+    <div className="min-h-screen bg-[#0a0a0f] text-gray-100 font-sans">
 
       {/* ── Nav ─────────────────────────────────────────────────────── */}
       <nav className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-5 md:px-16">
@@ -259,18 +259,18 @@ export default async function RootPage() {
       </section>
 
       {/* ── Stats bar ────────────────────────────────────────────────── */}
-      <section className="border-y border-gray-100 bg-gray-50 py-10">
+      <section className="border-y border-white/10 bg-white/[0.02] py-10">
         <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 px-6 sm:flex-row sm:justify-around">
           {stats.map(({ value, label, icon: Icon }) => (
             <div key={label} className="flex items-center gap-3 text-center sm:flex-col sm:text-center">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 sm:mb-1">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400 sm:mb-1">
                 <Icon size={18} />
               </div>
               <div>
-                <p className="text-4xl font-extrabold text-indigo-600">
+                <p className="text-4xl font-extrabold text-indigo-400">
                   <AnimatedCounter value={value} />
                 </p>
-                <p className="mt-1 text-sm font-medium text-gray-500">{label}</p>
+                <p className="mt-1 text-sm font-medium text-gray-400">{label}</p>
               </div>
             </div>
           ))}
@@ -280,10 +280,10 @@ export default async function RootPage() {
       {/* ── Features ─────────────────────────────────────────────────── */}
       <section className="mx-auto max-w-6xl px-6 py-24">
         <div className="mb-14 text-center">
-          <h2 className="text-3xl font-extrabold tracking-tight text-gray-900 md:text-4xl">
+          <h2 className="text-3xl font-extrabold tracking-tight text-white md:text-4xl">
             Todo lo que necesitas en un solo lugar
           </h2>
-          <p className="mt-4 text-gray-500 md:text-lg">
+          <p className="mt-4 text-gray-400 md:text-lg">
             Herramientas diseñadas para hacer crecer tu negocio de fitness
           </p>
         </div>
@@ -292,18 +292,18 @@ export default async function RootPage() {
           {features.map(({ icon: Icon, color, title, description }) => (
             <div
               key={title}
-              className="group rounded-xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-indigo-200 hover:shadow-md"
+              className="group rounded-xl border border-white/10 bg-white/5 p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-indigo-400/40 hover:bg-white/[0.08]"
             >
               <div
                 className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg transition-transform duration-300 group-hover:scale-110"
-                style={{ backgroundColor: color + '18', color }}
+                style={{ backgroundColor: color + '26', color }}
               >
                 <Icon size={22} />
               </div>
-              <h3 className="mb-2 text-base font-semibold text-gray-900">
+              <h3 className="mb-2 text-base font-semibold text-white">
                 {title}
               </h3>
-              <p className="text-sm leading-relaxed text-gray-500">
+              <p className="text-sm leading-relaxed text-gray-400">
                 {description}
               </p>
             </div>
@@ -314,11 +314,11 @@ export default async function RootPage() {
       {/* ── Feature explorer (by role + platform) ──────────────────────── */}
       <section id="funcionalidades" className="mx-auto max-w-6xl px-6 py-24">
         <div className="mb-14 text-center">
-          <p className="text-sm font-bold uppercase tracking-wide text-indigo-600">Explora por rol</p>
-          <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-gray-900 md:text-4xl">
+          <p className="text-sm font-bold uppercase tracking-wide text-indigo-400">Explora por rol</p>
+          <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-white md:text-4xl">
             Cada rol ve exactamente lo que necesita
           </h2>
-          <p className="mt-4 text-gray-500 md:text-lg">
+          <p className="mt-4 text-gray-400 md:text-lg">
             Filtra por rol o por plataforma para ver el alcance real de admin, coach y cliente — en web y en la app móvil.
           </p>
         </div>
@@ -326,14 +326,14 @@ export default async function RootPage() {
       </section>
 
       {/* ── Platform capabilities ───────────────────────────────────────── */}
-      <section className="border-y border-gray-100 bg-gray-50 px-6 py-24">
+      <section className="border-y border-white/10 bg-white/[0.02] px-6 py-24">
         <div className="mx-auto max-w-6xl">
           <div className="mb-14 text-center">
-            <p className="text-sm font-bold uppercase tracking-wide text-indigo-600">Lo que sostiene los tres roles</p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-gray-900 md:text-4xl">
+            <p className="text-sm font-bold uppercase tracking-wide text-indigo-400">Lo que sostiene los tres roles</p>
+            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-white md:text-4xl">
               Capacidades de plataforma
             </h2>
-            <p className="mt-4 text-gray-500 md:text-lg">
+            <p className="mt-4 text-gray-400 md:text-lg">
               Lo que convierte esto en un producto SaaS y no en una app de un solo gimnasio.
             </p>
           </div>
@@ -354,16 +354,16 @@ export default async function RootPage() {
             ].map((tile) => (
               <div
                 key={tile.n}
-                className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+                className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-sm transition hover:-translate-y-1 hover:border-white/20 hover:bg-white/[0.08]"
               >
                 <div
                   className="mb-3.5 inline-flex h-10 w-10 items-center justify-center rounded-lg text-xs font-extrabold"
-                  style={{ backgroundColor: tile.color + '22', color: tile.color }}
+                  style={{ backgroundColor: tile.color + '26', color: tile.color }}
                 >
                   {tile.n}
                 </div>
-                <h4 className="mb-1.5 text-[14.5px] font-bold text-gray-900">{tile.title}</h4>
-                <p className="text-[13px] leading-relaxed text-gray-500">{tile.body}</p>
+                <h4 className="mb-1.5 text-[14.5px] font-bold text-white">{tile.title}</h4>
+                <p className="text-[13px] leading-relaxed text-gray-400">{tile.body}</p>
               </div>
             ))}
           </div>
@@ -372,13 +372,13 @@ export default async function RootPage() {
 
       {/* ── Health-professional callout ─────────────────────────────────── */}
       <section className="mx-auto max-w-6xl px-6 pt-24">
-        <div className="flex flex-wrap items-start gap-5 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-blue-50 p-7">
-          <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-sm font-extrabold text-white">
+        <div className="flex flex-wrap items-start gap-5 rounded-2xl border border-emerald-400/25 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 p-7">
+          <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-sm font-extrabold text-white">
             Rx
           </span>
           <div>
-            <h3 className="mb-1.5 text-base font-bold text-gray-900">Pensado también para el criterio clínico</h3>
-            <p className="max-w-3xl text-sm leading-relaxed text-gray-600">
+            <h3 className="mb-1.5 text-base font-bold text-white">Pensado también para el criterio clínico</h3>
+            <p className="max-w-3xl text-sm leading-relaxed text-gray-400">
               Ficha médica y legal con respaldo ante lesiones, seguimiento real de progreso corporal, rutinas y
               nutrición filtradas por nivel del cliente, y gamificación que mejora la adherencia al plan — lo que
               un coach certificado o un profesional de la salud necesita para respaldar su trabajo, no solo cobrar
@@ -391,12 +391,12 @@ export default async function RootPage() {
       {/* ── Pricing ──────────────────────────────────────────────────────── */}
       <section id="precios" className="mx-auto max-w-6xl px-6 py-24">
         <div className="mb-4 text-center">
-          <p className="text-sm font-bold uppercase tracking-wide text-indigo-600">Mercado de Costa Rica · ₡ CRC</p>
-          <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-gray-900 md:text-4xl">Precios sugeridos</h2>
+          <p className="text-sm font-bold uppercase tracking-wide text-indigo-400">Mercado de Costa Rica · ₡ CRC</p>
+          <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-white md:text-4xl">Precios sugeridos</h2>
         </div>
-        <p className="mx-auto mb-14 max-w-2xl text-center text-gray-500 md:text-lg">
+        <p className="mx-auto mb-14 max-w-2xl text-center text-gray-400 md:text-lg">
           Referencia para un solo gimnasio con una o varias sedes. Todos los planes incluyen la app móvil y el
-          panel web para los tres roles. <b className="text-gray-900">+IVA (13%)</b>.
+          panel web para los tres roles. <b className="text-white">+IVA (13%)</b>.
         </p>
         <PricingCalculator />
       </section>
@@ -458,7 +458,7 @@ export default async function RootPage() {
       </section>
 
       {/* ── Footer ───────────────────────────────────────────────────── */}
-      <footer className="border-t border-gray-100 bg-white py-8 text-center text-sm text-gray-400">
+      <footer className="border-t border-white/10 bg-[#0a0a0f] py-8 text-center text-sm text-gray-500">
         <p>© {new Date().getFullYear()} ARGYM. Todos los derechos reservados.</p>
       </footer>
     </div>
