@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react'
 import { loginAction } from '@/lib/auth/actions'
+import { InstallShortcutButton } from '@/components/shared/install-shortcut-button'
 
 function GoogleIcon() {
   return (
@@ -155,6 +156,11 @@ function LoginFormFields({ slug }: { slug?: string }) {
           Regístrate
         </Link>
       </p>
+
+      {/* Home-screen shortcut — installs to /login so it opens like an app */}
+      <div className="mt-6 flex justify-center border-t border-[var(--color-border)] pt-6">
+        <InstallShortcutButton />
+      </div>
     </div>
   )
 }
